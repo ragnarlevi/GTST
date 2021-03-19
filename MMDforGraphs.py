@@ -122,7 +122,7 @@ if __name__ == "__main__":
     # Erdos Renyi graphs
 
     nr_nodes = [10, 25, 50, 75, 100, 200, 500, 1000, 2000]
-    nr_samples = [10] # [10, 25, 50, 75, 100, 150]
+    nr_samples = [5] # [10, 25, 50, 75, 100, 150]
     center_prob = 0.5
     # distance from center is the how far the two probabities are from the center_prob, 
     # if distance_from_center = 0 then the two populations are the same  
@@ -240,7 +240,7 @@ if __name__ == "__main__":
 
     	        # Save the dataframe such that if out-pf-memory or time-out happen we at least have some of the information.
                 start_time = datetime.now()
-                df.to_pickle("run_wl_oa_10samples.pkl")
+                df.to_pickle("data/run_wl_oa_5samples.pkl")
                 print("--- %s  Pickle ---" % (datetime.now() - start_time))
 
 
