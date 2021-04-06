@@ -11,11 +11,31 @@ import math
 from tqdm import tqdm
 #import time
 from datetime import datetime
+import os
+
+import SBM
+
+
+# def ConfusionCase(threshold:float, p_val:float, H0_true: bool):
+#     """
+#     Return the True negative = TN, True positive = TP, False negative = FN or False Positive = FP
+#     """
+#     if H0_true:
+#         if p_val < threshold:
+#             case = "FN"
+#         else:
+#             case = "TP"
+#     if H1_true:
+#         if p_val < threshold:
+#             case = "TN"
+#         else:
+#             case = "FP"
+
+#     return case
 
 
 
-
-# Maximum mean discrepancy biased
+# Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n: int, m: int):
 
     Kx = K[:n, :n]
@@ -25,7 +45,7 @@ def MMD_b(K: np.array, n: int, m: int):
     # important to write 1.0 and not 1 to make sure the outcome is a float!
     return 1.0 / (n ** 2) * Kx.sum() + 1.0 / (n * m) * Ky.sum() - 2.0 / (m ** 2) * Kxy.sum()
 
-# Maximum mean discrepancy unbiased
+# Unbiased empirical maximum mean discrepancy
 def MMD_u(K: np.array, n: int, m: int):
 
     Kx = K[:n, :n]
@@ -44,11 +64,46 @@ def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label: list):
     """
     :n Number of samples
     :nr_nodes number of nodes
+    :label list for node labelling
     :return: list of networkx graphs
     """
     Gs = []
     for i in range(n):
         G = nx.fast_gnp_random_graph(nr_nodes, p)
+        nx.set_node_attributes(G, label, 'label')
+        Gs.append(G)
+
+    return Gs
+
+def generateSBM(n:int, pi:list, P:list, label:list):
+    """
+    :n Number of samples
+    :pi probability of belonging to block, must sum to 1
+    :P Block probability matrix
+    :label list for node labelling
+    :return: list of networkx graphs
+    """
+
+    Gs = []
+    for i in range(n):
+        G = SBM.SBM(P, pi, n)
+        nx.set_node_attributes(G, label, 'label')
+        Gs.append(G)
+
+    return Gs
+
+def generateSBM2(n:int, sizes:list, P:list, label:list):
+    """
+    :n Number of samples
+    :sizes number of node in each block
+    :P Block probability matrix
+    :label list for node labelling
+    :return: list of networkx graphs
+    """
+
+    Gs = []
+    for i in range(n):
+        G = nx.stochastic_block_model(sizes, P, )
         nx.set_node_attributes(G, label, 'label')
         Gs.append(G)
 
@@ -71,9 +126,14 @@ def GraphTwoSample(n:int, m:int, type1: str, type2: str, **kwargs):
 
     if str.lower(type1) == "binomial":
         G1 = GenerateBinomialGraph(n = n, nr_nodes = kwargs["nr_nodes_1"], p = kwargs["p_edge_1"], label = kwargs["label_1"])
-    if str.lower(type1) == "binomial":
+    if str.lower(type2) == "binomial":
         G2 = GenerateBinomialGraph(n = m, nr_nodes = kwargs["nr_nodes_2"], p = kwargs["p_edge_2"], label = kwargs["label_2"])
-
+    
+    if str.lower(type1) == "sbm":
+        G1 = generateSBM(n,kwargs["sizes_1"], kwargs["P_1"], kwargs["label_1"])
+    if str.lower(type2) == "sbm":
+        G2 = generateSBM(m,kwargs["sizes_2"], kwargs["P_2"], kwargs["label_2"])
+   
     G1.extend(G2)
 
     return G1
@@ -118,15 +178,21 @@ def BootstrapPval(B:int, K:np.array, n:int, m:int, seed:int):
 
 
 if __name__ == "__main__":
+    print(os.getcwd())
 
     # Erdos Renyi graphs
 
-    nr_nodes = [10, 25, 50, 75, 100, 200, 500, 1000, 2000]
-    nr_samples = [5] # [10, 25, 50, 75, 100, 150]
-    center_prob = 0.5
+    base_node = 80
+
+    nr_nodes = [10, 25, 50, 75, 100, 200, 500]# 1000, 2000] # [1] [1,3,5,7, 10, 15,20, 50] #[10, 25, 50, 75, 100, 200, 500, 1000, 2000]
+    nr_samples = [10] # [10, 25, 50]#, 75, 100, 150]
+    center_prob = 0.05
+    # sizes = [30, 30, 40]
+    #P = [[0.25, 0.05, 0.02], [0.05, 0.35, 0.07], [0.02, 0.07, 0.40]]
+
     # distance from center is the how far the two probabities are from the center_prob, 
     # if distance_from_center = 0 then the two populations are the same  
-    distance_from_center = [0.0,0.005,0.01,0.015,0.02, 0.05]
+    distance_from_center = [0.0,0.005,0.01,0.015,0.02, 0.045]
 
     # alpha p-value rejection criterion
     alpha = 0.05
@@ -148,8 +214,8 @@ if __name__ == "__main__":
                 # print("Number of samples: " + str(n))
                 
                 # Set number of nodes for this instance
-                nr_nodes_1 = nr_node
-                nr_nodes_2 = nr_node
+                nr_nodes_1 = nr_node # base_node
+                nr_nodes_2 = nr_node #base_node + nr_node
 
                 # Set number of samples for this instance, assume same sample size
                 # n = n
@@ -158,10 +224,14 @@ if __name__ == "__main__":
                 # Set probability
                 p_edge_1 = center_prob + p_distance
                 p_edge_2 = center_prob - p_distance
+
+                # Set block probabilities
+                # P_2 = P
+                # P_2[2][2] = P_2[2][2] + p_distance
                 
                 # Set label (all nodes have same label, just required for some kernels)
-                label_1 = dict( ( (i, 'a') for i in range(nr_nodes_1) ) )
-                label_2 = dict( ( (i, 'a') for i in range(nr_nodes_2) ) )
+                label_1 = dict( ( (i, 'a') for i in range(np.sum(nr_nodes)) ) )
+                label_2 = dict( ( (i, 'a') for i in range(np.sum(nr_nodes)) ) )
 
                 # Generate a sample
                 # print("Creating sample ....")
@@ -183,6 +253,7 @@ if __name__ == "__main__":
                 mmd_u_samples = [1.0] * N
                 for sample in range(N):
 
+
                     Gs = GraphTwoSample(n = n, m = m, type1 ="binomial", type2 = "binomial", 
                                         nr_nodes_1 = nr_nodes_1, 
                                         nr_nodes_2 = nr_nodes_2, 
@@ -190,6 +261,15 @@ if __name__ == "__main__":
                                         p_edge_2 = p_edge_2, 
                                         label_1 =label_1, 
                                         label_2 = label_2)
+
+                
+                    # Gs =  GraphTwoSample(n = n, m = m, type1 ="sbm", type2 = "sbm",
+                    #                     sizes_1 = sizes,
+                    #                     P_1 = P,
+                    #                     sizes_2 = sizes,
+                    #                     P_2 = P_2,
+                    #                     label_1 =label_1, 
+                    #                     label_2 = label_2)
                 
 
                     # print("Creating graph list ....")
@@ -227,10 +307,10 @@ if __name__ == "__main__":
                                 'rejections_u': rejections_u,
                                 'rejections_statistic_b': rejection_statistic_b,
                                 'rejections_statistic_u': rejection_statistic_u,
-                                'nr_nodes_1':nr_nodes_1,
-                                'nr_nodes_2':nr_nodes_2,
-                                'p_edge_1':p_edge_1,
-                                'p_edge_2':p_edge_2,
+                                'nr_nodes_1': nr_nodes_1,
+                                'nr_nodes_2': nr_nodes_2,
+                                'p_edge_1': p_edge_1,
+                                'p_edge_2': p_edge_2,
                                 'n':n,
                                 'm':m,
                                 'timestap':time,
@@ -238,9 +318,11 @@ if __name__ == "__main__":
                                 'run_time':str((datetime.now() - total_time))}, 
                                 ignore_index=True)
 
-    	        # Save the dataframe such that if out-pf-memory or time-out happen we at least have some of the information.
+    	        # Save the dataframe such that if out-of-memory or time-out happen we at least have some of the information.
                 start_time = datetime.now()
-                df.to_pickle("data/run_wl_oa_5samples.pkl")
+                with open('data/run_wl_oa_10samples_p05.pkl', 'wb') as f:
+                    pickle.dump(df, f)
+                #df.to_pickle("data/run_wl_oa_10samples_different_n.pkl")
                 print("--- %s  Pickle ---" % (datetime.now() - start_time))
 
 
