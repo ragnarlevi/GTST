@@ -13,12 +13,14 @@ def SBM(P: np.array, pi:list, n:int):
     # create node list and corresponding community
     node_list = [(node, {'community':np.random.choice(community_list, p=pi)}) for node in range(n)]
     G.add_nodes_from(node_list)
+    assert len(G.nodes) == n
 
     # add edges
     nodes_community=nx.get_node_attributes(G,'community')
     for i in range(len(G.nodes)):
         for j in range(i, len(G.nodes)):
-
+            if i == j:
+                continue
             if np.random.uniform() <= P[nodes_community[i], nodes_community[j]]:
                 G.add_edge(i,j)
 

@@ -118,10 +118,10 @@ if __name__ == "__main__":
         for sample in range(N):
         
             # sample binomial graphs
-            #Gs = mg.generateSBM(n, pi, p1, label_1)
-            #G2 = mg.generateSBM(m, pi, p2, label_2)
-            Gs = mg.generateSBM2(n, sizes, p1, label_1)
-            G2 = mg.generateSBM2(n, sizes, p2, label_2)
+            Gs = mg.generateSBM(n, pi, p1, label_1, nr_nodes_1)
+            G2 = mg.generateSBM(m, pi, p2, label_2, nr_nodes_2)
+            # Gs = mg.generateSBM2(n, sizes, p1, label_1)
+            # G2 = mg.generateSBM2(m, sizes, p2, label_2)
             Gs.extend(G2)
 
             # Calculate basic  graph statistics

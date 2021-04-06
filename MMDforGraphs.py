@@ -75,7 +75,7 @@ def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label: list):
 
     return Gs
 
-def generateSBM(n:int, pi:list, P:list, label:list):
+def generateSBM(n:int, pi:list, P:list, label:list, nr_nodes:int):
     """
     :n Number of samples
     :pi probability of belonging to block, must sum to 1
@@ -86,7 +86,7 @@ def generateSBM(n:int, pi:list, P:list, label:list):
 
     Gs = []
     for i in range(n):
-        G = SBM.SBM(P, pi, n)
+        G = SBM.SBM(P, pi, nr_nodes)
         nx.set_node_attributes(G, label, 'label')
         Gs.append(G)
 
