@@ -13,6 +13,8 @@ from tqdm import tqdm
 from datetime import datetime
 import os
 
+from numba import njit
+
 import SBM
 
 
@@ -36,6 +38,7 @@ import SBM
 
 
 # Biased empirical maximum mean discrepancy
+@njit
 def MMD_b(K: np.array, n: int, m: int):
 
     Kx = K[:n, :n]
@@ -46,13 +49,87 @@ def MMD_b(K: np.array, n: int, m: int):
     return 1.0 / (n ** 2) * Kx.sum() + 1.0 / (n * m) * Ky.sum() - 2.0 / (m ** 2) * Kxy.sum()
 
 # Unbiased empirical maximum mean discrepancy
+@njit
 def MMD_u(K: np.array, n: int, m: int):
-
     Kx = K[:n, :n]
     Ky = K[n:, n:]
     Kxy = K[:n, n:]
     # important to write 1.0 and not 1 to make sure the outcome is a float!
-    return 1.0 / (n* (n - 1.0)) * (Kx.sum() - Kx.diagonal().sum()) + 1.0 / (m * (m - 1.0)) * (Ky.sum() - Ky.diagonal().sum()) - 2.0 / (n * m) * Kxy.sum()
+    return 1.0 / (n* (n - 1.0)) * (Kx.sum() - np.diag(Kx).sum()) + 1.0 / (m * (m - 1.0)) * (Ky.sum() - np.diag(Ky).sum()) - 2.0 / (n * m) * Kxy.sum()
+
+@njit
+def BootstrapPval(B:int, K:np.array, n:int, m:int, seed:int):
+    """
+    :B number of bootstraps
+    :K kernel array
+    :n number of samples from sample 1
+    :m number of samples from sample 2
+    :seed for reproducibility
+    """
+    # mmd biased value of sample
+    mmd_b_sample = MMD_b(K, n, m)
+    mmd_u_sample = MMD_u(K, n, m)
+
+    # mmd unbiased value of sample
+
+    # Calculate bootstrapped mmd
+    seeded_prng = np.random.seed(seed)
+    # list to store null distribution
+    mmd_b_null = np.zeros(B)
+    mmd_u_null = np.zeros(B)
+    K_i = np.empty(K.shape)
+
+    # Bootstrapp with replacement or without that is the question
+    p_b_value = 0
+    p_u_value = 0
+    for b in range(B):  
+        #index = rng.randint(low = 0, high = len(K)-1, size = n+m)
+        index = np.random.permutation(n+m)
+        #K_i = K[index, index[:, None]] #None sets new axix
+        for i in range(len(index)):
+            for j in range(len(index)):
+                K_i[i,j] = K[index[i], index[j]]
+        #    K_i[i,] = K[:, :]
+        # calculate mmd under the null
+        mmd_b_null[b] = MMD_b(K_i, n, m)
+        mmd_u_null[b] = MMD_u(K_i, n, m)
+
+
+    p_b_value =  (mmd_b_null > mmd_b_sample).sum()/float(B)
+    p_u_value =  (mmd_u_null > mmd_u_sample).sum()/float(B)
+
+    return p_b_value, p_u_value, mmd_b_null, mmd_u_null, mmd_b_sample, mmd_u_sample
+
+
+@njit
+def Boot_median(statistic: np.array, B:int, n:int, m:int, seed:int):
+
+    """
+    Permutate a list B times and calculate the median of index :n minus median of n:(n+n)
+    """
+    """
+    Permutate a list B times and calculate the median of index :n minus median of n:(n+n)
+    """
+    seeded_prng = np.random.seed(seed)
+    result = np.empty(B)
+
+    for boot in range(B):
+
+        index = np.random.permutation(n+m)
+
+        tmp1 = np.zeros(n)
+        tmp2 = np.zeros(m)
+
+        for i in range(n):
+            tmp1[i] = statistic[index[i]]
+        for i in range(m):
+            tmp2[i] = statistic[index[n+i]]
+
+        result[boot] = np.median(tmp1) - np.median(tmp2)
+        #result[boot] = np.median(statistic[index[:n]]) - np.median(statistic[index[n:(n+m)]])
+
+    return result
+
 
 # Kernel Matrix for graphs. Based on the grakel package
 def KernelMatrix(graph_list: list, kernel: dict, normalize:bool):
@@ -138,40 +215,6 @@ def GraphTwoSample(n:int, m:int, type1: str, type2: str, **kwargs):
 
     return G1
 
-def BootstrapPval(B:int, K:np.array, n:int, m:int, seed:int):
-    """
-    :B number of bootstraps
-    :K kernel array
-    :n number of samples from sample 1
-    :m number of samples from sample 2
-    :seed for reproducibility
-    """
-    # mmd biased value of sample
-    mmd_b_sample = MMD_b(K, n, m)
-    mmd_u_sample = MMD_u(K, n, m)
-
-    # mmd unbiased value of sample
-
-    # Calculate bootstrapped mmd
-    seed = 123 # for reproducibility
-    rng = np.random.RandomState(seed)
-    # list to store null distribution
-    mmd_b_null = np.zeros(B)
-    mmd_u_null = np.zeros(B)
-
-    # Bootstrapp with replacement or without that is the question
-    for i in range(B):  
-        #index = rng.randint(low = 0, high = len(K)-1, size = n+m)
-        index = rng.permutation(n+m)
-        K_i = K[index, index[:, None]] #None sets new axix
-        # calculate mmd under the null
-        mmd_b_null[i] = MMD_b(K_i, n, m)
-        mmd_u_null[i] = MMD_u(K_i, n, m)
-
-    p_b_value =  (mmd_b_null > mmd_b_sample).sum()/float(B)
-    p_u_value =  (mmd_u_null > mmd_u_sample).sum()/float(B)
-
-    return p_b_value, p_u_value, mmd_b_null, mmd_u_null, mmd_b_sample, mmd_u_sample
 
 
 

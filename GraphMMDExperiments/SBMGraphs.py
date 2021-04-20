@@ -40,6 +40,7 @@ if __name__ == "__main__":
     sizes = [20, 20 ,20]
     n = 10
     m = 10
+    
     Block_Matrix_1 = np.array([[0.15, 0.05, 0.05],
                               [0.05, 0.15, 0.05],
                               [0.05, 0.05, 0.15]])
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     alphas = np.linspace(0.025, 0.975, 39)
 
     # We create a 
-    lambas = np.linspace(0.0, 0.2, 9)
+    lambas = np.linspace(0.0, 0.5, 21)
     lambas = np.concatenate((lambas, [1]))
     # store time of run
     now = datetime.now()
@@ -125,40 +126,38 @@ if __name__ == "__main__":
             Gs.extend(G2)
 
             # Calculate basic  graph statistics
-            # median  average degree
-            avg_degree = np.median([ np.average(G.degree, axis=0)[1] for G in Gs[:n]]) - np.median([ np.average(G.degree, axis=0)[1] for G in Gs[n:(n+m)]])
+            # average degree
+            avg_degree_list = np.array(list(map(lambda x: np.average(x.degree, axis = 0)[1], Gs)))
+            avg_degree_sample = np.median(avg_degree_list[:n]) - np.median(avg_degree_list[n:(n+m)])
             # median of maximal degree
-            max_degree = np.median([ np.max(G.degree, axis=0)[1] for G in Gs[:n]]) - np.median([ np.max(G.degree, axis=0)[1] for G in Gs[n:(n+m)]])
-            # median average neighbour degree
-            avg_neigh_degree = np.median([np.average(list(nx.average_neighbor_degree(G).values())) for G in Gs[:n]]) - np.median([np.average(list(nx.average_neighbor_degree(G).values())) for G in Gs[n:(n+m)]])
+            max_degree_list = np.array(list(map(lambda x: np.max(x.degree, axis = 0)[1], Gs)))
+            max_degree_sample = np.median(max_degree_list[:n]) - np.median(max_degree_list[n:(n+m)])
+            # average neighbour degree
+            avg_neigh_degree_list = np.array(list(map(lambda x: np.average(list(nx.average_neighbor_degree(x).values())), Gs)))
+            avg_neigh_degree_sample = np.median(avg_neigh_degree_list[:n]) - np.median(avg_neigh_degree_list[n:(n+m)])
             # median of average clustering
-            avg_clustering = np.median([nx.average_clustering(G) for G in Gs[:n]]) - np.median([nx.average_clustering(G) for G in Gs[n:(n+m)]])
+            avg_clustering_list = np.array(list(map(lambda x: nx.average_clustering(x), Gs)))
+            avg_clustering_sample = np.median(avg_clustering_list[:n]) - np.median(avg_clustering_list[n:(n+m)])
             # median of transitivity
-            transitivity = np.median([nx.transitivity(G) for G in Gs[:n]]) - np.median([nx.transitivity(G) for G in Gs[n:(n+m)]])
+            transitivity_list = np.array(list(map(lambda x: nx.transitivity(x), Gs)))
+            transitivity_sample = np.median(transitivity_list[:n]) - np.median(transitivity_list[n:(n+m)])
 
-            test_statistic = {'avg_degree':[0] * B,
-                                    'max_degree':[0] * B,
-                                    'avg_neigh_degree':[0] * B,
-                                    'avg_clustering':[0] * B,
-                                    'transitivity':[0] * B}
+            test_statistic = dict()
 
             # Bootstrap basic graph statistics
-            rng = np.random.RandomState(123)
-            # for boot in range(B):
-            #     index = rng.permutation(n+m)
-            #     test_statistic['avg_degree'] = np.median([ np.average(Gs[i].degree, axis=0)[1] for i in index[:n]]) - np.median([ np.average(Gs[i].degree, axis=0)[1] for i in index[n:(n+m)]])
-            #     test_statistic['max_degree'] = np.median([ np.max(Gs[i].degree, axis=0)[1] for i in index[:n]]) - np.median([ np.max(Gs[i].degree, axis=0)[1] for i in index[n:(n+m)]])
-                # test_statistic['avg_neigh_degree'] = np.median([np.average(list(nx.average_neighbor_degree(Gs[i]).values())) for i in index[:n]]) -\
-                #      np.median([np.average(list(nx.average_neighbor_degree(Gs[i]).values())) for i in index[n:(n+m)]])
-                #test_statistic['avg_clustering'] = np.median([nx.average_clustering(Gs[i]) for i in index[:n]]) - np.median([nx.average_clustering(Gs[i]) for i in index[n:(n+m)]])
-                #test_statistic['transitivity'] = np.median([nx.transitivity(Gs[i]) for i in index[:n]]) - np.median([nx.transitivity(Gs[i]) for i in index[n:(n+m)]])
+            test_statistic['avg_degree'] = mg.Boot_median(avg_degree_list, B, n,m, 123)
+            test_statistic['max_degree'] = mg.Boot_median(max_degree_list, B, n,m, 123)
+            test_statistic['avg_neigh_degree'] = mg.Boot_median(avg_neigh_degree_list, B, n,m, 123)
+            test_statistic['avg_clustering'] = mg.Boot_median(avg_clustering_list, B, n,m, 123)
+            test_statistic['transitivity'] = mg.Boot_median(transitivity_list, B, n,m, 123)
             
             # calculate the p value for the test statistic
-            test_statistic_p_val['avg_degree'] = (test_statistic['avg_degree'] > avg_degree).sum()/float(B)
-            test_statistic_p_val['max_degree'] = (test_statistic['max_degree'] > max_degree).sum()/float(B)
-            test_statistic_p_val['avg_neigh_degree'] = (test_statistic['avg_neigh_degree'] > avg_neigh_degree).sum()/float(B)
-            test_statistic_p_val['avg_clustering'] = (test_statistic['avg_clustering'] > avg_clustering).sum()/float(B)
-            test_statistic_p_val['transitivity'] = (test_statistic['transitivity'] > transitivity).sum()/float(B)
+            test_statistic_p_val['avg_degree'][sample] = (test_statistic['avg_degree'] > avg_degree_sample).sum()/float(B)
+            test_statistic_p_val['max_degree'][sample] = (test_statistic['max_degree'] > max_degree_sample).sum()/float(B)
+            test_statistic_p_val['avg_neigh_degree'][sample] = (test_statistic['avg_neigh_degree'] > avg_neigh_degree_sample).sum()/float(B)
+            test_statistic_p_val['avg_clustering'][sample] = (test_statistic['avg_clustering'] > avg_clustering_sample).sum()/float(B)
+            test_statistic_p_val['transitivity'][sample] = (test_statistic['transitivity'] > transitivity_sample).sum()/float(B)
+
             # print("Creating graph list ....")
             graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
                             
@@ -194,8 +193,8 @@ if __name__ == "__main__":
 
             
 
-            tmp_b = mmd_b_samples < (math.sqrt(2*K.max()/n))*(1 + math.sqrt(2*math.log(1/alpha)))
-            tmp_u = mmd_b_samples < (4*K.max()/math.sqrt(n))*math.sqrt(math.log(1/alpha))   
+            tmp_b = np.sqrt(mmd_b_samples) < (math.sqrt(2*K.max()/n))*(1 + math.sqrt(2*math.log(1/alpha)))
+            tmp_u = np.sqrt(mmd_b_samples) < (4*K.max()/math.sqrt(n))*math.sqrt(math.log(1/alpha))   
 
             power_distfree_b = (N-np.sum(tmp_b))/float(N)
             power_distfree_u = (N-np.sum(tmp_u))/float(N)
