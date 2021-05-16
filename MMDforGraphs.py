@@ -18,25 +18,6 @@ from numba import njit
 import SBM
 
 
-# def ConfusionCase(threshold:float, p_val:float, H0_true: bool):
-#     """
-#     Return the True negative = TN, True positive = TP, False negative = FN or False Positive = FP
-#     """
-#     if H0_true:
-#         if p_val < threshold:
-#             case = "FN"
-#         else:
-#             case = "TP"
-#     if H1_true:
-#         if p_val < threshold:
-#             case = "TN"
-#         else:
-#             case = "FP"
-
-#     return case
-
-
-
 # Biased empirical maximum mean discrepancy
 @njit
 def MMD_b(K: np.array, n: int, m: int):
@@ -105,12 +86,9 @@ def BootstrapPval(B:int, K:np.array, n:int, m:int, seed:int):
 def Boot_median(statistic: np.array, B:int, n:int, m:int, seed:int):
 
     """
-    Permutate a list B times and calculate the median of index :n minus median of n:(n+n)
+    Permutate a list B times and calculate the median of index :n minus median of n:(n+m)
     """
-    """
-    Permutate a list B times and calculate the median of index :n minus median of n:(n+n)
-    """
-    seeded_prng = np.random.seed(seed)
+
     result = np.empty(B)
 
     for boot in range(B):
@@ -137,17 +115,21 @@ def KernelMatrix(graph_list: list, kernel: dict, normalize:bool):
     K = init_kernel.fit_transform(graph_list)
     return K
 
-def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label: list):
+def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label:list = None, attributes:list = None):
     """
     :n Number of samples
     :nr_nodes number of nodes
     :label list for node labelling
+    :param attributes: list for attributes
     :return: list of networkx graphs
     """
     Gs = []
     for i in range(n):
         G = nx.fast_gnp_random_graph(nr_nodes, p)
-        nx.set_node_attributes(G, label, 'label')
+        if not label is None:
+            nx.set_node_attributes(G, label, 'label')
+        if not label is None:
+            nx.set_node_attributes(G, attributes, 'attributes')
         Gs.append(G)
 
     return Gs
@@ -186,191 +168,99 @@ def generateSBM2(n:int, sizes:list, P:list, label:list):
 
     return Gs
 
-def GraphTwoSample(n:int, m:int, type1: str, type2: str, **kwargs):
-    """
-    Generate a list of two samples of Random Graphs. First n1 graphs belong to sample 1 and the next n2 graphs belong to sample 2
 
-    :n number of samples from population 1
-    :m number of samples from population 2
-    :type1 Population type 1
-    :Type2 Population type 2
-    :**kwargs extra arguments for population distributions
+
+def CalculateGraphStatistics(Gs, n,m):
+    """
+
+
+    :param Gs: list of networkx graphs
+    :param n: number of graphs in first sample
+    :param m: number of graphs in second sample
+    """
+
+
+
+    # average degree
+    avg_degree_list = np.array(list(map(lambda x: np.average(x.degree, axis = 0)[1], Gs)))
+    avg_degree_sample = np.median(avg_degree_list[:n]) - np.median(avg_degree_list[n:(n+m)])
+    # median degree
+    median_degree_list = np.array(list(map(lambda x: np.median(x.degree, axis = 0)[1], Gs)))
+    median_degree_sample = np.median(avg_degree_list[:n]) - np.median(avg_degree_list[n:(n+m)])
+    # median of maximal degree
+    max_degree_list = np.array(list(map(lambda x: np.max(x.degree, axis = 0)[1], Gs)))
+    max_degree_sample = np.median(max_degree_list[:n]) - np.median(max_degree_list[n:(n+m)])
+    # average neighbour degree
+    avg_neigh_degree_list = np.array(list(map(lambda x: np.average(list(nx.average_neighbor_degree(x).values())), Gs)))
+    avg_neigh_degree_sample = np.median(avg_neigh_degree_list[:n]) - np.median(avg_neigh_degree_list[n:(n+m)])
+    # median of average clustering
+    avg_clustering_list = np.array(list(map(lambda x: nx.average_clustering(x), Gs)))
+    avg_clustering_sample = np.median(avg_clustering_list[:n]) - np.median(avg_clustering_list[n:(n+m)])
+    # median of transitivity
+    transitivity_list = np.array(list(map(lambda x: nx.transitivity(x), Gs)))
+    transitivity_sample = np.median(transitivity_list[:n]) - np.median(transitivity_list[n:(n+m)])
+
+    test_statistic_sample = dict()
+    test_statistic_sample['avg_degree'] = avg_degree_sample
+    test_statistic_sample['median_degree'] = median_degree_sample
+    test_statistic_sample['max_degree'] = max_degree_sample
+    test_statistic_sample['avg_neigh_degree'] = avg_neigh_degree_sample
+    test_statistic_sample['avg_clustering'] = avg_clustering_sample
+    test_statistic_sample['transitivity'] = transitivity_sample
+
+    test_statistic_list = dict()
+    test_statistic_list['avg_degree'] = avg_degree_list
+    test_statistic_list['median_degree'] = median_degree_list
+    test_statistic_list['max_degree'] = max_degree_list
+    test_statistic_list['avg_neigh_degree'] = avg_neigh_degree_list
+    test_statistic_list['avg_clustering'] = avg_clustering_list
+    test_statistic_list['transitivity'] = transitivity_list
+
+
+
+    return test_statistic_list, test_statistic_sample
+
+
+
+def GenerateScaleFreeGraph(power:float, nr_nodes:int):
+    """
+    create a graph with degrees following a power law distribution
+    https://stackoverflow.com/questions/28920824/generate-a-scale-free-network-with-a-power-law-degree-distributions
+    """
+#create a graph with degrees following a power law distribution
+
+    # the outer loop makes sure that we have an even number of edges so that we can use the configuration model
+    while True: 
+        # s keeps the degree sequence
+        s=[]
+        while len(s)<nr_nodes:
+            nextval = int(nx.utils.powerlaw_sequence(1, power)[0]) #100 nodes, power-law exponent 2.5
+            if nextval!=0:
+                s.append(nextval)
+        if sum(s)%2 == 0:
+            break
+    G = nx.configuration_model(s)
+    G= nx.Graph(G) # remove parallel edges
+    G.remove_edges_from(nx.selfloop_edges(G))
+
+    return G
+
+def GenerateSamplesOfScaleFreeGraphs(n:int,nr_nodes:int,power:float, label:list = None, attributes:list = None):
+    """
+    :n Number of samples
+    :nr_nodes: number of nodes
+    :param power: power law parameter
+    :param label: list for node labelling
+    :param attributes: list for attributes
     :return: list of networkx graphs
     """
+    Gs = []
+    for i in range(n):
+        G = GenerateScaleFreeGraph(power, nr_nodes)
+        if not label is None:
+            nx.set_node_attributes(G, label, 'label')
+        if not label is None:
+            nx.set_node_attributes(G, attributes, 'attributes')
+        Gs.append(G)
 
-    # TODO make sperate function for if statements 
-    # TODO Find better naming method for kwargs
-
-    if str.lower(type1) == "binomial":
-        G1 = GenerateBinomialGraph(n = n, nr_nodes = kwargs["nr_nodes_1"], p = kwargs["p_edge_1"], label = kwargs["label_1"])
-    if str.lower(type2) == "binomial":
-        G2 = GenerateBinomialGraph(n = m, nr_nodes = kwargs["nr_nodes_2"], p = kwargs["p_edge_2"], label = kwargs["label_2"])
-    
-    if str.lower(type1) == "sbm":
-        G1 = generateSBM(n,kwargs["sizes_1"], kwargs["P_1"], kwargs["label_1"])
-    if str.lower(type2) == "sbm":
-        G2 = generateSBM(m,kwargs["sizes_2"], kwargs["P_2"], kwargs["label_2"])
-   
-    G1.extend(G2)
-
-    return G1
-
-
-
-
-
-
-if __name__ == "__main__":
-    print(os.getcwd())
-
-    # Erdos Renyi graphs
-
-    base_node = 80
-
-    nr_nodes = [10, 25, 50, 75, 100, 200, 500]# 1000, 2000] # [1] [1,3,5,7, 10, 15,20, 50] #[10, 25, 50, 75, 100, 200, 500, 1000, 2000]
-    nr_samples = [10] # [10, 25, 50]#, 75, 100, 150]
-    center_prob = 0.05
-    # sizes = [30, 30, 40]
-    #P = [[0.25, 0.05, 0.02], [0.05, 0.35, 0.07], [0.02, 0.07, 0.40]]
-
-    # distance from center is the how far the two probabities are from the center_prob, 
-    # if distance_from_center = 0 then the two populations are the same  
-    distance_from_center = [0.0,0.005,0.01,0.015,0.02, 0.045]
-
-    # alpha p-value rejection criterion
-    alpha = 0.05
-
-    # store time of run
-    now = datetime.now()
-    time = pd.Timestamp(now)
-
-    # Store outcome in a data
-    df = pd.DataFrame() #pd.read_pickle("runs.pkl")
-
-    for n in nr_samples:
-
-        for nr_node in tqdm(nr_nodes):
-
-            for p_distance in distance_from_center:
-
-                total_time = datetime.now()
-                # print("Number of samples: " + str(n))
-                
-                # Set number of nodes for this instance
-                nr_nodes_1 = nr_node # base_node
-                nr_nodes_2 = nr_node #base_node + nr_node
-
-                # Set number of samples for this instance, assume same sample size
-                # n = n
-                m = n
-
-                # Set probability
-                p_edge_1 = center_prob + p_distance
-                p_edge_2 = center_prob - p_distance
-
-                # Set block probabilities
-                # P_2 = P
-                # P_2[2][2] = P_2[2][2] + p_distance
-                
-                # Set label (all nodes have same label, just required for some kernels)
-                label_1 = dict( ( (i, 'a') for i in range(np.sum(nr_nodes)) ) )
-                label_2 = dict( ( (i, 'a') for i in range(np.sum(nr_nodes)) ) )
-
-                # Generate a sample
-                # print("Creating sample ....")
-                start_time = datetime.now()
-                
-                # Number of Bootstraps
-                B = 500
-
-                # Sample and bootstrap N times so that we can estimate the power.
-                N = 500
-                p_b_values = [1.0] * N
-                p_u_values = [1.0] * N
-                
-                # We also test the accept region based on uniform convergence bounds
-                accept_b = [1.0] * N
-                accept_u = [1.0] * N
-
-                mmd_b_samples = [1.0] * N
-                mmd_u_samples = [1.0] * N
-                for sample in range(N):
-
-
-                    Gs = GraphTwoSample(n = n, m = m, type1 ="binomial", type2 = "binomial", 
-                                        nr_nodes_1 = nr_nodes_1, 
-                                        nr_nodes_2 = nr_nodes_2, 
-                                        p_edge_1 = p_edge_1 , 
-                                        p_edge_2 = p_edge_2, 
-                                        label_1 =label_1, 
-                                        label_2 = label_2)
-
-                
-                    # Gs =  GraphTwoSample(n = n, m = m, type1 ="sbm", type2 = "sbm",
-                    #                     sizes_1 = sizes,
-                    #                     P_1 = P,
-                    #                     sizes_2 = sizes,
-                    #                     P_2 = P_2,
-                    #                     label_1 =label_1, 
-                    #                     label_2 = label_2)
-                
-
-                    # print("Creating graph list ....")
-                    graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
-                            
-                    # Fit a kernel
-                    kernel = [{"name": "WL-OA", "n_iter": 3}] 
-                    K = KernelMatrix(graph_list, kernel, True)
-
-                    # Calculate Bootstrap
-                    # B number of bootstraps
-                    p_b_value, p_u_value, mmd_b_null, mmd_u_null, mmd_b_sample, mmd_u_sample = BootstrapPval(B = B, K = K, n = n, m = m, seed = 123)
-
-                    p_b_values[sample] = p_b_value
-                    p_u_values[sample] = p_u_value
-                    
-                    accept_b[sample] = mmd_b_sample < (math.sqrt(2*K.max()/n))*(1 + math.sqrt(2*math.log(1/alpha)))
-                    accept_u[sample] = mmd_u_sample < (4*K.max()/math.sqrt(n))*math.sqrt(math.log(1/alpha))
-
-                    mmd_b_samples[sample] = mmd_b_sample
-                    mmd_u_samples[sample] = mmd_u_sample
-                
-                print("--- %s  Power estimation loop ---" % (datetime.now() - start_time))
-                
-                # Calculate fraction of rejections
-                rejections_b = (np.array(p_b_values) < alpha).sum()/float(N)                  
-                rejections_u = (np.array(p_u_values) < alpha).sum()/float(N)   
-
-                rejection_statistic_b = (N-np.sum(accept_b))/float(N)
-                rejection_statistic_u = (N-np.sum(accept_u))/float(N)
-
-                # Store the run information in a dataframe,
-                df = df.append({'kernel': 'shortest_path', 
-                                'rejections_b': rejections_b,
-                                'rejections_u': rejections_u,
-                                'rejections_statistic_b': rejection_statistic_b,
-                                'rejections_statistic_u': rejection_statistic_u,
-                                'nr_nodes_1': nr_nodes_1,
-                                'nr_nodes_2': nr_nodes_2,
-                                'p_edge_1': p_edge_1,
-                                'p_edge_2': p_edge_2,
-                                'n':n,
-                                'm':m,
-                                'timestap':time,
-                                'run_info':"B:" + str(B)+ ",N:" + str(N) + ",wl_itr:3",
-                                'run_time':str((datetime.now() - total_time))}, 
-                                ignore_index=True)
-
-    	        # Save the dataframe such that if out-of-memory or time-out happen we at least have some of the information.
-                start_time = datetime.now()
-                with open('data/run_wl_oa_10samples_p05.pkl', 'wb') as f:
-                    pickle.dump(df, f)
-                #df.to_pickle("data/run_wl_oa_10samples_different_n.pkl")
-                print("--- %s  Pickle ---" % (datetime.now() - start_time))
-
-
-
-
-
-
-
+    return Gs

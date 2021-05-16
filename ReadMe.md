@@ -8,4 +8,4 @@ The file [SBM](https://github.com/ragnarlevi/MMDGraph/blob/master/SBM.py) is a f
 
 The folder [data](https://github.com/ragnarlevi/MMDGraph/tree/master/data) contains simulation outputs
 
-TODO: simulate degree corrected SBM, implement Wasserstein Weisfeiler-Lehman Graph Kernels, 
+TODO: simulate degree corrected SBM, implement Wasserstein Weisfeiler-Lehman Graph Kernels,

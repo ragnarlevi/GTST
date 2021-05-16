@@ -66,33 +66,36 @@ if __name__ == "__main__":
     # Variables not parsed yet
     nr_nodes_same = True
     nr_samples_same = True
-    nr_nodes_1_list = [20, 30, 50, 100, 150, 200]
+    nr_nodes_1_list = [100, 150, 200]#20, 30, 50, 
     #nr_nodes_2 = 50
     n_list = [5, 10, 15, 20, 50, 100]
     #m = 10
     #center_prob = 0.05
-    average_degree = 2.0
+    power = 2.5
     # are nodes labelled?
-    labelling = True
+    labelling = False
     # are nodes attributed?
     attributed = False
-    assert labelling != attributed, "Graph with both labels and attributes not currently supported"
+    assert not (labelling is True and attributed is True), "Graph with both labels and attributes not currently supported"
     # set seed
     seed = 123
     
     # Kernel specification
     # kernel = [{"name": "WL", "n_iter": 4}]
+    # kernel = [{"name": "WL-OA", "n_iter": 5}]
     # kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "vertex_histogram"}]
     # kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "SP"}]
     # kernel = [{"name": "SP", "with_labels": True}]
-    #kernel = [{"name": "svm_theta"}]
-    kernel = [{"name": "pyramid_match", "with_labels":False}]
+    # kernel = [{"name": "svm_theta"}]
+    # kernel = [{"name": "pyramid_match", "with_labels":False}]
+
     # kernel = [{"name": "ML", "n_samples":20}]
+    kernel = [{"name": "GR", "k":4}]
 
     alphas = np.linspace(0.025, 0.975, 39)
 
     # Average degree that we add to the sample 2 on top of avg degree of sample 1
-    avg_degree_add = [0.01, 0.05, 0.1, 0.15, 0.2, 1, 2]
+    power_add = [0.01, 0.05, 0.1, 0.15, 0.2]
 
     # store time of run
     now = datetime.now()
@@ -117,11 +120,10 @@ if __name__ == "__main__":
                     print(n)
                     print(m)
 
-                    for sample_2_margin in tqdm(avg_degree_add):  
+                    for sample_2_margin in tqdm(power_add,position=0, leave=True):
+                        power_1 = power
+                        power_2 = power + sample_2_margin
                         
-                        # Set probability
-                        p_edge_1 = average_degree/float(nr_nodes_1-1)
-                        p_edge_2 = (average_degree + sample_2_margin)/float(nr_nodes_2-1)
                                 
                         # Set label (all nodes have same label, just required for some kernels)
                         if labelling:
@@ -133,12 +135,12 @@ if __name__ == "__main__":
                             attr_2 = dict( ( (i, [1]) for i in range(nr_nodes_2) ) )
 
                         # keep p values for the biased and unbiased cases       
-                        p_b_values = np.array([-1.0] * N)
-                        p_u_values = np.array([-1.0] * N)
+                        p_b_values = np.array([-99.0] * N)
+                        p_u_values = np.array([-99.0] * N)          
 
                         # keep mmd value for each sample, both biased and unbiased
-                        mmd_b_samples = np.array([-1.0] * N)
-                        mmd_u_samples = np.array([-1.0] * N)
+                        mmd_b_samples = np.array([-99.0] * N)
+                        mmd_u_samples = np.array([-99.0] * N)
 
                         # p value for each test statistic
                         test_statistic_p_val = {'avg_degree':[0] * N,
@@ -153,18 +155,18 @@ if __name__ == "__main__":
                         
                             # sample binomial graphs
                             if attributed:
-                                Gs = mg.GenerateBinomialGraph(n = n, nr_nodes = nr_nodes_1, p = p_edge_1, attributes=attr_1)
-                                G2 = mg.GenerateBinomialGraph(n = m, nr_nodes = nr_nodes_2, p = p_edge_2, attributes=attr_2)
+                                Gs = mg.GenerateSamplesOfScaleFreeGraphs(n = n, nr_nodes = nr_nodes_1, power = power_1, attributes=attr_1)
+                                G2 = mg.GenerateSamplesOfScaleFreeGraphs(n = m, nr_nodes = nr_nodes_2, power = power_2, attributes=attr_2)
                                 Gs.extend(G2)
                                 graph_list = gk.graph_from_networkx(Gs, node_labels_tag='attributes')
                             elif labelling:
-                                Gs = mg.GenerateBinomialGraph(n = n, nr_nodes = nr_nodes_1, p = p_edge_1, label = label_1)
-                                G2 = mg.GenerateBinomialGraph(n = m, nr_nodes = nr_nodes_2, p = p_edge_2, label = label_2)
+                                Gs = mg.GenerateSamplesOfScaleFreeGraphs(n = n, nr_nodes = nr_nodes_1, power = power_1, label = label_1)
+                                G2 = mg.GenerateSamplesOfScaleFreeGraphs(n = m, nr_nodes = nr_nodes_2, power = power_2, label = label_2)
                                 Gs.extend(G2)
                                 graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
                             else:
-                                Gs = mg.GenerateBinomialGraph(n = n, nr_nodes = nr_nodes_1, p = p_edge_1)
-                                G2 = mg.GenerateBinomialGraph(n = m, nr_nodes = nr_nodes_2, p = p_edge_2)
+                                Gs = mg.GenerateSamplesOfScaleFreeGraphs(n = n, nr_nodes = nr_nodes_1, power = power_1)
+                                G2 = mg.GenerateSamplesOfScaleFreeGraphs(n = m, nr_nodes = nr_nodes_2, power = power_2)
                                 Gs.extend(G2)
                                 graph_list = gk.graph_from_networkx(Gs)
 
@@ -192,10 +194,10 @@ if __name__ == "__main__":
                             
                                             
                             # Fit a kernel
-                            init_kernel = gk.GraphKernel(kernel= kernel, normalize=False)
-                            K = init_kernel.fit_transform(graph_list)
+                            K = mg.KernelMatrix(graph_list, kernel, False)
                             if np.all((K == 0)):
                                 warnings.warn("all element in K zero")
+
 
                             # Calculate Bootstrap
                             # B number of bootstraps
@@ -207,6 +209,12 @@ if __name__ == "__main__":
                             mmd_b_samples[sample] = mmd_b_sample
                             mmd_u_samples[sample] = mmd_u_sample
    
+                        # check if any element is still -1
+                        assert not np.any(p_b_values == -99.0)
+                        assert not np.any(p_u_values == -99.0)
+                        assert not np.any(mmd_b_samples == -99.0)
+                        assert not np.any(mmd_u_samples == -99.0)
+
                         # Calculate ROC curve
 
                         for alpha in alphas:
@@ -256,12 +264,9 @@ if __name__ == "__main__":
                                             'alpha':alpha,
                                             'nr_nodes_1': nr_nodes_1,
                                             'nr_nodes_2': nr_nodes_2,
-                                            'p_edge_1': p_edge_1,
-                                            'p_edge_2': p_edge_2,
-                                            'degree_1': average_degree ,
-                                            'degree_2':(average_degree + sample_2_margin),
-                                            'ratio_p': np.round(p_edge_2/p_edge_1,3),
-                                            'ratio_degree': np.round((average_degree + sample_2_margin)/average_degree,3),
+                                            'power_1': power_1,
+                                            'power_2': power_2,
+                                            'ratio_power': np.round(power_2/power_1,3),
                                             'n':n,
                                             'm':m,
                                             'timestap':time,

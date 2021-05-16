@@ -1,7 +1,10 @@
 import networkx as nx
 import numpy as np
+from numba import njit
 
 # Standard stochastic Block model
+
+
 def SBM(P: np.array, pi:list, n:int):
 
     assert np.sum(pi) > 0.9999
