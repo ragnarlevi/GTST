@@ -1,7 +1,10 @@
 
+from typing import Dict
 import networkx as nx
 import numpy as np
 import grakel as gk
+import warnings
+import operator
 import matplotlib
 import scipy
 import string
@@ -53,8 +56,6 @@ def BootstrapPval(B:int, K:np.array, n:int, m:int, seed:int):
 
     # mmd unbiased value of sample
 
-    # Calculate bootstrapped mmd
-    seeded_prng = np.random.seed(seed)
     # list to store null distribution
     mmd_b_null = np.zeros(B)
     mmd_u_null = np.zeros(B)
@@ -162,7 +163,7 @@ def generateSBM2(n:int, sizes:list, P:list, label:list):
 
     Gs = []
     for i in range(n):
-        G = nx.stochastic_block_model(sizes, P, )
+        G = nx.stochastic_block_model(sizes, P )
         nx.set_node_attributes(G, label, 'label')
         Gs.append(G)
 
@@ -178,8 +179,6 @@ def CalculateGraphStatistics(Gs, n,m):
     :param n: number of graphs in first sample
     :param m: number of graphs in second sample
     """
-
-
 
     # average degree
     avg_degree_list = np.array(list(map(lambda x: np.average(x.degree, axis = 0)[1], Gs)))
@@ -215,7 +214,6 @@ def CalculateGraphStatistics(Gs, n,m):
     test_statistic_list['avg_neigh_degree'] = avg_neigh_degree_list
     test_statistic_list['avg_clustering'] = avg_clustering_list
     test_statistic_list['transitivity'] = transitivity_list
-
 
 
     return test_statistic_list, test_statistic_sample
@@ -264,3 +262,286 @@ def GenerateSamplesOfScaleFreeGraphs(n:int,nr_nodes:int,power:float, label:list 
         Gs.append(G)
 
     return Gs
+
+
+class BoostrapMethods():
+    """
+    Various Bootstrap/Permutation Functions
+
+    Class for permutation testing
+    """
+
+    def __init__(self,K:np.array, list_of_functions:list, function_arguments:list) -> None:
+        """
+        :param K: Kernel matrix that we want to permutate
+        :param n: Number of elements in first sample
+        :param m: Number of elements in first sample
+        :param list_of_functions: List of functions that should be applied to the the permutated K matrix
+        :param function_arguments: List of dictionaries with inputs of for its respective function in list_of_functions,  excluding K. If no input set as None.
+        """
+
+        assert self.issymmetric(K), "K is not symmetric"
+        self.K = K
+        self.list_of_functions = list_of_functions
+        self.function_arguments = function_arguments
+
+    @staticmethod
+    def issymmetric(a, rtol=1e-05, atol=1e-08):
+        """
+        Check if matrix is symmetric
+        """
+        return np.allclose(a, a.T, rtol=rtol, atol=atol)
+
+    @staticmethod
+    @njit
+    def PermutationScheme(K) -> np.array:
+        """
+        :param K: Kernel Matrix
+        """
+
+        K_i = np.empty(K.shape)
+        index = np.random.permutation(K.shape[0])
+        for i in range(len(index)):
+            for j in range(len(index)):
+                K_i[i,j] = K[index[i], index[j]]
+
+        return K_i
+
+    def Bootstrap(self, B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
+        """
+        :param B: Number of Bootstraps
+        :param method: Which permutation method should be applied?
+        :param check_symmetry: Should the scheme check if the matrix is symmetirc, each time? Adds time complexity
+        """
+
+        # keep p-value result from each MMD function
+        p_value_dict = dict()
+
+        # get arguments of each function ready for evaluation
+        inputs = [None] * len(self.list_of_functions)
+        for i in range(len(self.list_of_functions)):
+            if self.function_arguments[i] is None:
+                continue
+            inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(self.function_arguments[i].items()))
+
+        # Get the evaluation method
+        evaluation_method = getattr(self, method)
+
+        # Calculate sample mmd statistic, and create a dictionary for bootstrapped statistics
+        sample_statistic = dict()
+        boot_statistic = dict()
+        for i in range(len(self.list_of_functions)):
+            # the key is the name of the MMD (test statistic) function
+            key = self.list_of_functions[i].__name__
+            # string that is used as an input to eval, the evaluation function
+            if self.function_arguments[i] is None:
+                eval_string = key + "(K =self.K" + ")"
+            else:
+                eval_string = key + "(K =self.K, " + inputs[i] + ")"
+
+            sample_statistic[key] = eval(eval_string)
+            boot_statistic[key] = np.zeros(B)
+
+
+
+        # Now Perform Bootstraping
+        for boot in range(B):
+            K_i = evaluation_method(self.K)
+            if check_symmetry:
+                if self.issymmetric(K_i):
+                    warnings.warn("Not a Symmetric matrix", Warning)
+
+            # apply each statistic, and keep the bootstraped/permutated value
+            for i in range(len(self.list_of_functions)):
+                eval_string = self.list_of_functions[i].__name__ + "(K =K_i, " + inputs[i] + ")"
+                boot_statistic[self.list_of_functions[i].__name__][boot] = eval(eval_string)
+                
+
+        # calculate p-value
+        for key in sample_statistic.keys():
+            p_value_dict[key] =  (boot_statistic[key] > sample_statistic[key]).sum()/float(B)
+
+
+        self.p_values = p_value_dict
+        self.sample_test_statistic = sample_statistic
+        self.boot_test_statistic = boot_statistic
+
+class BootstrapGraphStatistic():
+    """
+    class that bootstrap graph statistics
+
+    """
+
+    def __init__(self, G1:list, G2:list, list_of_functions:list ) -> None:
+        """
+        :param G1: list of networkx graphs, sample 1
+        :param G2: list of networkx graphs, sample 2
+        :param list_of_functions: List of functions that calculate graph statistics of a graph
+        """
+        self.G1 = G1
+        self.G2 = G2
+        # combine G1 and G2 into one list
+        self.Gs = G1 + G2
+        self.n1 = len(G1)
+        self.n2 = len(G2)
+        self.list_of_functions = list_of_functions
+
+
+    def Statistic(self, func):
+        """
+        calculate the sample statistic based on func, the median is used
+        """
+        statistics = np.array(list(map(lambda x: func(x), self.Gs)))
+        return np.median(statistics[:self.n1]) - np.median(statistics[self.n1:(self.n1+self.n2)]), statistics
+        
+
+    @staticmethod
+    def permutate_statistic(statistic, n1, n2) -> np.array:
+
+        index = np.random.permutation(n1 + n2)
+
+        return statistic[index]
+
+
+    def Bootstrap(self, B:int, method = "permutate_statistic"):
+
+        """
+        Permutate a list B times and calculate the median of index :n minus median of n:(n+m)
+
+        :param method: Method used to shuffle the statistics
+        """
+
+        # keep p-value result from each MMD function
+        p_value_dict = dict()
+
+
+        # Get the evaluation method
+        evaluation_method = getattr(self, method)
+
+        # Calculate sample mmd statistic, and create a dictionary for bootstrapped statistics
+        # the test statistic
+        sample_test_statistic = dict()
+        # the graph statistic value of each graph
+        graph_statistics = dict()
+        # bootstrapped test statistic
+        boot_test_statistic = dict()
+        # Shuffled boostrap_statistics
+        boot_graph_statistic = dict()
+        for i in range(len(self.list_of_functions)):
+            # the key is the name of the graph statistic function
+            key = self.list_of_functions[i].__name__
+
+            sample_test_statistic[key], graph_statistics[key] = self.Statistic(self.list_of_functions[i])
+            boot_test_statistic[key] = np.zeros(B)
+
+
+
+        # Now Perform Bootstraping for each graph statistic
+        for boot in range(B):
+            
+            for i in range(len(self.list_of_functions)):
+                key = self.list_of_functions[i].__name__
+                statistic_boot = evaluation_method(graph_statistics[key], self.n1, self.n2)
+                boot_test_statistic[key][boot] = np.median(statistic_boot[:self.n1]) - np.median(statistic_boot[self.n1:(self.n1+self.n2)])
+                
+
+        # calculate p-value, it is a two-tailed test
+        for key in sample_test_statistic.keys():
+            p_value_dict[key] =  2*np.min([(boot_test_statistic[key] > sample_test_statistic[key]).sum(),(boot_test_statistic[key] < sample_test_statistic[key]).sum()])/float(B)
+
+
+        self.p_values = p_value_dict
+        self.sample_test_statistic = sample_test_statistic
+        self.boot_test_statistic = boot_test_statistic
+
+
+def average_degree(G):
+    return np.average(G.degree, axis = 0)[1]
+def median_degree(G):
+    return np.float(np.median(G.degree, axis = 0)[1])
+def avg_neigh_degree(G):
+    return np.average(list(nx.average_neighbor_degree(G).values()))
+def avg_clustering(G):
+    return nx.average_clustering(G)
+def transitivity(G):
+    return nx.transitivity(G)
+
+
+
+if __name__ == "__main__":
+    time = datetime.now()
+    nr_nodes_1 = 100
+    nr_nodes_2 = 100
+    n = 60
+    m = 100
+
+    Block_Matrix_1 = np.array([[0.15, 0.05, 0.05],
+                            [0.05, 0.15, 0.05],
+                            [0.05, 0.05, 0.15]])
+
+    Block_Matrix_2 = np.array([[0.1, 0.1, 0.1],
+                            [0.1, 0.1, 0.1],
+                            [0.1, 0.1, 0.1]])
+
+    pi = [1/3] * 3
+
+
+
+    # Kernel specification
+    kernel = [{"name": "WL-OA", "n_iter": 3}]
+
+    
+
+            
+    # Set block probabilities
+    p1 = np.array(Block_Matrix_1)
+    l = 0.11
+
+    p2 = (1-l)*np.array(Block_Matrix_1) + l*np.array(Block_Matrix_2)
+
+    print(p1)
+    print(p2)
+
+            
+    # Set label (all nodes have same label, just required for some kernels)
+    label_1 = dict( ( (i, 'a') for i in range(nr_nodes_1) ) )
+    label_2 = dict( ( (i, 'a') for i in range(nr_nodes_2) ) )
+
+
+            
+    # sample binomial graphs
+    G1 = generateSBM(n, pi, p1, label_1, nr_nodes_1)
+    G2 = generateSBM(m, pi, p2, label_2, nr_nodes_2)
+    # Gs = mg.generateSBM2(n, sizes, p1, label_1)
+    # G2 = mg.generateSBM2(m, sizes, p2, label_2)
+    Gs = G1 + G2
+
+
+    graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
+    print(datetime.now() - time)           
+    # Fit a kernel
+    time = datetime.now()
+    K = KernelMatrix(graph_list, kernel, True)
+
+
+
+    list_of_functions = [MMD_b, MMD_u]
+    function_arguments=[dict(n = n, m = m ), dict(n = n, m = m )]
+
+    hypothesis = BoostrapMethods(K, list_of_functions, function_arguments)
+    hypothesis.Bootstrap(B = 1000)
+    print(hypothesis.p_values)
+    print(hypothesis.sample_test_statistic)
+
+
+
+    list_of_functions = [average_degree, median_degree, avg_neigh_degree, avg_clustering, transitivity]
+    hypothesis_graph_statistic = BootstrapGraphStatistic(G1,G2, list_of_functions)
+    hypothesis_graph_statistic.Bootstrap(B = 100)
+    print(hypothesis_graph_statistic.p_values)
+    print(hypothesis_graph_statistic.sample_test_statistic)
+    print(hypothesis_graph_statistic.boot_test_statistic)
+
+
+
+
