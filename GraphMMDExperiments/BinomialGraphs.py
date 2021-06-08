@@ -7,12 +7,8 @@
 import networkx as nx
 import numpy as np
 import grakel as gk # graph kernels module
-import matplotlib
-import scipy
-import string
 import pickle # save data frame (results) in a .pkl file
 import pandas as pd
-import math
 # from tqdm import * # Estimation of loop time
 from tqdm import tqdm as tqdm
 from datetime import datetime
