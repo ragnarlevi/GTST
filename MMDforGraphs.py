@@ -265,6 +265,7 @@ class BoostrapMethods():
         """
         :param list_of_functions: List of functions that should be applied to the the permutated K matrix
         """
+
         self.list_of_functions = list_of_functions
 
     @staticmethod
@@ -288,8 +289,8 @@ class BoostrapMethods():
                 K_i[i,j] = K[index[i], index[j]]
 
         return K_i
-
-    def Bootstrap(self, K:np.array, function_arguments:list, B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
+# K:np.array, function_arguments:list, 
+    def Bootstrap(self,K,function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
         """
         :param K: Kernel matrix that we want to permutate
         :param function_arguments: List of dictionaries with inputs of for its respective function in list_of_functions,  excluding K. If no input set as None.
@@ -297,7 +298,9 @@ class BoostrapMethods():
         :param method: Which permutation method should be applied?
         :param check_symmetry: Should the scheme check if the matrix is symmetirc, each time? Adds time complexity
         """
-        assert self.issymmetric(K), "K is not symmetric"
+        self.K = K
+        self.function_arguments = function_arguments
+        assert self.issymmetric(self.K), "K is not symmetric"
 
         # keep p-value result from each MMD function
         p_value_dict = dict()
@@ -306,9 +309,9 @@ class BoostrapMethods():
         # get arguments of each function ready for evaluation
         inputs = [None] * len(self.list_of_functions)
         for i in range(len(self.list_of_functions)):
-            if function_arguments[i] is None:
+            if self.function_arguments[i] is None:
                 continue
-            inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(function_arguments[i].items()))
+            inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(self.function_arguments[i].items()))
 
         # Get the evaluation method
         evaluation_method = getattr(self, method)
@@ -320,10 +323,10 @@ class BoostrapMethods():
             # the key is the name of the MMD (test statistic) function
             key = self.list_of_functions[i].__name__
             # string that is used as an input to eval, the evaluation function
-            if function_arguments[i] is None:
-                eval_string = key + "(K =K" + ")"
+            if self.function_arguments[i] is None:
+                eval_string = key + "(K =self.K" + ")"
             else:
-                eval_string = key + "(K =K, " + inputs[i] + ")"
+                eval_string = key + "(K =self.K, " + inputs[i] + ")"
 
             sample_statistic[key] = eval(eval_string)
             boot_statistic[key] = np.zeros(B)
@@ -332,7 +335,7 @@ class BoostrapMethods():
 
         # Now Perform Bootstraping
         for boot in range(B):
-            K_i = evaluation_method(K)
+            K_i = evaluation_method(self.K)
             if check_symmetry:
                 if self.issymmetric(K_i):
                     warnings.warn("Not a Symmetric matrix", Warning)
