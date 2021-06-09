@@ -261,19 +261,11 @@ class BoostrapMethods():
     Class for permutation testing
     """
 
-    def __init__(self,K:np.array, list_of_functions:list, function_arguments:list) -> None:
+    def __init__(self, list_of_functions:list) -> None:
         """
-        :param K: Kernel matrix that we want to permutate
-        :param n: Number of elements in first sample
-        :param m: Number of elements in first sample
         :param list_of_functions: List of functions that should be applied to the the permutated K matrix
-        :param function_arguments: List of dictionaries with inputs of for its respective function in list_of_functions,  excluding K. If no input set as None.
         """
-
-        assert self.issymmetric(K), "K is not symmetric"
-        self.K = K
         self.list_of_functions = list_of_functions
-        self.function_arguments = function_arguments
 
     @staticmethod
     def issymmetric(a, rtol=1e-05, atol=1e-08):
@@ -297,22 +289,26 @@ class BoostrapMethods():
 
         return K_i
 
-    def Bootstrap(self, B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
+    def Bootstrap(self, K:np.array, function_arguments:list, B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
         """
+        :param K: Kernel matrix that we want to permutate
+        :param function_arguments: List of dictionaries with inputs of for its respective function in list_of_functions,  excluding K. If no input set as None.
         :param B: Number of Bootstraps
         :param method: Which permutation method should be applied?
         :param check_symmetry: Should the scheme check if the matrix is symmetirc, each time? Adds time complexity
         """
+        assert self.issymmetric(K), "K is not symmetric"
 
         # keep p-value result from each MMD function
         p_value_dict = dict()
+        
 
         # get arguments of each function ready for evaluation
         inputs = [None] * len(self.list_of_functions)
         for i in range(len(self.list_of_functions)):
-            if self.function_arguments[i] is None:
+            if function_arguments[i] is None:
                 continue
-            inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(self.function_arguments[i].items()))
+            inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(function_arguments[i].items()))
 
         # Get the evaluation method
         evaluation_method = getattr(self, method)
@@ -324,10 +320,10 @@ class BoostrapMethods():
             # the key is the name of the MMD (test statistic) function
             key = self.list_of_functions[i].__name__
             # string that is used as an input to eval, the evaluation function
-            if self.function_arguments[i] is None:
-                eval_string = key + "(K =self.K" + ")"
+            if function_arguments[i] is None:
+                eval_string = key + "(K =K" + ")"
             else:
-                eval_string = key + "(K =self.K, " + inputs[i] + ")"
+                eval_string = key + "(K =K, " + inputs[i] + ")"
 
             sample_statistic[key] = eval(eval_string)
             boot_statistic[key] = np.zeros(B)
@@ -336,7 +332,7 @@ class BoostrapMethods():
 
         # Now Perform Bootstraping
         for boot in range(B):
-            K_i = evaluation_method(self.K)
+            K_i = evaluation_method(K)
             if check_symmetry:
                 if self.issymmetric(K_i):
                     warnings.warn("Not a Symmetric matrix", Warning)
@@ -518,19 +514,41 @@ if __name__ == "__main__":
     list_of_functions = [MMD_b, MMD_u]
     function_arguments=[dict(n = n, m = m ), dict(n = n, m = m )]
 
-    hypothesis = BoostrapMethods(K, list_of_functions, function_arguments)
-    hypothesis.Bootstrap(B = 1000)
-    print(hypothesis.p_values)
-    print(hypothesis.sample_test_statistic)
+    hypothesis = BoostrapMethods(list_of_functions)
+    time = datetime.now()
+    hypothesis.Bootstrap(K,function_arguments, B = 1000)
+    print(datetime.now() - time)
+
+    time = datetime.now()
+    hypothesis.Bootstrap(K,function_arguments, B = 1000)
+    print(datetime.now() - time)
+    # print(hypothesis.p_values)
+    # print(hypothesis.sample_test_statistic)
+
+        # sample binomial graphs
+    G1 = generateSBM(n, pi, p1, label_1, nr_nodes_1)
+    G2 = generateSBM(m, pi, p2, label_2, nr_nodes_2)
+    # Gs = mg.generateSBM2(n, sizes, p1, label_1)
+    # G2 = mg.generateSBM2(m, sizes, p2, label_2)
+    Gs = G1 + G2
+
+
+    graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')          
+    # Fit a kernel
+    K = KernelMatrix(graph_list, kernel, True)
+    
+    time = datetime.now()
+    hypothesis.Bootstrap(K,function_arguments, B = 1000)
+    print(datetime.now() - time)
 
 
 
-    list_of_functions = [average_degree, median_degree, avg_neigh_degree, avg_clustering, transitivity]
-    hypothesis_graph_statistic = BootstrapGraphStatistic(G1,G2, list_of_functions)
-    hypothesis_graph_statistic.Bootstrap(B = 100)
-    print(hypothesis_graph_statistic.p_values)
-    print(hypothesis_graph_statistic.sample_test_statistic)
-    print(hypothesis_graph_statistic.boot_test_statistic)
+    # list_of_functions = [average_degree, median_degree, avg_neigh_degree, avg_clustering, transitivity]
+    # hypothesis_graph_statistic = BootstrapGraphStatistic(G1,G2, list_of_functions)
+    # hypothesis_graph_statistic.Bootstrap(B = 100)
+    # print(hypothesis_graph_statistic.p_values)
+    # print(hypothesis_graph_statistic.sample_test_statistic)
+    # print(hypothesis_graph_statistic.boot_test_statistic)
 
 
 

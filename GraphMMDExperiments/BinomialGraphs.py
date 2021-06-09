@@ -98,6 +98,9 @@ if __name__ == "__main__":
 
     # functions used for kernel testing
     MMD_functions = [mg.MMD_b, mg.MMD_u]
+    # initialize bootstrap class, we only want this to be initalized once so that numba njit
+    # only gets compiled once (at first call)
+    kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
 
     # test specification
@@ -220,8 +223,7 @@ if __name__ == "__main__":
 
                             function_arguments=[dict(n = n, m = m ), dict(n = n, m = m )]
 
-                            kernel_hypothesis = mg.BoostrapMethods(K, MMD_functions, function_arguments)
-                            kernel_hypothesis.Bootstrap(B = B)
+                            kernel_hypothesis.Bootstrap(K,function_arguments, B = 1000)
                             for i in range(len(MMD_functions)):
                                 key = MMD_functions[i].__name__
                                 p_values[key][sample] = kernel_hypothesis.p_values[key]
