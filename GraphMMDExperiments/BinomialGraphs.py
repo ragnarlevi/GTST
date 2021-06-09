@@ -4,6 +4,7 @@
 
 
 
+from logging import warn, warning
 import networkx as nx
 import numpy as np
 import grakel as gk # graph kernels module
@@ -15,6 +16,7 @@ from datetime import datetime
 import os, sys
 import argparse
 import warnings
+import concurrent.futures
 
 # add perant dir to PYTHONPATH
 currentdir = os.path.dirname(os.path.realpath(__file__))
@@ -42,6 +44,7 @@ parser.add_argument('-l1', '--label1', type=str,metavar='', help='Label scheme o
 parser.add_argument('-l2', '--label2', type=str,metavar='', help='Label scheme of sample 2')
 parser.add_argument('-a1', '--attributes1', type=str,metavar='', help='Attribute scheme of sample 1')
 parser.add_argument('-a2', '--attributes2', type=str,metavar='', help='Attribute scheme of sample 2')
+parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
@@ -134,6 +137,57 @@ class BinomialGraphs():
         pass
 
 
+def iteration(N, kernel, normalize, graphStatistics, MMD_functions, Graph_Statistics_functions, bg, B, kernel_hypothesis):
+        # Keep p-values and the sample MMD test statistic               
+    p_values = dict()
+    mmd_samples = dict()
+    for i in range(len(MMD_functions)):
+        key = MMD_functions[i].__name__
+        p_values[key] = np.array([-1.0] * N)
+        mmd_samples[key] = np.array([-1.0] * N)
+
+    # Store the p-values for each test statistic for each test iteration
+    test_statistic_p_val = dict()
+    for i in range(len(Graph_Statistics_functions)):
+        key = Graph_Statistics_functions[i].__name__
+        test_statistic_p_val[key] = [0] * N
+
+    # Store K max for acceptance region
+    Kmax = np.array([0] * N)
+
+    for sample in range(N):
+    
+        # sample binomial graphs
+        bg.Generate()
+
+        # Calculate basic  graph statistics hypothesis testing
+        if graphStatistics:
+            hypothesis_graph_statistic = mg.BootstrapGraphStatistic(bg.G1, bg.G2, Graph_Statistics_functions)
+            hypothesis_graph_statistic.Bootstrap(B = B)
+            # match the corresponding p-value for this sample
+            for key in test_statistic_p_val.keys():
+                test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
+        
+        # Kernel hypothesis testing
+        # Fit a kernel
+        init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
+        K = init_kernel.fit_transform(bg.graph_list)
+        Kmax[sample] = K.max()
+        if np.all((K == 0)):
+            warnings.warn("all element in K zero")
+
+        function_arguments=[dict(n = bg.n1, m = bg.n2 ), dict(n = bg.n1, m = bg.n2 )]
+        
+        kernel_hypothesis.Bootstrap(K, function_arguments,B = 1000)
+        for i in range(len(MMD_functions)):
+            key = MMD_functions[i].__name__
+            p_values[key][sample] = kernel_hypothesis.p_values[key]
+            mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
+
+    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples, test_statistic_p_val = test_statistic_p_val)
+
+
+
 
 
 if __name__ == "__main__":
@@ -168,6 +222,7 @@ if __name__ == "__main__":
     a2 = args.attributes2
     k1 = args.AverageDegree1
     k2 = args.AverageDegree2
+    d = args.division
 
 
     # which graph statistics functions should we test?
@@ -204,7 +259,13 @@ if __name__ == "__main__":
     # Store outcome in a data
     df = pd.DataFrame()
 
-    # Keep p-values and the sample MMD test statistic               
+
+    # caclulate process partition
+    part = int(np.floor(N/d))
+    if N % d != 0:
+        N = part*d
+        warnings.warn(f"Number of samples not an integer multiply of number of processes. N set as the floor {N}")
+
     p_values = dict()
     mmd_samples = dict()
     for i in range(len(MMD_functions)):
@@ -218,34 +279,41 @@ if __name__ == "__main__":
         key = Graph_Statistics_functions[i].__name__
         test_statistic_p_val[key] = [0] * N
 
-    for sample in range(N):
-        total_time = datetime.now()
+    # Store K max for acceptance region
+    Kmax = np.array([0] * N)
+
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = [executor.submit(iteration, n , kernel, normalize, graphStatistics, MMD_functions, Graph_Statistics_functions, bg, B, kernel_hypothesis) for n in [part] * d]
+
+        cnt = 0
+        for f in concurrent.futures.as_completed(results):
+            
+            for k,v in f.result().items():
+                if k == "Kmax":
+                    Kmax[cnt:(cnt+part)] = v
+                elif k == 'p_values':
+                    for i in range(len(MMD_functions)):
+                        key = MMD_functions[i].__name__
+                        p_values[key][cnt:(cnt+part)] = v[key]
+                elif k == 'mmd_samples':
+                    for i in range(len(MMD_functions)):
+                        key = MMD_functions[i].__name__
+                        mmd_samples[key][cnt:(cnt+part)] = v[key]
+                elif k == 'test_statistic_p_val':
+                    for i in range(len(Graph_Statistics_functions)):
+                        key = Graph_Statistics_functions[i].__name__
+                        test_statistic_p_val[key][cnt:(cnt+part)] = v[key]
+
+            cnt += part
+
+    #out = iteration(N, kernel, normalize, graphStatistics)
+
+    for i in range(len(MMD_functions)):
+                        key = MMD_functions[i].__name__
+                        assert np.any(p_values[key] > 0), f"Some p value is negative for {key}"
+
     
-        # sample binomial graphs
-        bg.Generate()
-
-        # Calculate basic  graph statistics hypothesis testing
-        if graphStatistics:
-            hypothesis_graph_statistic = mg.BootstrapGraphStatistic(bg.G1, bg.G2, Graph_Statistics_functions)
-            hypothesis_graph_statistic.Bootstrap(B = B)
-            # match the corresponding p-value for this sample
-            for key in test_statistic_p_val.keys():
-                test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
-        
-        # Kernel hypothesis testing
-        # Fit a kernel
-        init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
-        K = init_kernel.fit_transform(bg.graph_list)
-        if np.all((K == 0)):
-            warnings.warn("all element in K zero")
-
-        function_arguments=[dict(n = n1, m = n2 ), dict(n = n1, m = n2 )]
-        
-        kernel_hypothesis.Bootstrap(K, function_arguments,B = 1000)
-        for i in range(len(MMD_functions)):
-            key = MMD_functions[i].__name__
-            p_values[key][sample] = kernel_hypothesis.p_values[key]
-            mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
 
 
     # Calculate ROC curve
@@ -261,10 +329,10 @@ if __name__ == "__main__":
             key = MMD_functions[i].__name__
             power_mmd[key] = (np.array(p_values[key]) < alpha).sum()/float(N)
             if key == 'MMD_u':
-                tmp = mmd_samples[key] < (4*K.max()/np.sqrt(float(n1)))*np.sqrt(np.log(1.0/alpha))
+                tmp = mmd_samples[key] < (4*Kmax/np.sqrt(float(n1)))*np.sqrt(np.log(1.0/alpha))
                 power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
             if key == 'MMD_b':
-                tmp = np.sqrt(mmd_samples[key]) < np.sqrt(2.0*float(K.max())/float(n1))*(1.0 + np.sqrt(2.0*np.log(1/alpha)))
+                tmp = np.sqrt(mmd_samples[key]) < np.sqrt(2.0*Kmax/float(n1))*(1.0 + np.sqrt(2.0*np.log(1/alpha)))
                 power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
 
         # power of "sufficient" statistics
@@ -290,7 +358,7 @@ if __name__ == "__main__":
                         'timestap':time,
                         'B':B,
                         'N':N,
-                        'run_time':str((datetime.now() - total_time))}, index = [0])
+                        'run_time':str((datetime.now() - now))}, index = [0])
         # Add power
         if len(power_graph_statistics) != 0:
             for k,v in power_graph_statistics.items():
