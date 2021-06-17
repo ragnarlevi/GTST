@@ -36,7 +36,7 @@ parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Giv
 parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
 parser.add_argument('-s', '--Gstats', type=int,metavar='', help='Should graph statistics be used to test')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
-parser.add_argument('-nItr', '--NumberIterations', type=int,metavar='', help='WL nr iterations')
+parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations')
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-nnode1', '--NrNodes1', type=int,metavar='', help='Number of nodes in each graph in sample 1')
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     
     # Kernel specification
     # kernel = [{"name": "WL", "n_iter": 4}]
-    kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "vertex_histogram"}]
+    kernel = [{"name": "weisfeiler_lehman", "n_iter": n_itr}, {"name": "vertex_histogram"}]
     # kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "SP"}]
     # kernel = [{"name": "SP", "with_labels": True}]
     # kernel = [{"name": "svm_theta"}]
