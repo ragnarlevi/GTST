@@ -115,7 +115,7 @@ def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label:list = None, attribu
     :return: list of networkx graphs
     """
     Gs = []
-    for i in range(n):
+    for _ in range(n):
         G = nx.fast_gnp_random_graph(nr_nodes, p)
         if not label is None:
             nx.set_node_attributes(G, label, 'label')
@@ -135,7 +135,7 @@ def generateSBM(n:int, pi:list, P:list, label:list, nr_nodes:int):
     """
 
     Gs = []
-    for i in range(n):
+    for _ in range(n):
         G = SBM.SBM(P, pi, nr_nodes)
         nx.set_node_attributes(G, label, 'label')
         Gs.append(G)
@@ -152,7 +152,7 @@ def generateSBM2(n:int, sizes:list, P:list, label:list):
     """
 
     Gs = []
-    for i in range(n):
+    for _ in range(n):
         G = nx.stochastic_block_model(sizes, P )
         nx.set_node_attributes(G, label, 'label')
         Gs.append(G)
@@ -289,7 +289,23 @@ class BoostrapMethods():
                 K_i[i,j] = K[index[i], index[j]]
 
         return K_i
-# K:np.array, function_arguments:list, 
+
+    @staticmethod
+    @njit
+    def BootstrapScheme(K) -> np.array:
+        """
+        :param K: Kernel Matrix
+        """
+
+        K_i = np.empty(K.shape)
+        index = np.random.choice(K.shape[0])
+        for i in range(len(index)):
+            for j in range(len(index)):
+                K_i[i,j] = K[index[i], index[j]]
+
+        return K_i
+
+
     def Bootstrap(self,K,function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
         """
         :param K: Kernel matrix that we want to permutate
@@ -414,8 +430,7 @@ class BootstrapGraphStatistic():
         graph_statistics = dict()
         # bootstrapped test statistic
         boot_test_statistic = dict()
-        # Shuffled boostrap_statistics
-        boot_graph_statistic = dict()
+
         for i in range(len(self.list_of_functions)):
             # the key is the name of the graph statistic function
             key = self.list_of_functions[i].__name__
@@ -457,102 +472,187 @@ def transitivity(G):
 
 
 
-if __name__ == "__main__":
-    time = datetime.now()
+class DegreeGraphs():
+    """
+    Wrapper for graph generator which are fully specified by degree
+    """
+
+    def __init__(self, n, nnode, k, l = None,  a = None, **kwargs) -> None:
+        """
+        :param kernel: Dictionary with kernel information
+        :param n: Number of samples
+        :param nnode: Number of nodes
+        :param k: Degree
+        :param l: Labelling scheme
+        :param a: Attribute scheme
+        :param **kwargs: Arguments for the labelling functions
+        :param path: save data path
+        """
+        self.n = n
+        self.nnode = nnode
+        self.k = k
+        assert not ( a != None and l != None), "Graphs can't have both attributes and labels"
+        self.l = l
+        self.a = a
+        self.kwargs = kwargs
+
+
+    def samelabels(self, G):
+        """
+        labelling Scheme. All nodes get same label
+
+        :param G: Networkx graph
+        """
+        return dict( ( (i, 'a') for i in range(len(G)) ) )
+
+    def degreelabels(self, G):
+        """
+        labelling Scheme. Nodes labelled with their degree
+
+        :param G: Networkx graph
+        :return: Dictionary
+        """
+
+        nodes_degree = dict(G.degree)
+        return {key: str(value) for key, value in nodes_degree.items()}
+
+    def rnglabels(self, G):
+        """
+        labelling Scheme. Nodes labelled accodring to a discrete pmf
+
+        :param G: Networkx graph
+        :param pmf: pmf as list. If None then uniform over all entries
+        :return: Dictionary
+        """
+        import string
+        assert not self.kwargs['nr_letters'] is None, "Number of letters (nr_letters) has to be specified"
+
+        # check if the pmf of labels has been given
+        if not 'pmf' in self.kwargs.keys():
+            pmf = None
+        else:
+            pmf = self.kwargs['pmf']
+
+        letters = list(string.ascii_lowercase[:self.kwargs['nr_letters']])
+        return dict( ( (i, np.random.choice(letters, p = pmf)) for i in range(len(G)) ) )
+
+
+class BinomialGraphs(DegreeGraphs):
+    """
+    Class that generates tvo samples of binomial graphs and compares them.
+    """
+    def __init__(self,  n, nnode, k, l = None,  a = None, **kwargs):
+        super().__init__( n, nnode, k, l ,  a, **kwargs )
+        self.p = k/float(nnode-1)
+
+    def Generate(self) -> None:
+        """
+        :return: list of networkx graphs
+        """
+        self.Gs = []
+        for _ in range(self.n):
+            G = nx.fast_gnp_random_graph(self.nnode, self.p)
+
+            if not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'label')
+            self.Gs.append(G)
+
+
+
+
+
+
+def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_functions, Graph_Statistics_functions, bg1, bg2, B:int, kernel_hypothesis):
+    """
+    Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
+
+    :param N: Number of samples
+    :param kernel: Dictionary with the kernel arguments
+    :param normalize: Should the kernel be normalized
+    :param graphStatistics: Should graph statistics be calculated and bootstrap
+    :param MMD_functions: List of functions do MMD hypothesis testing
+    :param Graph_Statistics_functions: list of functions that calculate some graph statistic
+    :param bg1: Class that generates sample 1
+    :param bg2: Class that generates sample 1
+    :param B: Number of bootstraps
+    :param kernel_hypothesis: The class that handes bootstrapping
+
+    :return Kmax: List that stores the maximum kernel value for each sample iteration
+    :return p_values: Dictionary that stores the p-value of each MMD tset according to the kernel_hypothesis bootstrap result
+    :return mmd_samples: Dictionary that stores the sample MMD value function for each function in the MMD_function list
+    :return test_statistic_p_val: Dictionary that stores the p-value of each Graph Statistic test according to the kernel_hypothesis bootstrap result
+    """
+        # Keep p-values and the sample MMD test statistic               
+    p_values = dict()
+    mmd_samples = dict()
+    for i in range(len(MMD_functions)):
+        key = MMD_functions[i].__name__
+        p_values[key] = np.array([-1.0] * N)
+        mmd_samples[key] = np.array([-1.0] * N)
+
+    # Store the p-values for each test statistic for each test iteration
+    test_statistic_p_val = dict()
+    for i in range(len(Graph_Statistics_functions)):
+        key = Graph_Statistics_functions[i].__name__
+        test_statistic_p_val[key] = [0] * N
+
+    # Store K max for acceptance region
+    Kmax = np.array([0] * N)
+
+    for sample in range(N):
+    
+        # sample binomial graphs
+        bg1.Generate()
+        bg2.Generate()
+        Gs = bg1.Gs + bg2.Gs
+        graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
+
+        # Calculate basic  graph statistics hypothesis testing
+        if graphStatistics:
+            hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)
+            hypothesis_graph_statistic.Bootstrap(B = B)
+            # match the corresponding p-value for this sample
+            for key in test_statistic_p_val.keys():
+                test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
+        
+        # Kernel hypothesis testing
+        # Fit a kernel
+        init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
+        K = init_kernel.fit_transform(graph_list)
+        Kmax[sample] = K.max()
+        if np.all((K == 0)):
+            warnings.warn("all element in K zero")
+
+        function_arguments=[dict(n = bg1.n, m = bg2.n ), dict(n = bg1.n, m = bg2.n )]
+        
+        kernel_hypothesis.Bootstrap(K, function_arguments, B = B)
+        for i in range(len(MMD_functions)):
+            key = MMD_functions[i].__name__
+            p_values[key][sample] = kernel_hypothesis.p_values[key]
+            mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
+
+    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples, test_statistic_p_val = test_statistic_p_val)
+
+
+
+
+
+if __name__ == '__main__':
     nr_nodes_1 = 100
     nr_nodes_2 = 100
-    n = 60
-    m = 100
+    n = 5
+    m = 5
 
-    Block_Matrix_1 = np.array([[0.15, 0.05, 0.05],
-                            [0.05, 0.15, 0.05],
-                            [0.05, 0.05, 0.15]])
-
-    Block_Matrix_2 = np.array([[0.1, 0.1, 0.1],
-                            [0.1, 0.1, 0.1],
-                            [0.1, 0.1, 0.1]])
-
-    pi = [1/3] * 3
+    average_degree = 6
+    print('what is up')
 
 
-
-    # Kernel specification
-    kernel = [{"name": "WL-OA", "n_iter": 3}]
-
-    
-
-            
-    # Set block probabilities
-    p1 = np.array(Block_Matrix_1)
-    l = 0.11
-
-    p2 = (1-l)*np.array(Block_Matrix_1) + l*np.array(Block_Matrix_2)
-
-    print(p1)
-    print(p2)
-
-            
-    # Set label (all nodes have same label, just required for some kernels)
-    label_1 = dict( ( (i, 'a') for i in range(nr_nodes_1) ) )
-    label_2 = dict( ( (i, 'a') for i in range(nr_nodes_2) ) )
-
-
-            
-    # sample binomial graphs
-    G1 = generateSBM(n, pi, p1, label_1, nr_nodes_1)
-    G2 = generateSBM(m, pi, p2, label_2, nr_nodes_2)
-    # Gs = mg.generateSBM2(n, sizes, p1, label_1)
-    # G2 = mg.generateSBM2(m, sizes, p2, label_2)
-    Gs = G1 + G2
-
-
-    graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
-    print(datetime.now() - time)           
-    # Fit a kernel
-    time = datetime.now()
-    K = KernelMatrix(graph_list, kernel, True)
-
-
-
-    list_of_functions = [MMD_b, MMD_u]
-    function_arguments=[dict(n = n, m = m ), dict(n = n, m = m )]
-
-    hypothesis = BoostrapMethods(list_of_functions)
-    time = datetime.now()
-    hypothesis.Bootstrap(K,function_arguments, B = 1000)
-    print(datetime.now() - time)
-
-    time = datetime.now()
-    hypothesis.Bootstrap(K,function_arguments, B = 1000)
-    print(datetime.now() - time)
-    # print(hypothesis.p_values)
-    # print(hypothesis.sample_test_statistic)
-
-        # sample binomial graphs
-    G1 = generateSBM(n, pi, p1, label_1, nr_nodes_1)
-    G2 = generateSBM(m, pi, p2, label_2, nr_nodes_2)
-    # Gs = mg.generateSBM2(n, sizes, p1, label_1)
-    # G2 = mg.generateSBM2(m, sizes, p2, label_2)
-    Gs = G1 + G2
-
-
-    graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')          
-    # Fit a kernel
-    K = KernelMatrix(graph_list, kernel, True)
-    
-    time = datetime.now()
-    hypothesis.Bootstrap(K,function_arguments, B = 1000)
-    print(datetime.now() - time)
-
-
-
-    # list_of_functions = [average_degree, median_degree, avg_neigh_degree, avg_clustering, transitivity]
-    # hypothesis_graph_statistic = BootstrapGraphStatistic(G1,G2, list_of_functions)
-    # hypothesis_graph_statistic.Bootstrap(B = 100)
-    # print(hypothesis_graph_statistic.p_values)
-    # print(hypothesis_graph_statistic.sample_test_statistic)
-    # print(hypothesis_graph_statistic.boot_test_statistic)
-
-
+    bg1 = BinomialGraphs(n, nr_nodes_1,average_degree, l = None)
 
 

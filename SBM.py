@@ -32,5 +32,11 @@ def SBM(P: np.array, pi:list, n:int):
 
 
 
+            
+
+
+
+
+
  
 
