@@ -83,7 +83,7 @@ if __name__ == "__main__":
     k1 = args.AverageDegree1
     k2 = args.AverageDegree2
     d = args.division
-    n_itr = args.NumberIterations
+    n_itr = args.NumberIterations   
 
 
     # which graph statistics functions should we test?
@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
-                        assert np.any(p_values[key] > 0), f"Some p value is negative for {key}"
+                        assert np.any(p_values[key] >= 0), f"Some p value is negative for {key}"
 
     
 
