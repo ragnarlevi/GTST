@@ -170,9 +170,12 @@ if __name__ == "__main__":
 
             cnt += part
 
+
     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
-                        assert np.any(p_values[key] >= 0), f"Some p value is negative for {key}"
+                        warnings.warn("Test warning") 
+                        if np.any(p_values[key] >= 0):
+                            warnings.warn(f"Some p value is negative for {key}") 
 
     
 
