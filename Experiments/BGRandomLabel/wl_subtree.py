@@ -224,6 +224,7 @@ if __name__ == "__main__":
                         'n':n1,
                         'm':n2,
                         'timestap':time,
+                        'pmf': str(pmf),
                         'B':B,
                         'N':N,
                         'run_time':str((datetime.now() - now))}, index = [0])
