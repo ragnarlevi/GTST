@@ -57,11 +57,11 @@ for nr_node in nr_nodes:
                 "module purge",
                 "RUNPATH=/home/rgudmundarson/projects/MMDGraph",
                 "cd $RUNPATH",
-                "source .venv/bin/activate",
+                "source .venv/bin/activate"
                 ]
                 
                 if tt.lower() == "bgdegreelabel":
-                    items.append(f"python3 Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -niter {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+                    items.append(f"python3 Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -nitr {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 
