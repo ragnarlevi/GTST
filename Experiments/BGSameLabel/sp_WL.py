@@ -83,7 +83,7 @@ if __name__ == "__main__":
     k1 = args.AverageDegree1
     k2 = args.AverageDegree2
     d = args.division
-    n_itr = args.NumberIterations   
+    n_itr = args.NumberIterations
 
 
     # which graph statistics functions should we test?
@@ -97,8 +97,8 @@ if __name__ == "__main__":
     kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
     # Initialize Graph generator class
-    bg1 = mg.BinomialGraphs(n1, nnode1, k1, l = 'degreelabels')
-    bg2 = mg.BinomialGraphs(n2, nnode2, k2, l = 'degreelabels')
+    bg1 = mg.BinomialGraphs(n1, nnode1, k1, l = 'samelabels')
+    bg2 = mg.BinomialGraphs(n2, nnode2, k2, l = 'samelabels')
 
     # Probability of type 1 error
     alphas = np.linspace(0.01, 0.99, 99)
@@ -111,8 +111,8 @@ if __name__ == "__main__":
     
     # Kernel specification
     # kernel = [{"name": "WL", "n_iter": 4}]
-    kernel = [{"name": "weisfeiler_lehman", "n_iter": n_itr}, {"name": "vertex_histogram"}]
-    # kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "SP"}]
+    # kernel = [{"name": "weisfeiler_lehman", "n_iter": n_itr}, {"name": "vertex_histogram"}]
+    kernel = [{"name": "weisfeiler_lehman", "n_iter": n_itr}, {"name": "SP", "with_labels": True}]
     # kernel = [{"name": "SP", "with_labels": True}]
     # kernel = [{"name": "svm_theta"}]
     # kernel = [{"name": "pyramid_match", "with_labels":False}]
@@ -169,7 +169,6 @@ if __name__ == "__main__":
                         test_statistic_p_val[key][cnt:(cnt+part)] = v[key]
 
             cnt += part
-
 
     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
@@ -238,5 +237,18 @@ if __name__ == "__main__":
             pickle.dump(df, f)
 
     #print(datetime.now() - now )
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

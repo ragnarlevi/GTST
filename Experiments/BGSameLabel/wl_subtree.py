@@ -172,8 +172,7 @@ if __name__ == "__main__":
 
     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
-                        warnings.warn("Test warning") 
-                        if np.any(p_values[key] >= 0):
+                        if np.any(p_values[key] < 0):
                             warnings.warn(f"Some p value is negative for {key}") 
 
     
