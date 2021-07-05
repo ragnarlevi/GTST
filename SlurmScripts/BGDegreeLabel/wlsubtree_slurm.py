@@ -41,28 +41,28 @@ for nr_node in nr_nodes:
                 if tt.lower() == "bgdegreelabel":
                     data_name = f'data/BGDegreeLabel/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.pkl'
                 
-                job_file = path + f"/wl_subtree_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
+                job_file = path + f"/wl_subtree_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
 
                 with open(job_file, 'w') as fh:
-                    fh.writelines("#!/bin/bash")
-                    fh.writelines(f"#SBATCH --time = 1:00:00")
-                    fh.writelines(f"#SBATCH --job-name=mmd_{tt}")
-                    fh.writelines(f"#SBATCH --partition=amd-shortq")
-                    fh.writelines(f"#SBATCH --nodes=1")
-                    fh.writelines(f"#SBATCH --ntasks-per-node=1")
-                    fh.writelines(f"#SBATCH --cpus-per-task={cpu_per_task}")
-                    fh.writelines(f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.out")
-                    fh.writelines(f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.err")
-                    fh.writelines(f"#SBATCH --mail-user=rlg2000@hw.ac.uk")
-                    fh.writelines(f"#SBATCH --mail-type=ALL")
+                    fh.writelines("#!/bin/bash \n")
+                    fh.writelines(f"#SBATCH --time = 1:00:00 \n")
+                    fh.writelines(f"#SBATCH --job-name=mmd_{tt} \n")
+                    fh.writelines(f"#SBATCH --partition=amd-shortq \n")
+                    fh.writelines(f"#SBATCH --nodes=1 \n")
+                    fh.writelines(f"#SBATCH --ntasks-per-node=1 \n")
+                    fh.writelines(f"#SBATCH --cpus-per-task={cpu_per_task} \n")
+                    fh.writelines(f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.out \n")
+                    fh.writelines(f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.err \n")
+                    fh.writelines(f"#SBATCH --mail-user=rlg2000@hw.ac.uk \n")
+                    fh.writelines(f"#SBATCH --mail-type=ALL \n")
 
-                    fh.writelines("module purge")
-                    fh.writelines("RUNPATH=/home/rgudmundarson/projects/MMDGraph")
-                    fh.writelines("cd $RUNPATH")
-                    fh.writelines("source .venv/bin/activate)")
+                    fh.writelines("module purge \n")
+                    fh.writelines("RUNPATH=/home/rgudmundarson/projects/MMDGraph \n")
+                    fh.writelines("cd $RUNPATH \n")
+                    fh.writelines("source .venv/bin/activate) \n")
 
                     if tt.lower() == "bgdegreelabel":
-                        fh.writelines(f"python 3 MMDGraph/Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -niter {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+                        fh.writelines(f"python 3 MMDGraph/Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -niter {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task} \n")
 
 
 
