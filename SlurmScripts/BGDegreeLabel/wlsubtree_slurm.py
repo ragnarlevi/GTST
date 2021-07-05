@@ -51,8 +51,8 @@ for nr_node in nr_nodes:
                     fh.writelines(f"#SBATCH --nodes=1")
                     fh.writelines(f"#SBATCH --ntasks-per-node=1")
                     fh.writelines(f"#SBATCH --cpus-per-task={cpu_per_task}")
-                    fh.writelines(f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment-%j.out")
-                    fh.writelines(f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment-%j.err")
+                    fh.writelines(f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.out")
+                    fh.writelines(f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.err")
                     fh.writelines(f"#SBATCH --mail-user=rlg2000@hw.ac.uk")
                     fh.writelines(f"#SBATCH --mail-type=ALL")
 
