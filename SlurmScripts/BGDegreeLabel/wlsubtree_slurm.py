@@ -45,7 +45,7 @@ for nr_node in nr_nodes:
                 
                 job_file = path + "/wl_subtree.slurm"
 
-                with open(job_file) as fh:
+                with open(job_file, 'w') as fh:
                     fh.writelines("#!/bin/bash")
                     fh.writelines(f"#SBATCH --time = 1:00:00")
                     fh.writelines(f"#SBATCH --job-name=mmd_{tt}")
