@@ -61,7 +61,7 @@ for nr_node in nr_nodes:
                 ]
                 
                 if tt.lower() == "bgdegreelabel":
-                    items.append(f"python 3 MMDGraph/Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -niter {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+                    items.append(f"python3 Experiments/BGDegreeLabel/wl_subtree.py -B 2000 -N 2000 -p {data_name} -s 1 -norm 1 -niter {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 
