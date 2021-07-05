@@ -5,7 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
-parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4)
+parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 
 args = parser.parse_args()
 
