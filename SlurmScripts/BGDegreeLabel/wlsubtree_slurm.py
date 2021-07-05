@@ -20,7 +20,7 @@ def mkdir_p(dir):
     
 
 if tt.lower() == "bgdegreelabel":
-    path = "~/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
+    path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
     mkdir_p(path)
 else:
     assert False, f'{tt} not implemented'
