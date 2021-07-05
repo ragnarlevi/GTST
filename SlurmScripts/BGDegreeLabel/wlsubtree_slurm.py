@@ -41,7 +41,7 @@ for nr_node in nr_nodes:
                 if tt.lower() == "bgdegreelabel":
                     data_name = f'data/BGDegreeLabel/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.pkl'
                 
-                job_file = path + f"/wl_subtree_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
+                job_file = path + f"/WLsubtree/v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
 
                 items = ["#!/bin/bash", 
                 f"#SBATCH --time=1:00:00",
