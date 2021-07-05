@@ -1,6 +1,7 @@
 #!~/projects/MMDGraph/.venv/bin/python3
 
 import os
+import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
@@ -25,11 +26,6 @@ else:
     assert False, f'{tt} not implemented'
 
 
-# Make top level directories
-mkdir_p(job_directory)
-mkdir_p(data_dir)
-
-lizards=["LizardA","LizardB"]
 
 nr_nodes = [40, 60, 80]
 nr_samples = [20, 30, 60, 100]
