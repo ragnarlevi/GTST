@@ -57,7 +57,7 @@ for nr_node in nr_nodes:
                 "module purge",
                 "RUNPATH=/home/rgudmundarson/projects/MMDGraph",
                 "cd $RUNPATH",
-                "source .venv/bin/activate)",
+                "source .venv/bin/activate",
                 ]
                 
                 if tt.lower() == "bgdegreelabel":
