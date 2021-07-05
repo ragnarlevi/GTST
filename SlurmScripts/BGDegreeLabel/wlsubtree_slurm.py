@@ -45,7 +45,7 @@ for nr_node in nr_nodes:
 
                 with open(job_file, 'w') as fh:
                     fh.writelines("#!/bin/bash \n")
-                    fh.writelines(f"#SBATCH --time = 1:00:00 \n")
+                    fh.writelines(f"#SBATCH --time=1:00:00 \n")
                     fh.writelines(f"#SBATCH --job-name=mmd_{tt} \n")
                     fh.writelines(f"#SBATCH --partition=amd-shortq \n")
                     fh.writelines(f"#SBATCH --nodes=1 \n")
