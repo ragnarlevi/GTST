@@ -7,6 +7,7 @@ import warnings
 from datetime import datetime
 
 from numba import njit
+import myKernels.DeepKernel as dk
 
 import SBM
 
@@ -462,7 +463,7 @@ class BootstrapGraphStatistic():
 def average_degree(G):
     return np.average(G.degree, axis = 0)[1]
 def median_degree(G):
-    return np.float(np.median(G.degree, axis = 0)[1])
+    return float(np.median(G.degree, axis = 0)[1])
 def avg_neigh_degree(G):
     return np.average(list(nx.average_neighbor_degree(G).values()))
 def avg_clustering(G):
@@ -477,7 +478,7 @@ class DegreeGraphs():
     Wrapper for graph generator which are fully specified by degree
     """
 
-    def __init__(self, n, nnode, k, l = None,  a = None, **kwargs) -> None:
+    def __init__(self, n, nnode, k, l = None,  a = None, fullyConnected = False, **kwargs) -> None:
         """
         :param kernel: Dictionary with kernel information
         :param n: Number of samples
@@ -491,10 +492,10 @@ class DegreeGraphs():
         self.n = n
         self.nnode = nnode
         self.k = k
-        assert not ( a != None and l != None), "Graphs can't have both attributes and labels"
         self.l = l
         self.a = a
         self.kwargs = kwargs
+        self.fullyConnected = fullyConnected
 
 
     def samelabels(self, G):
@@ -515,6 +516,18 @@ class DegreeGraphs():
 
         nodes_degree = dict(G.degree)
         return {key: str(value) for key, value in nodes_degree.items()}
+
+    def normattr(self, G):
+        """
+        labelling Scheme. Nodes labelled with their degree
+
+        :param G: Networkx graph
+        :return: Dictionary
+        """
+        loc = self.kwargs.get('loc', 0)
+        print(loc)
+        scale = self.kwargs.get('scale', 1)
+        return dict( ( (i, np.random.normal(loc = loc, scale = scale, size = (1,))) for i in range(len(G)) ) )
 
     def rnglabels(self, G):
         """
@@ -551,16 +564,29 @@ class BinomialGraphs(DegreeGraphs):
         """
         self.Gs = []
         for _ in range(self.n):
-            G = nx.fast_gnp_random_graph(self.nnode, self.p)
+            if self.fullyConnected:
+                while True:
+                    G = nx.fast_gnp_random_graph(self.nnode, self.p)
+                    if nx.is_connected(G):
+                        break
+            else:
+                G = nx.fast_gnp_random_graph(self.nnode, self.p)
 
-            if not self.l is None:
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
                 label = getattr(self, self.l)
                 label_dict = label(G)
                 nx.set_node_attributes(G, label_dict, 'label')
             elif not self.a is None:
                 attributes = getattr(self, self.a)
                 attribute_dict = attributes(G)
-                nx.set_node_attributes(G, attribute_dict, 'label')
+                nx.set_node_attributes(G, attribute_dict, 'attr')
             self.Gs.append(G)
 
 
@@ -568,7 +594,7 @@ class BinomialGraphs(DegreeGraphs):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_functions, Graph_Statistics_functions, bg1, bg2, B:int, kernel_hypothesis):
+def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_functions, Graph_Statistics_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel"):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
@@ -582,6 +608,7 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
     :param bg2: Class that generates sample 1
     :param B: Number of bootstraps
     :param kernel_hypothesis: The class that handes bootstrapping
+    :param kernel_library: which package or which own kernel: Grakel, deepkernel (own function), 
 
     :return Kmax: List that stores the maximum kernel value for each sample iteration
     :return p_values: Dictionary that stores the p-value of each MMD tset according to the kernel_hypothesis bootstrap result
@@ -623,8 +650,14 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
         
         # Kernel hypothesis testing
         # Fit a kernel
-        init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
-        K = init_kernel.fit_transform(graph_list)
+        if kernel_library == "Grakel":
+            init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
+            K = init_kernel.fit_transform(graph_list)
+        elif kernel_library == "mykernels":
+            init_kernel = dk.DK('wl')
+            K = init_kernel.fit_transform(Gs, kernel_type = kernel.get('kernel_type','word2vec'),  wl_it = kernel.get('wl_it',5), vector_size = kernel.get('vector_size',20), window = kernel.get('window',5), workers = kernel.get('workers',1))
+
+
         Kmax[sample] = K.max()
         if np.all((K == 0)):
             warnings.warn("all element in K zero")
@@ -638,8 +671,6 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
             mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
 
     return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples, test_statistic_p_val = test_statistic_p_val)
-
-
 
 
 
