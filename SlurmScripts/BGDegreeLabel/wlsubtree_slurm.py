@@ -1,5 +1,3 @@
-#!~/projects/MMDGraph/.venv/bin/python3
-
 import os
 import argparse
 
@@ -31,7 +29,7 @@ nr_nodes = [40, 60, 80]
 nr_samples = [20, 30, 60, 100]
 k = 4
 degree_offsets = [0.25, 0.5, 0.75, 1, 2]
-wl_iterations = [2,3,4,5,6,7,8]
+wl_iterations = [2]
 
 
 for nr_node in nr_nodes:
@@ -43,7 +41,7 @@ for nr_node in nr_nodes:
                 if tt.lower() == "bgdegreelabel":
                     data_name = f'data/BGDegreeLabel/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.pkl'
                 
-                job_file = path + "/wl_subtree.slurm"
+                job_file = path + f"/wl_subtree_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
 
                 with open(job_file, 'w') as fh:
                     fh.writelines("#!/bin/bash")
