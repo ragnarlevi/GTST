@@ -126,8 +126,12 @@ if __name__ == "__main__":
     part = int(np.floor(N/d))
     if N % d != 0:
         N = part*d
-        warnings.warn(f"Number of samples not an integer multiply of number of processes. N set as the floor {N}")
+        warnings.warn(f'Number of samples not an integer multiply of number of processes. N set as the floor {N}')
 
+    print(part)
+    print(N)
+    print(d)
+    
     p_values = dict()
     mmd_samples = dict()
     for i in range(len(MMD_functions)):
