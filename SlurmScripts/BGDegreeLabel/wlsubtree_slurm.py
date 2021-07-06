@@ -41,9 +41,9 @@ for nr_node in nr_nodes:
                  
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
             if tt.lower() == "bgdegreelabel":
-                data_name = f'data/BGDegreeLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.pkl'
+                data_name = f'data/BGDegreeLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.pkl'
             
-            job_file = path + f"/WLsubtree/v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.slurm"
+            job_file = path + f"/WLsubtree/v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.slurm"
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=3:00:00",
@@ -52,8 +52,8 @@ for nr_node in nr_nodes:
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
             f"#SBATCH --cpus-per-task={cpu_per_task}",
-            f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.out",
-            f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_{wl_it}.err",
+            f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.out",
+            f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.err",
             f"#SBATCH --mail-user=rlg2000@hw.ac.uk",
             f"#SBATCH --mail-type=ALL",
             "module purge",
