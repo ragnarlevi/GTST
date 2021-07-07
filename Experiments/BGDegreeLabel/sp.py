@@ -223,6 +223,7 @@ if __name__ == "__main__":
                         'timestap':time,
                         'B':B,
                         'N':N,
+                        'normalize':normalize,
                         'run_time':str((datetime.now() - now))}, index = [0])
         # Add power
         if len(power_graph_statistics) != 0:

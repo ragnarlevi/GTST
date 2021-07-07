@@ -24,6 +24,9 @@ def mkdir_p(dir):
 if tt.lower() == "bgdegreelabel":
     path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
     mkdir_p(path)
+elif tt.lower() == "bgsamelabels":
+    path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGSameLabel"
+    mkdir_p(path)
 else:
     assert False, f'{tt} not implemented'
 
@@ -42,6 +45,8 @@ for nr_node in nr_nodes:
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
             if tt.lower() == "bgdegreelabel":
                 data_name = f'data/BGDegreeLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.pkl'
+            elif tt.lower() == "bgsamelabels":
+                data_name = f'data/BGSameLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.pkl'
             
             job_file = path + f"/WLsubtree/v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.slurm"
 
@@ -64,6 +69,8 @@ for nr_node in nr_nodes:
             
             if tt.lower() == "bgdegreelabel":
                 items.append(f"python3 Experiments/BGDegreeLabel/wl_subtree.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -nitr {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+            elif tt.lower() == "bgsamelabel":
+                items.append(f"python3 Experiments/BGSameLabel/wl_subtree.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -nitr {wl_it} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 
