@@ -82,7 +82,6 @@ if __name__ == "__main__":
     k1 = args.AverageDegree1
     k2 = args.AverageDegree2
     d = args.division
-    n_itr = args.NumberIterations   
 
 
     # which graph statistics functions should we test?
