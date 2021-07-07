@@ -24,7 +24,7 @@ def mkdir_p(dir):
 if tt.lower() == "bgdegreelabel":
     path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
     mkdir_p(path)
-elif tt.lower() == "bgsamelabels":
+elif tt.lower() == "bgsamelabel":
     path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGSameLabel"
     mkdir_p(path)
 else:
@@ -45,7 +45,7 @@ for nr_node in nr_nodes:
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
             if tt.lower() == "bgdegreelabel":
                 data_name = f'data/BGDegreeLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.pkl'
-            elif tt.lower() == "bgsamelabels":
+            elif tt.lower() == "bgsamelabel":
                 data_name = f'data/BGSameLabel/WLsubtree/wl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.pkl'
             
             job_file = path + f"/WLsubtree/v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.slurm"
