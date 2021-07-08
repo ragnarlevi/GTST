@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     # Initialize Graph generator class
     bg1 = mg.BinomialGraphs(n1, nnode1, k1, l='rnglabels',
-                            pmf=None, nr_letters=len(pmf2))
+                            pmf=pmf1, nr_letters=len(pmf2))
     bg2 = mg.BinomialGraphs(n2, nnode2, k2, l='rnglabels',
                             pmf=pmf2, nr_letters=len(pmf2))
 

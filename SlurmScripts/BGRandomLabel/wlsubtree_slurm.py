@@ -28,7 +28,7 @@ nr_nodes = [40, 80]
 nr_samples = [20, 60]
 k = 4
 degree_offsets = [0, 0.25, 0.5]
-pmf_offsets = [0.1, 0,15, 0.2, 0.3]
+pmf_offsets = [0.1, 0.15, 0.2, 0.3]
 pmf1 = [0.3, 0.5, 0.2]
 
 
@@ -37,7 +37,7 @@ for nr_node in nr_nodes:
         for k_off in degree_offsets:
             for pmf_off in pmf_offsets:
 
-                pmf2 = pmf1
+                pmf2 = pmf1.copy()
                 pmf2[0] = pmf2[0]-pmf_off
                 pmf2[2] = pmf2[2]+pmf_off
                  
