@@ -541,6 +541,7 @@ class DegreeGraphs():
         """
         import string
         assert not self.kwargs['nr_letters'] is None, "Number of letters (nr_letters) has to be specified"
+        assert  np.sum(self.kwargs['pmf']) >0.999, "pmf has to sum to 1"
 
         # check if the pmf of labels has been given
         if not 'pmf' in self.kwargs.keys():

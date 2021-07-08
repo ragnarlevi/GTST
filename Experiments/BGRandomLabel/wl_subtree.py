@@ -16,6 +16,8 @@ import argparse
 import warnings
 import concurrent.futures
 
+from scipy.linalg.misc import norm
+
 # add perant dir
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -54,7 +56,9 @@ parser.add_argument('-k2', '--AverageDegree2', type=float,
                     metavar='', help='Average degree of each graph in sample 2')
 parser.add_argument('-d', '--division', type=int,
                     metavar='', help='How many processes')
-parser.add_argument('-pmf', '--pmf', type=float, nargs='+', metavar='',
+parser.add_argument('-pmf1', '--pmf1', type=float, nargs='+', metavar='',
+                    help='Probability mass distribution for label distribution for sample 1')
+parser.add_argument('-pmf2', '--pmf2', type=float, nargs='+', metavar='',
                     help='Probability mass distribution for label distribution for sample 2')
 
 
@@ -95,10 +99,11 @@ if __name__ == "__main__":
     k2 = args.AverageDegree2
     d = args.division
     n_itr = args.NumberIterations
-    pmf2 = args.pmf
+    pmf1 = args.pmf1
+    pmf2 = args.pmf2
+    print(f"pmf1 {pmf1}, pmf2 {pmf2}")
 
-    print("pmf")
-    print(pmf2)
+
 
     # which graph statistics functions should we test?
     Graph_Statistics_functions = [mg.average_degree, mg.median_degree,
@@ -228,6 +233,8 @@ if __name__ == "__main__":
 
         # Store the run information in a dataframe,
         tmp = pd.DataFrame({'kernel': str(kernel),
+                            'wl_itr':n_itr,
+                            'normalize':normalize,
                             'alpha': alpha,
                             'nr_nodes_1': nnode1,
                             'nr_nodes_2': nnode2,
@@ -240,8 +247,8 @@ if __name__ == "__main__":
                             'n': n1,
                             'm': n2,
                             'timestap': time,
-                            'pmf1': str(None),
-                            'pmf1': str(pmf2),
+                            'pmf1': str(pmf1),
+                            'pmf2': str(pmf2),
                             'B': B,
                             'N': N,
                             'run_time': str((datetime.now() - now))}, index=[0])
