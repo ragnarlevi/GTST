@@ -2,7 +2,6 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-i', '--wlitr',metavar='', type=int, help='Nr WL iterations')
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
@@ -21,8 +20,7 @@ def mkdir_p(dir):
         os.mkdir(dir)
     
 
-if tt.lower() == "bgrnglabel":
-    path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGRandomLabel"
+path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGRandomLabel"
 
 
 
