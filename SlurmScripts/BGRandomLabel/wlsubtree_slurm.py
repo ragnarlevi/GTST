@@ -8,7 +8,6 @@ parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize
 
 args = parser.parse_args()
 
-tt = args.testtype
 cpu_per_task = args.CpuPerTask
 wl_it = args.wlitr
 norm = args.normalize
