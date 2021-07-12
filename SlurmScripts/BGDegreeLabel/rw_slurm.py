@@ -47,7 +47,7 @@ for nr_node in nr_nodes:
             job_file = path + f"/RW/v_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}.slurm"
 
             items = ["#!/bin/bash", 
-            f"#SBATCH --time=6:00:00",
+            f"#SBATCH --time=10:00:00",
             f"#SBATCH --job-name=rw_mmd_{tt}_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
