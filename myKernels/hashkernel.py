@@ -9,8 +9,16 @@ from sklearn import preprocessing as pre
 
 import itertools as it
 import numpy as np
-import scipy.sparse.csr as csr
 import scipy.sparse.lil as lil
+import scipy as sp
+import os, sys
+
+
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+#parentdir = os.path.dirname(parentdir)
+sys.path.append(parentdir)
+import log_primes_list as log_pl
 
 # Code taken from https://github.com/chrsmrrs/hashgraphkernel
 # The code is adjusted
@@ -54,6 +62,20 @@ class HashKernel():
         _, indices = np.unique(labels, return_inverse=True)
 
         return indices
+
+    @staticmethod
+    def wl_coloring(M, colors, log_primes):
+
+        log_prime_colors = np.array([log_primes[i] for i in colors], dtype=np.float64)
+        colors = colors + M.dot(log_prime_colors)
+
+        # Round numbers to avoid numerical problems
+        colors = np.round(colors, decimals=10)
+
+        _, colors = np.unique(colors, return_inverse=True)
+
+        return colors
+
 
 
     def fit_transform(self, X):
@@ -181,21 +203,82 @@ class HashKernel():
         for i, index in enumerate(triple_indices):
             feature_vectors.append(np.bincount(colors[index[0]:index[1] + 1], minlength=m))
 
-
-        #if not compute_gram_matrix:
         return lil.lil_matrix(feature_vectors, dtype=np.float64) # each feature vector will be row
-        # else:
-        #     # Make feature vectors sparse
-        #     gram_matrix = csr.csr_matrix(feature_vectors, dtype=np.float64) # each feature vector will be row
-        #     # Compute gram matrix
-        #     gram_matrix = gram_matrix.dot(gram_matrix.T)
 
-        #     gram_matrix = gram_matrix.toarray()
 
-        #     if normalize_gram_matrix:
-        #         return normalize_gram_matrix(gram_matrix)
-        #     else:
-        #         return gram_matrix
+    def WL_kernel(self,graph_db, hashed_attributes, param):
+        label_name = param.get('label_name', None)
+        wl_iterations = param.get('wl_iterations')
+
+        # Create one empty feature vector for each graph
+        feature_vectors = []
+        for _ in graph_db:
+            feature_vectors.append(np.zeros(0, dtype=np.float64))
+
+        # Construct block diagonal matrix of all adjacency matrices
+        adjacency_matrices = []
+        for g in graph_db:
+            adjacency_matrices.append(np.array(nx.adjacency_matrix(g).todense()))
+        M = sp.sparse.block_diag(tuple(adjacency_matrices), dtype=np.float64, format="csr")
+        num_vertices = M.shape[0]
+        #print(num_vertices)
+
+        # Load list of precalculated logarithms of prime numbers
+        log_primes = log_pl.log_primes[0:num_vertices]
+
+        # Color vector representing labels
+        colors_0 = np.zeros(num_vertices, dtype=np.float64)
+        # Color vector representing hashed attributes
+        colors_1 = hashed_attributes
+
+        # Get labels (colors) from all graph instances
+        offset = 0
+        graph_indices = []
+
+
+        for g in graph_db:
+            if label_name:
+                for i, label in enumerate(nx.get_node_attributes(g,label_name).values()):
+                    colors_0[i + offset] = label
+
+            graph_indices.append((offset, offset + g.number_of_nodes() - 1))
+            offset += g.number_of_nodes()
+
+        # Map labels to [0, number_of_colors)
+        if label_name:
+            _, colors_0 = np.unique(colors_0, return_inverse=True)
+
+        for it in range(0, wl_iterations + 1):
+
+            if label_name:
+                # Map colors into a single color vector
+                colors_all = np.array([colors_0, colors_1])
+                colors_all = [hash(tuple(row)) for row in colors_all.T]
+                _, colors_all = np.unique(colors_all, return_inverse=True)
+                max_all = int(np.amax(colors_all) + 1)
+                # max_all = int(np.amax(colors_0) + 1)
+
+                feature_vectors = [
+                    np.concatenate((feature_vectors[i], np.bincount(colors_all[index[0]:index[1] + 1], minlength=max_all)))
+                    for i, index in enumerate(graph_indices)]
+
+                # Avoid coloring computation in last iteration
+                if it < wl_iterations:
+                    colors_0 = self.wl_coloring(M, colors_0, log_primes[0:len(colors_0)])
+                    colors_1 = self.wl_coloring(M, colors_1, log_primes[0:len(colors_1)])
+            else:
+                max_1 = int(np.amax(colors_1) + 1)
+
+                feature_vectors = [
+                    np.concatenate((feature_vectors[i], np.bincount(colors_1[index[0]:index[1] + 1], minlength=max_1))) for
+                    i, index in enumerate(graph_indices)]
+
+                # Avoid coloring computation in last iteration
+                if it < wl_iterations:
+                    colors_1 = self.wl_coloring(M, colors_1, log_primes[0:len(colors_1)])
+
+        return lil.lil_matrix(feature_vectors, dtype=np.float64) # each feature vector will be row
+
 
 if __name__ == "__main__":
     # add perant dir 
@@ -220,21 +303,29 @@ if __name__ == "__main__":
     bg1 = mg.BinomialGraphs(n, nr_nodes_1, average_degree, a = 'normattr', l = 'degreelabels' )
     bg1.Generate()
     #bg2 = mg.BinomialGraphs(n, nr_nodes_1, average_degree+3, a = 'normattr', l = 'degreelabels' )
-    bg2 = mg.BinomialGraphs(n, nr_nodes_1, average_degree, a = 'normattr', l = 'degreelabels', loc = 5 )
+    bg2 = mg.BinomialGraphs(n, nr_nodes_1, average_degree, a = 'normattr', l = 'degreelabels', loc = 0 )
     bg2.Generate()
 
     Gs = bg1.Gs + bg2.Gs
-    print(len(Gs))
+    #print(len(Gs))
     test = bg2.Gs[0]
-    print(test.nodes(True))
+    #print(test.nodes(True))
 
-    kernel = HashKernel(base_kernel = 'shortest_path_kernel', param = {'iterations':20,
-                                                                        'lsh_bin_width':0.1, 
-                                                                        'sigma':1,
-                                                                        'normalize':True,
-                                                                         'scale_attributes':True,
-                                                                         'attr_name': 'attr',
-                                                                         'label_name':'label'})
+    # kernel = HashKernel(base_kernel = 'shortest_path_kernel', param = {'iterations':20,
+    #                                                                     'lsh_bin_width':0.1, 
+    #                                                                     'sigma':1,
+    #                                                                     'normalize':True,
+    #                                                                      'scale_attributes':True,
+    #                                                                      'attr_name': 'attr',
+    #                                                                      'label_name':'label'})
+    kernel = HashKernel(base_kernel = 'WL_kernel', param = {'iterations':20,
+                                                            'lsh_bin_width':0.1, 
+                                                            'sigma':1,
+                                                            'normalize':True,
+                                                            'scale_attributes':True,
+                                                            'attr_name': 'attr',
+                                                            'label_name':'label',
+                                                            'wl_iterations':0})
     K = kernel.fit_transform(Gs)
     print(K)
 
