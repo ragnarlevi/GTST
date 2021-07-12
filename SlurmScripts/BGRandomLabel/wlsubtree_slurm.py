@@ -2,12 +2,16 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-u', '--username',metavar='', type=str, help='username')
+parser.add_argument('-e', '--email',metavar='', type=str, help='email')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-i', '--wlitr',metavar='', type=int, help='Nr WL iterations')
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
 
 args = parser.parse_args()
 
+usr = args.username
+email = args.email
 cpu_per_task = args.CpuPerTask
 wl_it = args.wlitr
 norm = args.normalize
@@ -56,7 +60,7 @@ for nr_node in nr_nodes:
                 f"#SBATCH --cpus-per-task={cpu_per_task}",
                 f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.out",
                 f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/name=mmd_experiment_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.err",
-                f"#SBATCH --mail-user=rlg2000@hw.ac.uk",
+                f"#SBATCH --mail-user={email}",
                 f"#SBATCH --mail-type=ALL",
                 "module purge",
                 "RUNPATH=/home/rgudmundarson/projects/MMDGraph",

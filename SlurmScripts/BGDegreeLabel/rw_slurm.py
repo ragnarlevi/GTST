@@ -2,6 +2,8 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-u', '--username',metavar='', type=str, help='username')
+parser.add_argument('-e', '--email',metavar='', type=str, help='email')
 parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
@@ -10,6 +12,8 @@ parser.add_argument('-l', '--discount', type=float,metavar='', help='RW lambda')
 
 args = parser.parse_args()
 
+usr = args.username
+email = args.email
 tt = args.testtype
 cpu_per_task = args.CpuPerTask
 norm = args.normalize
@@ -24,7 +28,7 @@ discount = args.discount
     
 
 
-path = "/home/rgudmundarson/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
+path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 #mkdir_p(path)
 
 
@@ -53,12 +57,12 @@ for nr_node in nr_nodes:
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
             f"#SBATCH --cpus-per-task={cpu_per_task}",
-            f"#SBATCH --output=/home/rgudmundarson/projects/MMDGraph/outputs/rw_v_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}.out",
-            f"#SBATCH --error=/home/rgudmundarson/projects/MMDGraph/errors/rw_v_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}.err",
-            f"#SBATCH --mail-user=rlg2000@hw.ac.uk",
+            f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/rw_v_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}.out",
+            f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/rw_v_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}.err",
+            f"#SBATCH --mail-user={email}",
             f"#SBATCH --mail-type=ALL",
             "module purge",
-            "RUNPATH=/home/rgudmundarson/projects/MMDGraph",
+            f"RUNPATH=/home/{usr}/projects/MMDGraph",
             "cd $RUNPATH",
             "source .venv/bin/activate"
             ]
