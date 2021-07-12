@@ -62,12 +62,13 @@ for nr_node in nr_nodes:
             f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/vh_v{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}.out",
             f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/vh_v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}.err",
             f"#SBATCH --mail-user={email}",
-            f"#SBATCH --mail-type=ALL",
+            f"#SBATCH --mail-type=FAIL",
             "module purge",
             f"RUNPATH=/home/{usr}/projects/MMDGraph",
             "cd $RUNPATH",
             "source .venv/bin/activate"
             ]
+
             
             if tt.lower() == "bgdegreelabel":
                 items.append(f"python3 Experiments/BGDegreeLabel/vh.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")

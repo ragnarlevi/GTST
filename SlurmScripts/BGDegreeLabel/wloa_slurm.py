@@ -64,7 +64,7 @@ for nr_node in nr_nodes:
             f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/wloa_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.out",
             f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/wloa_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.err",
             f"#SBATCH --mail-user={email}",
-            f"#SBATCH --mail-type=ALL",
+            f"#SBATCH --mail-type=FAIL",
             "module purge",
             f"RUNPATH=/home/{usr}/projects/MMDGraph",
             "cd $RUNPATH",
