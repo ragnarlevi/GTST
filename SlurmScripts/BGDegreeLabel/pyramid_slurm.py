@@ -18,7 +18,7 @@ tt = args.testtype
 cpu_per_task = args.CpuPerTask
 norm = args.normalize
 L = args.histogramlevel
-dim = args.dim
+dim = args.dimension
 
 
 # def mkdir_p(dir):
