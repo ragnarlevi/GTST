@@ -37,7 +37,7 @@ parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (includ
 parser.add_argument('-s', '--Gstats', type=int,metavar='', help='Should graph statistics be used to test')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
 parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
-parser.add_argument('-dim', '--dim ', type=float,metavar='', help='The dimension of the hypercube.')
+parser.add_argument('-dim', '--dim', type=float,metavar='', help='The dimension of the hypercube.')
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-nnode1', '--NrNodes1', type=int,metavar='', help='Number of nodes in each graph in sample 1')
