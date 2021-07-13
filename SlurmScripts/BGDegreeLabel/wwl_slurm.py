@@ -7,7 +7,7 @@ parser.add_argument('-e', '--email',metavar='', type=str, help='email')
 parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
-parser.add_argument('-discount', '--discount', type=int,metavar='', help='discount')
+parser.add_argument('-discount', '--discount', type=float,metavar='', help='discount')
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='Number of WL iterations')
 parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
 

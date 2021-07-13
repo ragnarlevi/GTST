@@ -36,7 +36,7 @@ parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Giv
 parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
 parser.add_argument('-s', '--Gstats', type=int,metavar='', help='Should graph statistics be used to test')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
-parser.add_argument('-discount', '--discount', type=int,metavar='', help='discount')
+parser.add_argument('-discount', '--discount', type=float,metavar='', help='discount')
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='Number of WL iterations')
 parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
