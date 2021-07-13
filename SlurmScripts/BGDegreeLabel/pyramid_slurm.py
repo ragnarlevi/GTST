@@ -8,7 +8,7 @@ parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of grap
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
 parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
-parser.add_argument('-dim', '--dimension ', type=float,metavar='', help='The dimension of the hypercube.')
+parser.add_argument('-dim', '--dim ', type=float,metavar='', help='The dimension of the hypercube.')
 
 args = parser.parse_args()
 
@@ -18,7 +18,7 @@ tt = args.testtype
 cpu_per_task = args.CpuPerTask
 norm = args.normalize
 L = args.histogramlevel
-dim = args.dimension
+dim = args.dim
 
 
 # def mkdir_p(dir):
