@@ -36,8 +36,8 @@ else:
 
 
 
-nr_nodes = [40, 60, 80]
-nr_samples = [20, 60, 100]
+nr_nodes = [80]
+nr_samples = [100]
 k = 4
 degree_offsets = [0.25, 0.5, 0.75, 1]
 
@@ -55,7 +55,7 @@ for nr_node in nr_nodes:
             job_file = path + f"/WLOA/v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}.slurm"
 
             items = ["#!/bin/bash", 
-            f"#SBATCH --time=3:00:00",
+            f"#SBATCH --time=5:00:00",
             f"#SBATCH --job-name=wloa_{tt}_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{wl_it}_norm_{norm}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
