@@ -8,7 +8,7 @@ parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of grap
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
 parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
-parser.add_argument('-dim', '--dim ', type=float,metavar='', help='The dimension of the hypercube.')
+parser.add_argument('-dim', '--dim', type=int,metavar='', help='The dimension of the hypercube.')
 
 args = parser.parse_args()
 
