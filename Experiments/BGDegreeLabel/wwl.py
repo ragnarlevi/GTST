@@ -147,9 +147,9 @@ if __name__ == "__main__":
     # Store K max for acceptance region
     Kmax = np.array([0] * N)
 
-
+    kernel_library = "wwl"
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(mg.iteration, n , kernel, normalize, graphStatistics, MMD_functions, Graph_Statistics_functions, bg1,bg2, B, kernel_hypothesis) for n in [part] * d]
+        results = [executor.submit(mg.iteration, n , kernel, normalize, graphStatistics, MMD_functions, Graph_Statistics_functions, bg1,bg2, B, kernel_hypothesis, kernel_library) for n in [part] * d]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0

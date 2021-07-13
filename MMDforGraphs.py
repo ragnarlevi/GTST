@@ -10,7 +10,8 @@ from datetime import datetime
 
 from numba import njit
 import myKernels.DeepKernel as dk
-from myKernels import WWL
+import myKernels.WWL as wl
+#from myKernels import WWL
 import myKernels.hashkernel as hk
 
 import SBM
@@ -662,7 +663,7 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
             init_kernel = dk.DK('wl')
             K = init_kernel.fit_transform(Gs, kernel_type = kernel.get('kernel_type','word2vec'),  wl_it = kernel.get('wl_it',5), vector_size = kernel.get('vector_size',20), window = kernel.get('window',5), workers = kernel.get('workers',1))
         elif kernel_library == "wwl":
-            kernel = WWL(param = {'discount':0.1,'h':8, 'sinkhorn':False })
+            kernel = wl.WWL(param = {'discount':0.1,'h':8, 'sinkhorn':False })
             K = kernel.fit_transform(Gs)
         else:
             raise ValueError(f"{kernel_library} not defined")
