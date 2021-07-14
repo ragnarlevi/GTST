@@ -37,7 +37,7 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 
 
 nr_nodes = [20, 60, 80]
-nr_samples = [40, 60, 100]
+nr_samples = [10, 20, 40, 60, 100]
 k = 4
 degree_offsets = [0.25, 0.5, 0.75, 1]
 
@@ -70,7 +70,7 @@ for nr_node in nr_nodes:
             ]
             
             if tt.lower() == "bgdegreelabel":
-                items.append(f"python3 Experiments/BGDegreeLabel/prop.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -tmax {t_max} -w {w} -M {M} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+                items.append(f"python3 Experiments/BGDegreeLabel/prop.py -B 3000 -N 3000 -p {data_name} -s 1 -norm {norm} -tmax {t_max} -w {w} -M {M} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 

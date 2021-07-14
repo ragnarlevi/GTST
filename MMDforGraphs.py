@@ -122,7 +122,7 @@ def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label:list = None, attribu
     """
     Gs = []
     for _ in range(n):
-        G = nx.fast_gnp_random_graph(nr_nodes, p)
+        G = nx.fast_gnp_random_graph(nr_nodes, p, seed = 42)
         if not label is None:
             nx.set_node_attributes(G, label, 'label')
         if not label is None:
@@ -572,11 +572,11 @@ class BinomialGraphs(DegreeGraphs):
         for _ in range(self.n):
             if self.fullyConnected:
                 while True:
-                    G = nx.fast_gnp_random_graph(self.nnode, self.p)
+                    G = nx.fast_gnp_random_graph(self.nnode, self.p, seed = 42)
                     if nx.is_connected(G):
                         break
             else:
-                G = nx.fast_gnp_random_graph(self.nnode, self.p)
+                G = nx.fast_gnp_random_graph(self.nnode, self.p, seed = 42)
 
             if (not self.l is None) and (not self.a is None):
                 label = getattr(self, self.l)

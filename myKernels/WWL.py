@@ -33,14 +33,16 @@ class WeisfeilerLehman():
         self._last_new_label += 1
         return self._last_new_label
 
-    def _relabel_graphs(self, X: list):
-        num_unique_labels = 0
+    def _relabel_graphs(self, X: list, label_name = 'label'):
+        """
+        Pre-process so labels go from 0,1,...
+        """
         preprocessed_graphs = []
         for i, g in enumerate(X):
             x = g.copy()
                  
             # get label of graph
-            labels = list(nx.get_node_attributes(x,'label').values())
+            labels = list(nx.get_node_attributes(x,label_name).values())
             
             new_labels = []
             for label in labels:
@@ -49,24 +51,25 @@ class WeisfeilerLehman():
                 else:
                     self._preprocess_relabel_dict[label] = self._get_next_label()
                     new_labels.append(self._preprocess_relabel_dict[label])
-            nx.set_node_attributes(x, {i:l for i, l in enumerate(new_labels)}, 'label')
+            nx.set_node_attributes(x, {i:l for i, l in enumerate(new_labels)}, label_name)
             self._results[0][i] = (labels, new_labels)
             preprocessed_graphs.append(x)
         self._reset_label_generation()
         return preprocessed_graphs
 
-    def fit_transform(self, X, num_iterations: int=3):
+    def fit_transform(self, X, num_iterations: int=3,label_name = 'label'):
         """
         Returns a dictionary of dicitonaries where first key is wl iteration number, next key is the index of a graph in the sample which gives a tuple 
         where the first element in the tuple is the previous labels (or initial labes) and the next elment in the new labelling according to the wl scheme
         """
+        # Pre-process so labels go from 0,1,...
         X = self._relabel_graphs(X)
         for it in np.arange(1, num_iterations+1, 1):
             self._reset_label_generation()
             self._label_dict = {}
             for i, g in enumerate(X):
                 # Get labels of current interation
-                current_labels = list(nx.get_node_attributes(g,'label').values())
+                current_labels = list(nx.get_node_attributes(g,label_name).values())
 
                 # Get for each vertex the labels of its neighbors
                 neighbor_labels = self._get_neighbor_labels(g, sort=True)
@@ -78,14 +81,14 @@ class WeisfeilerLehman():
                 self._append_label_dict(merged_labels)
 
                 # Relabel the graph
-                new_labels = self._relabel_graph(g, merged_labels)
+                new_labels = self._relabel_graph(merged_labels)
                 self._relabel_steps[i][it] = { idx: {old_label: new_labels[idx]} for idx, old_label in enumerate(current_labels) }
-                nx.set_node_attributes(g, {i:l for i, l in enumerate(new_labels)}, 'label')
+                nx.set_node_attributes(g, {i:l for i, l in enumerate(new_labels)}, label_name)
                 self._results[it][i] = (merged_labels, new_labels)
             self._label_dicts[it] = copy.deepcopy(self._label_dict)
         return self._results
 
-    def _relabel_graph(self, X: nx.Graph, merged_labels: List[list]):
+    def _relabel_graph(self,  merged_labels: List[list]):
         new_labels = []
         for merged in merged_labels:
             new_labels.append(self._label_dict['-'.join(map(str,merged))])
@@ -223,8 +226,8 @@ if __name__ == "__main__":
     import MMDforGraphs as mg
     nr_nodes_1 = 100
     nr_nodes_2 = 100
-    n = 5
-    m = 5
+    n = 20
+    m = 20
 
 
     average_degree = 6
@@ -239,7 +242,7 @@ if __name__ == "__main__":
 
     Gs = bg1.Gs + bg2.Gs
     print(len(Gs))
-    kernel = WWL(param = {'discount':0.1,'h':8, 'sinkhorn':False })
+    kernel = WWL(param = {'discount':10000000000,'h':8, 'sinkhorn':False })
     K = kernel.fit_transform(Gs)
     print(K)
 
