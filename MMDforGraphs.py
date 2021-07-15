@@ -122,7 +122,7 @@ def GenerateBinomialGraph(n:int,nr_nodes:int,p:float, label:list = None, attribu
     """
     Gs = []
     for _ in range(n):
-        G = nx.fast_gnp_random_graph(nr_nodes, p, seed = 42)
+        G = nx.fast_gnp_random_graph(nr_nodes, p)
         if not label is None:
             nx.set_node_attributes(G, label, 'label')
         if not label is None:
@@ -572,11 +572,11 @@ class BinomialGraphs(DegreeGraphs):
         for _ in range(self.n):
             if self.fullyConnected:
                 while True:
-                    G = nx.fast_gnp_random_graph(self.nnode, self.p, seed = 42)
+                    G = nx.fast_gnp_random_graph(self.nnode, self.p)
                     if nx.is_connected(G):
                         break
             else:
-                G = nx.fast_gnp_random_graph(self.nnode, self.p, seed = 42)
+                G = nx.fast_gnp_random_graph(self.nnode, self.p)
 
             if (not self.l is None) and (not self.a is None):
                 label = getattr(self, self.l)
@@ -598,23 +598,63 @@ class BinomialGraphs(DegreeGraphs):
 
 
 
-
-
-def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_functions, Graph_Statistics_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel"):
+def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
     :param N: Number of samples
     :param kernel: Dictionary with the kernel arguments
     :param normalize: Should the kernel be normalized
-    :param graphStatistics: Should graph statistics be calculated and bootstrap
-    :param MMD_functions: List of functions do MMD hypothesis testing
-    :param Graph_Statistics_functions: list of functions that calculate some graph statistic
+    :param Graph_Statistics_functions: List of functions that calculate graph statistics
     :param bg1: Class that generates sample 1
     :param bg2: Class that generates sample 1
     :param B: Number of bootstraps
     :param kernel_hypothesis: The class that handes bootstrapping
     :param kernel_library: which package or which own kernel: Grakel, deepkernel (own function), 
+
+
+    :return test_statistic_p_val: Dictionary that stores the p-value of each Graph Statistic test according to the kernel_hypothesis bootstrap result
+    """
+    # Store the p-values for each test statistic for each test iteration
+    test_statistic_p_val = dict()
+    for i in range(len(Graph_Statistics_functions)):
+        key = Graph_Statistics_functions[i].__name__
+        test_statistic_p_val[key] = np.array([-1.0] * N)
+
+    # Calculate basic  graph statistics hypothesis testing
+    for sample in range(N):
+
+        bg1.Generate()
+        bg2.Generate()
+        Gs = bg1.Gs + bg2.Gs
+
+
+        hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)
+        hypothesis_graph_statistic.Bootstrap(B = B)
+        # match the corresponding p-value for this sample
+        for key in test_statistic_p_val.keys():
+            test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
+
+
+
+    return test_statistic_p_val
+
+
+
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label'):
+    """
+    Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
+
+    :param N: Number of samples
+    :param kernel: Dictionary with the kernel arguments
+    :param normalize: Should the kernel be normalized
+    :param MMD_functions: List of functions do MMD hypothesis testing
+    :param bg1: Class that generates sample 1
+    :param bg2: Class that generates sample 1
+    :param B: Number of bootstraps
+    :param kernel_hypothesis: The class that handes bootstrapping
+    :param kernel_library: which package or which own kernel: Grakel, deepkernel (own function), 
+    :param node_labels_tag: Node label tak for Grakel kernels, usually label for labeled graphs and attr if attributed. Should be in concordance with the label/attribute generation mechanism in the generation scheme of bg1 and bg2.
 
     :return Kmax: List that stores the maximum kernel value for each sample iteration
     :return p_values: Dictionary that stores the p-value of each MMD tset according to the kernel_hypothesis bootstrap result
@@ -629,11 +669,6 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
         p_values[key] = np.array([-1.0] * N)
         mmd_samples[key] = np.array([-1.0] * N)
 
-    # Store the p-values for each test statistic for each test iteration
-    test_statistic_p_val = dict()
-    for i in range(len(Graph_Statistics_functions)):
-        key = Graph_Statistics_functions[i].__name__
-        test_statistic_p_val[key] = [0] * N
 
     # Store K max for acceptance region
     Kmax = np.array([0] * N)
@@ -644,34 +679,36 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
         bg1.Generate()
         bg2.Generate()
         Gs = bg1.Gs + bg2.Gs
-        graph_list = gk.graph_from_networkx(Gs, node_labels_tag='label')
+        graph_list = gk.graph_from_networkx(Gs, node_labels_tag = node_labels_tag)
 
-        # Calculate basic  graph statistics hypothesis testing
-        if graphStatistics:
-            hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)
-            hypothesis_graph_statistic.Bootstrap(B = B)
-            # match the corresponding p-value for this sample
-            for key in test_statistic_p_val.keys():
-                test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
+        # # Calculate basic  graph statistics hypothesis testing
+        # if graphStatistics:
+        #     hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)
+        #     hypothesis_graph_statistic.Bootstrap(B = B)
+        #     # match the corresponding p-value for this sample
+        #     for key in test_statistic_p_val.keys():
+        #         test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
         
         # Kernel hypothesis testing
-        # Fit a kernel
+        # Fit a kernel, Note the Grakel uses graph_list while myKernels use Gs
         if kernel_library == "Grakel":
             init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
             K = init_kernel.fit_transform(graph_list)
         elif kernel_library == "deepkernel":
-            init_kernel = dk.DK('wl')
+            init_kernel = dk.DK(type = kernel.get('type'))
             K = init_kernel.fit_transform(Gs, kernel_type = kernel.get('kernel_type','word2vec'),  wl_it = kernel.get('wl_it',5), vector_size = kernel.get('vector_size',20), window = kernel.get('window',5), workers = kernel.get('workers',1))
         elif kernel_library == "wwl":
-            kernel = wl.WWL(param = {'discount':0.1,'h':8, 'sinkhorn':False })
+            kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'] })
             K = kernel.fit_transform(Gs)
         else:
             raise ValueError(f"{kernel_library} not defined")
 
+        # print(K)
         Kmax[sample] = K.max()
         if np.all((K == 0)):
             warnings.warn("all element in K zero")
 
+        # bootstrap function argument
         function_arguments=[dict(n = bg1.n, m = bg2.n ), dict(n = bg1.n, m = bg2.n )]
         
         kernel_hypothesis.Bootstrap(K, function_arguments, B = B)
@@ -680,7 +717,7 @@ def iteration(N:int, kernel:dict, normalize:bool, graphStatistics:bool, MMD_func
             p_values[key][sample] = kernel_hypothesis.p_values[key]
             mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
 
-    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples, test_statistic_p_val = test_statistic_p_val)
+    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples)#), test_statistic_p_val = test_statistic_p_val)
 
 
 if __name__ == '__main__':
@@ -694,5 +731,3 @@ if __name__ == '__main__':
 
 
     bg1 = BinomialGraphs(n, nr_nodes_1,average_degree, l = None)
-
-

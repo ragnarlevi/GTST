@@ -34,7 +34,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give number of bootstraps')
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
-parser.add_argument('-s', '--Gstats', type=int,metavar='', help='Should graph statistics be used to test')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
 parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of iterations.')
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
@@ -60,12 +59,6 @@ if __name__ == "__main__":
     # Erdos Renyi graphs
     # np.seterr(divide='ignore', invalid='ignore')
 
-    if args.verbose:
-        print("The number of bootstraps is " + str(args.NrBootstraps) +  "\n" + \
-        "The number of sample iterations is " + str(args.NrSampleIterations) + "\n" +\
-        "the path is " + str(args.path) + "\n" +\
-        "Gstats: " + str(bool(args.Gstats)))
-
 
     # Number of Bootstraps
     B = args.NrBootstraps
@@ -73,8 +66,6 @@ if __name__ == "__main__":
     N = args.NrSampleIterations
     # Where should the dataframe be saved
     path = args.path
-    # Should Graph statistics be calculated?
-    graphStatistics = bool(args.Gstats)
     # Should the kernels be normalized?
     normalize = args.normalize
 
@@ -90,10 +81,6 @@ if __name__ == "__main__":
     M = args.Distance
 
 
-
-    # which graph statistics functions should we test?
-    Graph_Statistics_functions = [mg.average_degree, mg.median_degree, mg.avg_neigh_degree, mg.avg_clustering, mg.transitivity]
-
     # functions used for kernel testing
     MMD_functions = [mg.MMD_b, mg.MMD_u]
     
@@ -108,8 +95,6 @@ if __name__ == "__main__":
     # Probability of type 1 error
     alphas = np.linspace(0.01, 0.99, 99)
 
-    # set seed
-    seed = 42
     
     now = datetime.now()
     time = pd.Timestamp(now)
@@ -144,18 +129,13 @@ if __name__ == "__main__":
         p_values[key] = np.array([-1.0] * N)
         mmd_samples[key] = np.array([-1.0] * N)
 
-    # Store the p-values for each test statistic for each test iteration
-    test_statistic_p_val = dict()
-    for i in range(len(Graph_Statistics_functions)):
-        key = Graph_Statistics_functions[i].__name__
-        test_statistic_p_val[key] = [0] * N
 
     # Store K max for acceptance region
     Kmax = np.array([0] * N)
 
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(mg.iteration, n , kernel, normalize, graphStatistics, MMD_functions, Graph_Statistics_functions, bg1,bg2, B, kernel_hypothesis) for n in [part] * d]
+        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis) for n in [part] * d]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0
@@ -172,10 +152,7 @@ if __name__ == "__main__":
                     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
                         mmd_samples[key][cnt:(cnt+part)] = v[key]
-                elif k == 'test_statistic_p_val':
-                    for i in range(len(Graph_Statistics_functions)):
-                        key = Graph_Statistics_functions[i].__name__
-                        test_statistic_p_val[key][cnt:(cnt+part)] = v[key]
+
 
             cnt += part
 
@@ -207,12 +184,6 @@ if __name__ == "__main__":
                 tmp = np.sqrt(mmd_samples[key]) < np.sqrt(2.0*Kmax/float(n1))*(1.0 + np.sqrt(2.0*np.log(1/alpha)))
                 power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
 
-        # power of "sufficient" statistics
-        power_graph_statistics = dict()
-        if graphStatistics:
-            for i in range(len(Graph_Statistics_functions)):
-                key = Graph_Statistics_functions[i].__name__
-                power_graph_statistics[key] = (np.array(test_statistic_p_val[key]) < alpha).sum()/float(N)
 
         # Store the run information in a dataframe,
         tmp = pd.DataFrame({'kernel': str(kernel), 
@@ -235,10 +206,7 @@ if __name__ == "__main__":
                         'B':B,
                         'N':N,
                         'run_time':str((datetime.now() - now))}, index = [0])
-        # Add power
-        if len(power_graph_statistics) != 0:
-            for k,v in power_graph_statistics.items():
-                tmp[k] = v
+        # Add power to df
         if len(power_mmd) != 0:
             for k,v in power_mmd.items():
                 tmp[k] = v

@@ -34,9 +34,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give number of bootstraps')
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
-parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
-parser.add_argument('-rw', '--rwtype', type=str,metavar='', help='Defines how rw inner summation will be applied.')
-parser.add_argument('-l', '--discount', type=float,metavar='', help='RW lambda')
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-nnode1', '--NrNodes1', type=int,metavar='', help='Number of nodes in each graph in sample 1')
@@ -59,14 +56,14 @@ if __name__ == "__main__":
     # np.seterr(divide='ignore', invalid='ignore')
 
 
+
     # Number of Bootstraps
     B = args.NrBootstraps
     # Sample and bootstrap N times so that we can estimate the power.
     N = args.NrSampleIterations
     # Where should the dataframe be saved
     path = args.path
-    # Should the kernels be normalized?
-    normalize = args.normalize
+
 
     n1 = args.NrSamples1
     n2 = args.NrSamples2
@@ -75,16 +72,13 @@ if __name__ == "__main__":
     k1 = args.AverageDegree1
     k2 = args.AverageDegree2
     d = args.division
-    rw_type = args.rwtype  
-    discount = args.discount    
+ 
 
 
-    # functions used for kernel testing
-    MMD_functions = [mg.MMD_b, mg.MMD_u]
+    # which graph statistics functions should we test?
+    Graph_Statistics_functions = [mg.average_degree, mg.median_degree, mg.avg_neigh_degree, mg.avg_clustering, mg.transitivity]
+
     
-    # initialize bootstrap class, we only want this to be initalized once so that numba njit
-    # only gets compiled once (at first call)
-    kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
     # Initialize Graph generator class
     bg1 = mg.BinomialGraphs(n1, nnode1, k1, l = 'degreelabels', fullyConnected = True)
@@ -93,21 +87,11 @@ if __name__ == "__main__":
     # Probability of type 1 error
     alphas = np.linspace(0.01, 0.99, 99)
 
-    # set seed
-    seed = 42
     
     now = datetime.now()
     time = pd.Timestamp(now)
     
-    # Kernel specification
-    # kernel = [{"name": "WL", "n_iter": 4}]
-    # kernel = [{"name": "weisfeiler_lehman", "n_iter": n_itr}, {"name": "vertex_histogram"}]
-    # kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "SP"}]
-    kernel = [{"name": "RW", "with_labels": True, "lamda":discount, "kernel_type":rw_type}]
-    # kernel = [{"name": "SP", "with_labels": True}]
-    # kernel = [{"name": "svm_theta"}]
-    # kernel = [{"name": "pyramid_match", "with_labels":False}]
-    # kernel = [{"name": "ML", "n_samples":20}]
+
     
     # Store outcome in a data
     df = pd.DataFrame()
@@ -123,46 +107,41 @@ if __name__ == "__main__":
     print(N)
     print(d)
     
-    p_values = dict()
-    mmd_samples = dict()
-    for i in range(len(MMD_functions)):
-        key = MMD_functions[i].__name__
-        p_values[key] = np.array([-1.0] * N)
-        mmd_samples[key] = np.array([-1.0] * N)
 
+    # Store the p-values for each test statistic for each test iteration
+    test_statistic_p_val = dict()
+    for i in range(len(Graph_Statistics_functions)):
+        key = Graph_Statistics_functions[i].__name__
+        test_statistic_p_val[key] = np.array([-1.0] * N)
 
     # Store K max for acceptance region
     Kmax = np.array([0] * N)
 
 
+    #test_statistic_p_val = mg.iterationGraphStat( N, Graph_Statistics_functions, bg1, bg2, B)
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis) for n in [part] * d]
+        results = [executor.submit(mg.iterationGraphStat, n , Graph_Statistics_functions, bg1,bg2, B) for n in [part] * d]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0
         for f in concurrent.futures.as_completed(results):
             
-            for k,v in f.result().items():
-                if k == "Kmax":
-                    Kmax[cnt:(cnt+part)] = v
-                elif k == 'p_values':
-                    for i in range(len(MMD_functions)):
-                        key = MMD_functions[i].__name__
-                        p_values[key][cnt:(cnt+part)] = v[key]
-                elif k == 'mmd_samples':
-                    for i in range(len(MMD_functions)):
-                        key = MMD_functions[i].__name__
-                        mmd_samples[key][cnt:(cnt+part)] = v[key]
+            for key,res in f.result().items():
+                test_statistic_p_val[key][cnt:(cnt+part)] = res
+
 
             cnt += part
 
-
-    for i in range(len(MMD_functions)):
-                        key = MMD_functions[i].__name__
-                        if np.any(p_values[key] < 0):
-                            warnings.warn(f"Some p value is negative for {key}") 
+    #print(test_statistic_p_val)
+    for i in range(len(Graph_Statistics_functions)):
+        key = Graph_Statistics_functions[i].__name__
+        if np.any(test_statistic_p_val[key] < 0.0):
+            raise ValueError(f"Some p value is negative for {key}") 
+    
+    print(test_statistic_p_val)
 
     
+
 
     # Calculate ROC curve
 
@@ -170,26 +149,18 @@ if __name__ == "__main__":
         
         # type II error is the case when be p_val > alpha so power is 1 - #(p_val>alpha)/N <-> (N - #(p_val>alpha))/N <-> #(p_val<alpha)/N
 
-        # power of MMD tests (including distribution free test)
-        power_mmd = dict()
 
-        for i in range(len(MMD_functions)):
-            key = MMD_functions[i].__name__
-            power_mmd[key] = (np.array(p_values[key]) < alpha).sum()/float(N)
-            if key == 'MMD_u':
-                tmp = mmd_samples[key] < (4*Kmax/np.sqrt(float(n1)))*np.sqrt(np.log(1.0/alpha))
-                power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
-            if key == 'MMD_b':
-                tmp = np.sqrt(mmd_samples[key]) < np.sqrt(2.0*Kmax/float(n1))*(1.0 + np.sqrt(2.0*np.log(1/alpha)))
-                power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
 
+        # power of "sufficient" statistics
+        power_graph_statistics = dict()
+
+        for i in range(len(Graph_Statistics_functions)):
+            key = Graph_Statistics_functions[i].__name__
+            power_graph_statistics[key] = (np.array(test_statistic_p_val[key]) < alpha).sum()/float(N)
 
         # Store the run information in a dataframe,
-        tmp = pd.DataFrame({'kernel': str(kernel), 
+        tmp = pd.DataFrame({
                         'alpha':alpha,
-                        'normalize':normalize,
-                        'rw_type':rw_type,
-                        'lambda':discount,
                         'nr_nodes_1': nnode1,
                         'nr_nodes_2': nnode2,
                         'p_edge_1': k1/float(nnode1-1),
@@ -204,10 +175,9 @@ if __name__ == "__main__":
                         'B':B,
                         'N':N,
                         'run_time':str((datetime.now() - now))}, index = [0])
-                        
-        # Add power to df
-        if len(power_mmd) != 0:
-            for k,v in power_mmd.items():
+        # Add power
+        if len(power_graph_statistics) != 0:
+            for k,v in power_graph_statistics.items():
                 tmp[k] = v
 
         # add to the main data frame

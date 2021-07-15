@@ -4,7 +4,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-u', '--username',metavar='', type=str, help='username')
 parser.add_argument('-e', '--email',metavar='', type=str, help='email')
-parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
+parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give number of bootstraps')
+parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
 parser.add_argument('-discount', '--discount', type=float,metavar='', help='discount')
@@ -15,19 +16,14 @@ args = parser.parse_args()
 
 usr = args.username
 email = args.email
-tt = args.testtype
 cpu_per_task = args.CpuPerTask
 norm = args.normalize
 n_itr = args.NumberIterations 
 discount = args.discount
 sinkhorn = args.sinkhorn
+B = args.NrBootstraps
+N = args.NrSampleIterations
 
-
-# def mkdir_p(dir):
-#     '''make a directory (dir) if it doesn't exist'''
-#     if not os.path.exists(dir):
-#         os.mkdir(dir)
-    
 
 
 path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
@@ -47,14 +43,14 @@ for nr_node in nr_nodes:
         for k_off in degree_offsets:
                  
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
-            if tt.lower() == "bgdegreelabel":
-                data_name = f'data/BGDegreeLabel/WWL/wwl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{n_itr}_discount_{discount}_sink_{sinkhorn}_norm_{norm}.pkl'
+            
+            data_name = f'data/BGDegreeLabel/WWL/wwl_v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{n_itr}_discount_{discount}_sink_{sinkhorn}_norm_{norm}.pkl'
             
             job_file = path + f"/WWL/v_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{n_itr}_discount_{discount}_sink_{sinkhorn}_norm_{norm}.slurm"
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=10:00:00",
-            f"#SBATCH --job-name=wwl_mmd_{tt}_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{n_itr}_discount_{discount}_sink_{sinkhorn}_norm_{norm}",
+            f"#SBATCH --job-name=wwl_mmd_bgdeg_{nr_node}_n_{nr_sample}_k_{k_off}_wl_{n_itr}_discount_{discount}_sink_{sinkhorn}_norm_{norm}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
@@ -69,8 +65,8 @@ for nr_node in nr_nodes:
             "source .venv/bin/activate"
             ]
             
-            if tt.lower() == "bgdegreelabel":
-                items.append(f"python3 Experiments/BGDegreeLabel/wwl.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -discount {discount} -nitr {n_itr} -sk {sinkhorn} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+            
+            items.append(f"python3 Experiments/BGDegreeLabel/wwl.py -B {B} -N {B} -p {data_name} -norm {norm} -discount {discount} -nitr {n_itr} -sk {sinkhorn} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 
