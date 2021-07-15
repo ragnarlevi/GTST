@@ -52,7 +52,7 @@ for nr_node in nr_nodes:
             job_file = path + f"/PYRAMID/v_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}.slurm"
 
             items = ["#!/bin/bash", 
-            f"#SBATCH --time=10:00:00",
+            f"#SBATCH --time=15:00:00",
             f"#SBATCH --job-name=pyramid_mmd_bgdeg_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",

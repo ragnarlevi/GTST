@@ -221,6 +221,6 @@ if __name__ == "__main__":
     with open(path, 'wb') as f:
             pickle.dump(df, f)
 
-    print(datetime.now() - now )
+    # print(datetime.now() - now )
 
 

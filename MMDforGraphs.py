@@ -695,8 +695,8 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
             init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
             K = init_kernel.fit_transform(graph_list)
         elif kernel_library == "deepkernel":
-            init_kernel = dk.DK(type = kernel.get('type'))
-            K = init_kernel.fit_transform(Gs, kernel_type = kernel.get('kernel_type','word2vec'),  wl_it = kernel.get('wl_it',5), vector_size = kernel.get('vector_size',20), window = kernel.get('window',5), workers = kernel.get('workers',1))
+            init_kernel = dk.DK(params = kernel)
+            K = init_kernel.fit_transform(Gs)
         elif kernel_library == "wwl":
             kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'] })
             K = kernel.fit_transform(Gs)

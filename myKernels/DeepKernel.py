@@ -15,14 +15,19 @@ class DK():
 
 
 
-    def __init__(self, type:str, param:dict = None) -> None:
+    def __init__(self, params:dict) -> None:
         """
-        :param type: Type of concurrance relation
         :param param: Dictionary with hyperparameter arguments
         """
-        self.type = type
-        self.param = param
-        pass
+
+        self.params = params
+
+        
+    @staticmethod
+    def normalize_kernel_matrix(K):
+        D = np.diag(np.reciprocal(np.sqrt(np.diag(K))))
+        return D.dot(K).dot(D)
+
 
     def ShortestPathSimilarity(self, X):
         """
@@ -33,6 +38,7 @@ class DK():
         vocabulary = set()
         prob_map = {}
         corpus = []
+
         for gidx, graph in enumerate(X):
 
             prob_map[gidx] = {}
@@ -68,6 +74,7 @@ class DK():
         # wl_graph_map the key is the label and the value counts how often the label appears in each graphs gids. it stands for wl iteration. the initial labelling is indexed at [-1]
         wl_graph_map = {it: {gidx: dict() for gidx in range(num_graphs)} for it in range(-1, max_h)} # if key error, return 0
 
+      
         # initial labeling
         # label look up is a dictionary where key is the label. This loops count how often the 
         for gidx in range(num_graphs):
@@ -85,6 +92,9 @@ class DK():
                 wl_graph_map[-1][gidx][label_lookup[label]] = wl_graph_map[-1][gidx].get(label_lookup[label], 0) + 1
         # we are constantly changing the label dictionary so we do a deepcopy as it is mutable
         compressed_labels = copy.deepcopy(labels)
+    #     end = timer() 
+    #    # print(f' Initial labelling took {end - start}')
+    #     start = timer()
 
         # WL iterations
         for it in range(max_h):
@@ -108,6 +118,9 @@ class DK():
 
             labels = copy.deepcopy(compressed_labels)
 
+        # end = timer() 
+        # #print(f' WL it took {end - start}')
+        # start = timer()
         # create the corpus, frequency map and vocabulary
         graphs = {}
         prob_map = {}
@@ -127,10 +140,15 @@ class DK():
         corpus = [graph for graph in graphs.values()]
         vocabulary = sorted(vocabulary)
 
+        #end = timer() 
+        #print(f' Corpus took {end - start}')
+
+
+
         return prob_map, vocabulary, corpus
 
 
-    def parse_input(self, X, wl_it = 5):
+    def parse_input(self, X):
         """
         Creates features of the Deep Kernel
 
@@ -142,10 +160,10 @@ class DK():
         if not isinstance(X, Iterable):
             raise TypeError('input must be an iterable\n')
         else:
-            if self.type == "sp":
+            if self.params['type'] == "sp":
                 return self.ShortestPathSimilarity(X)
-            if self.type == "wl":
-                return self.WLSimilarity(X, wl_it)
+            if self.params['type']:
+                return self.WLSimilarity(X, self.params['wl_it'])
             else:
                 raise ValueError("type has to be sp for shortest path, wl for weisfeiler lehman ")
 
@@ -153,12 +171,11 @@ class DK():
     
             
 
-    def fit_transform(self, X, kernel_type = 'word2vec', wl_it = 5, vector_size = 20, window = 5, workers = 3):
+    def fit_transform(self, X):
         """
         Calculate the kernel matrix
 
         :param X: List of nx graphs.
-        :param kernel_type: word2vec or mle.
         :param wl_it: Number of wl iterations
         :param vector_size: Dimensionality of the word vectors.
         :param window: Maximum distance between the current and predicted word within a sentence.
@@ -174,16 +191,16 @@ class DK():
         if X is None:
             raise ValueError('`fit` input cannot be None')
         else:
-            prob_map, vocabulary, corpus  = self.parse_input(X, wl_it)
+            prob_map, vocabulary, corpus  = self.parse_input(X)
 
 
-        if kernel_type == 'word2vec':
+        if self.params.get('opt_type', None) == 'word2vec':
             from gensim.models import Word2Vec
-            model = Word2Vec(corpus, vector_size=vector_size, window=window, min_count=0, workers = workers)
-
+            model = Word2Vec(corpus, vector_size=self.params['vector_size'], window=self.params['window'], min_count=0, workers = self.params['workers'])
+        
         num_voc = len(X)
 
-        if kernel_type == 'word2vec':
+        if self.params.get('opt_type', None) == 'word2vec':
             P = np.zeros((num_voc, len(vocabulary)))
             for i in range(num_voc):
                 for jdx, j in enumerate(vocabulary):
@@ -200,6 +217,9 @@ class DK():
                     P[i][jdx] = prob_map[i].get(j,0)
             K = P.dot(P.T)
 
+    
+        if self.params.get('normalize', False):
+            K = self.normalize_kernel_matrix(K)
 
         return K
 
@@ -208,6 +228,7 @@ class DK():
 if __name__ == "__main__":
     # add perant dir 
     import os, sys
+    from timeit import default_timer as timer
     currentdir = os.path.dirname(os.path.realpath(__file__))
     parentdir = os.path.dirname(currentdir)
     sys.path.append(parentdir)
@@ -227,15 +248,17 @@ if __name__ == "__main__":
     # bg1 = mg.BinomialGraphs(n, nr_nodes_1, average_degree, l = 'degreelabels')
     bg1 = mg.BinomialGraphs(n, nr_nodes_1, average_degree, l = 'degreelabels')
     bg1.Generate()
-    bg2 = mg.BinomialGraphs(m, nr_nodes_2, average_degree+6, l = 'degreelabels')
+    bg2 = mg.BinomialGraphs(m, nr_nodes_2, average_degree+2, l = 'degreelabels')
     bg2.Generate()
 
     Gs = bg1.Gs + bg2.Gs
-    print(len(Gs))
-    kernel = DK('wl')
+    kernel = DK(params = {'type': 'wl', 'normalize':True, 'wl_it':4})
+    start = timer()
     K = kernel.fit_transform(Gs)
     print(K)
 
+    end = timer() 
+    print(f' K took {end - start}')
 
     MMD_functions = [mg.MMD_b, mg.MMD_u]
     
