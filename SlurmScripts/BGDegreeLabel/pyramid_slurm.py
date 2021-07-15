@@ -61,7 +61,7 @@ for nr_node in nr_nodes:
             f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/pyramid_v_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}.out",
             f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/pyramid_v_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}.err",
             f"#SBATCH --mail-user={email}",
-            f"#SBATCH --mail-type=FAIL",
+            f"#SBATCH --mail-type=ALL", #FAIL
             "module purge",
             f"RUNPATH=/home/{usr}/projects/MMDGraph",
             "cd $RUNPATH",
