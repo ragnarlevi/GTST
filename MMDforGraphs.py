@@ -530,7 +530,6 @@ class DegreeGraphs():
         :return: Dictionary
         """
         loc = self.kwargs.get('loc', 0)
-        print(loc)
         scale = self.kwargs.get('scale', 1)
         return dict( ( (i, np.random.normal(loc = loc, scale = scale, size = (1,))) for i in range(len(G)) ) )
 

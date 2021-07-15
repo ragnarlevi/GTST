@@ -36,10 +36,10 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 
 
 
-nr_nodes = [100] #[20, 60, 80]
-nr_samples = [100] # [10, 20, 40, 60, 100]
+nr_nodes = [20, 60, 80]
+nr_samples =  [10, 20, 40, 60, 100]
 k = 4
-degree_offsets = [0.5] #[0.25, 0.5, 0.75, 1]
+degree_offsets = [0.25, 0.5, 0.75, 1]
 
 
 for nr_node in nr_nodes:
@@ -61,7 +61,7 @@ for nr_node in nr_nodes:
             f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/pyramid_v_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}.out",
             f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/pyramid_v_{nr_node}_n_{nr_sample}_k_{k_off}_L_{L}_dim_{dim}_norm_{norm}.err",
             f"#SBATCH --mail-user={email}",
-            f"#SBATCH --mail-type=ALL", #FAIL
+            f"#SBATCH --mail-type=FAIL", #FAIL ALL
             "module purge",
             f"RUNPATH=/home/{usr}/projects/MMDGraph",
             "cd $RUNPATH",
