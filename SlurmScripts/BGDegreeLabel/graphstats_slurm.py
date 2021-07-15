@@ -38,9 +38,9 @@ for nr_node in nr_nodes:
                  
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
 
-            data_name = f'data/BGDegreeLabel/GRAPHSTAT/dk_v_{nr_node}_n_{nr_sample}_k_{k_off}.pkl'
+            data_name = f'data/BGDegreeLabel/GRAPHSTATS/dk_v_{nr_node}_n_{nr_sample}_k_{k_off}.pkl'
             
-            job_file = path + f"/GRAPHSTAT/v_{nr_node}_n_{nr_sample}_k_{k_off}.slurm"
+            job_file = path + f"/GRAPHSTATS/v_{nr_node}_n_{nr_sample}_k_{k_off}.slurm"
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=10:00:00",
