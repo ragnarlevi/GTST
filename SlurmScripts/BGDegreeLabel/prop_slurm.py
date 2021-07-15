@@ -7,6 +7,7 @@ parser.add_argument('-e', '--email',metavar='', type=str, help='email')
 parser.add_argument('-tt', '--testtype',metavar='', type=str, help='Type of graph generation')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
+parser.add_argument('-s', '--graphstat',metavar='', type=int, help='Calculate graph stats')
 parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of iterations.')
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
 parser.add_argument('-M', '--Distance', type=str,metavar='', help='The preserved distance metric (on local sensitive hashing):')
@@ -18,6 +19,7 @@ email = args.email
 tt = args.testtype
 cpu_per_task = args.CpuPerTask
 norm = args.normalize
+graph_stat = args.graphstat
 w = args.binwidth
 t_max = args.tmax
 M = args.Distance
@@ -70,7 +72,7 @@ for nr_node in nr_nodes:
             ]
             
             if tt.lower() == "bgdegreelabel":
-                items.append(f"python3 Experiments/BGDegreeLabel/prop.py -B 1000 -N 1000 -p {data_name} -s 1 -norm {norm} -tmax {t_max} -w {w} -M {M} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+                items.append(f"python3 Experiments/BGDegreeLabel/prop.py -B 1000 -N 1000 -p {data_name} -s {graph_stat} -norm {norm} -tmax {t_max} -w {w} -M {M} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 
