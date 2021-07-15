@@ -25,9 +25,8 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 
 
 
-
-nr_nodes = [80]
-nr_samples = [100]
+nr_nodes = [40, 60, 80]
+nr_samples = [10, 20, 60, 100]
 k = 4
 degree_offsets = [0.25, 0.5, 0.75, 1]
 
