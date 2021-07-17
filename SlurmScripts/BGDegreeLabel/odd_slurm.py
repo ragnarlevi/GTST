@@ -62,7 +62,7 @@ for nr_node in nr_nodes:
             ]
             
             
-            items.append(f"python3 Experiments/BGDegreeLabel/odd.py -B {B} -N {N} -p {data_name} -norm {norm} -h {dag_depth}  -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
+            items.append(f"python3 Experiments/BGDegreeLabel/odd.py -B {B} -N {N} -p {data_name} -norm {norm} -dagh {dag_depth}  -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} -d {cpu_per_task}")
 
 
 

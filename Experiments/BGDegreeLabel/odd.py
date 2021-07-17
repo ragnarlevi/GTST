@@ -35,7 +35,7 @@ parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give numb
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
-parser.add_argument('-h', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
+parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-nnode1', '--NrNodes1', type=int,metavar='', help='Number of nodes in each graph in sample 1')
