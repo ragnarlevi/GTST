@@ -6,7 +6,7 @@ parser.add_argument('-u', '--username',metavar='', type=str, help='username')
 parser.add_argument('-e', '--email',metavar='', type=str, help='email')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 parser.add_argument('-norm', '--normalize',metavar='', type=int, help='Normalize kernel?')
-parser.add_argument('-h', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
+parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
 parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give number of bootstraps')
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 
