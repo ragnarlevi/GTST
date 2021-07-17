@@ -22,8 +22,6 @@ N = args.NrSampleIterations
 
 
     
-
-
 path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 #mkdir_p(path)
 
