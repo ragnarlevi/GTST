@@ -697,8 +697,8 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
             init_kernel = dk.DK(params = kernel)
             K = init_kernel.fit_transform(Gs)
         elif kernel_library == "wwl":
-            kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'] })
-            K = kernel.fit_transform(Gs)
+            init_kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'] })
+            K = init_kernel.fit_transform(Gs)
         else:
             raise ValueError(f"{kernel_library} not defined")
 
