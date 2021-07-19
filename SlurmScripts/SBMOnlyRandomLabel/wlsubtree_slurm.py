@@ -35,7 +35,7 @@ for nr_sample in nr_samples:
     # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
     data_name = f'data/SBMOnlyRandomLabel/WLsubtree/wl_n_{nr_sample}_wl_{wl_it}_norm_{norm}.pkl'
     
-    job_file = path + f"/WLsubtree/_n_{nr_sample}_wl_{wl_it}_norm_{norm}.slurm"
+    job_file = path + f"/WLsubtree/wl_n_{nr_sample}_wl_{wl_it}_norm_{norm}.slurm"
 
     items = ["#!/bin/bash", 
     f"#SBATCH --time=3:00:00",
