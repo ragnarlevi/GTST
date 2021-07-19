@@ -44,8 +44,8 @@ for nr_sample in nr_samples:
     f"#SBATCH --nodes=1",
     f"#SBATCH --ntasks-per-node=1",
     f"#SBATCH --cpus-per-task={cpu_per_task}",
-    f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/name=mmd_experiment_v_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.out",
-    f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/name=mmd_experiment_v_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.err",
+    f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/sbmorl_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.out",
+    f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/sbmorl_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.err",
     f"#SBATCH --mail-user={email}",
     f"#SBATCH --mail-type=FAIL",
     "module purge",
@@ -55,7 +55,7 @@ for nr_sample in nr_samples:
     ]
     
 
-    items.append(f"python3 Experiments/SBMOnlyRandomLabel/wl_subtree.py -B {B} -N {B} -p {data_name} -norm {norm} -nitr {wl_it} -d {cpu_per_task}")
+    items.append(f"python3 Experiments/SBMOnlyRandomLabel/wl_subtree.py -B {B} -N {B} -n1 {nr_sample} -n2 {nr_sample} -p {data_name} -norm {norm} -nitr {wl_it} -d {cpu_per_task}")
 
 
 
