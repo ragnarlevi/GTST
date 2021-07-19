@@ -249,7 +249,7 @@ def GenerateSamplesOfScaleFreeGraphs(n:int,nr_nodes:int,power:float, label:list 
     :return: list of networkx graphs
     """
     Gs = []
-    for i in range(n):
+    for _ in range(n):
         G = GenerateScaleFreeGraph(power, nr_nodes)
         if not label is None:
             nx.set_node_attributes(G, label, 'label')
@@ -596,6 +596,107 @@ class BinomialGraphs(DegreeGraphs):
 
 
 
+class SBMGraphs():
+    """
+    Class that generates tvo samples of SBM graphs and compares them.
+    """
+    def __init__(self,  n, sizes, P, params = {}, fullyConnected = True, l = None,  a = None):
+        self.sizes = sizes
+        self.P = P
+        self.n = n
+        self.l = l
+        self.a = a
+        self.params = params
+        self.fullyConnected = fullyConnected
+
+        assert len(self.sizes) == self.P.shape[0]
+        assert len(self.sizes) == self.P.shape[1]
+        assert self.params.get('label_pmf', np.zeros(self.P.shape)).shape[0] == self.P.shape[0]
+    
+
+    def samelabels(self, G):
+        """
+        labelling Scheme. All nodes get same label
+
+        :param G: Networkx graph
+        """
+        return dict( ( (i, 'a') for i in range(len(G)) ) )
+
+    def degreelabels(self, G):
+        """
+        labelling Scheme. Nodes labelled with their degree
+
+        :param G: Networkx graph
+        :return: Dictionary
+        """
+
+        nodes_degree = dict(G.degree)
+        return {key: str(value) for key, value in nodes_degree.items()}
+
+    def BlockLabelling(self, G):
+        """
+        Labelling Scheme. Nodes are labelled according to their block but are allowed to have imputations, that is some nodes can be labelled according to other blocks.
+        The params dictionary should have a key called label_pmf, which is a B times B matrix where each row corresponds to the pmf of labels of block i, where i is the row number.
+        Very import that the first index of the pmfs is the probability for label 1, second index is the probability that a node has label 2, etc..
+        """
+
+        import string
+
+        letters = list(string.ascii_lowercase[:len(self.sizes)])
+        
+        nr_blocks = self.P.shape[0]
+
+        label_pmf = self.params['label_pmf']
+        return {v[0]:np.random.choice(letters[:nr_blocks],p = label_pmf[v[1]["block"],:] )  for v in G.nodes(data=True) } 
+
+
+
+    def Generate(self):
+        """
+        :return: list of networkx graphs
+
+        self.params should include:
+            sizes (list of ints) – Sizes of blocks
+            p (list of list of floats) – Element (r,s) gives the density of edges going from the nodes of group r to nodes of group s. Must match the number of groups
+        """
+
+
+
+        self.Gs = []
+        for _ in range(self.n):
+            if self.fullyConnected:
+                while True:
+                    G = nx.stochastic_block_model(self.sizes, self.P)
+                    if nx.is_connected(G):
+                        break
+            else:
+                G = nx.fast_gnp_random_graph(self.sizes, self.P)
+
+            # label scheme
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            self.Gs.append(G)
+
+
+        
+
+        
+
+
+
 
 def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
     """
@@ -625,7 +726,6 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
         bg1.Generate()
         bg2.Generate()
-        Gs = bg1.Gs + bg2.Gs
 
 
         hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)

@@ -20,7 +20,7 @@ norm = args.normalize
 B = args.NrBootstraps
 N = args.NrSampleIterations
 
-path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
+path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/SBMOnlyRandomLabel"
 
 
 

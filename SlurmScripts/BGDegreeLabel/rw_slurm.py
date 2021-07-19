@@ -53,7 +53,7 @@ for nr_node in nr_nodes:
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=20:00:00",
-            f"#SBATCH --job-name=rw_mmd_bgdeg_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}",
+            f"#SBATCH --job-name=rw_mmd_bgdeg_{nr_node}_n_{nr_sample}_k_{k_off}_rw_{rw_type}_l_{discount}_norm_{norm}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
