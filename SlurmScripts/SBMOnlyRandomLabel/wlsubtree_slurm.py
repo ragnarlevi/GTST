@@ -39,7 +39,7 @@ for nr_sample in nr_samples:
 
     items = ["#!/bin/bash", 
     f"#SBATCH --time=3:00:00",
-    f"#SBATCH --job-name=wl_sbmORL_n_{nr_sample}_norm_{norm}",
+    f"#SBATCH --job-name=wl_sbmORL_n_{nr_sample}_wl_{wl_it}_norm_{norm}",
     f"#SBATCH --partition=amd-longq",
     f"#SBATCH --nodes=1",
     f"#SBATCH --ntasks-per-node=1",
