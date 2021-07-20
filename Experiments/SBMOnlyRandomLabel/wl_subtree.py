@@ -39,6 +39,7 @@ parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 2')
 parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
+parser.add_argument('-noise', '--noise', type=float,metavar='', help='How much heteroskedasticity of block labels')
 
 
 group = parser.add_mutually_exclusive_group()
@@ -69,6 +70,11 @@ if __name__ == "__main__":
     d = args.division
     n_itr = args.NumberIterations   
 
+    noise = args.noise
+
+    block_label_probability = 1.0 - noise
+    noise = noise/2.0
+
 
 
     # functions used for kernel testing
@@ -85,7 +91,7 @@ if __name__ == "__main__":
     bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, l = 'BlockLabelling', params= {'label_pmf':label_pmf_1}, fullyConnected=True)
 
     probs_2 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
-    label_pmf_2 = np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]])
+    label_pmf_2 = np.array([[block_label_probability, noise, noise], [noise, block_label_probability, noise], [noise, noise, block_label_probability]])
     sizes_2 = [30, 20, 25]
     bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, l = 'BlockLabelling', params= {'label_pmf':label_pmf_2}, fullyConnected=True)
 
@@ -188,6 +194,8 @@ if __name__ == "__main__":
         # Store the run information in a dataframe,
         tmp = pd.DataFrame({'kernel': str(kernel), 
                         'alpha':alpha,
+                        'normalize':normalize,
+                        'wl_itr':n_itr,
                         'probs_1':str(probs_1),
                         'sizes_1':str(sizes_1),
                         'label_pmf_1':str(label_pmf_1),
