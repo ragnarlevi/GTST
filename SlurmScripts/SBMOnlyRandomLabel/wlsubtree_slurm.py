@@ -32,19 +32,19 @@ for nr_sample in nr_samples:
 
                     
         # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
-        data_name = f'data/SBMOnlyRandomLabel/WLsubtree/wl_n_{nr_sample}_wl_{wl_it}_norm_{norm}.pkl'
+        data_name = f'data/SBMOnlyRandomLabel/WLsubtree/wl_n_{nr_sample}_noise_{noise}_wl_{wl_it}_norm_{norm}.pkl'
         
-        job_file = path + f"/WLsubtree/wl_n_{nr_sample}_wl_{wl_it}_norm_{norm}.slurm"
+        job_file = path + f"/WLsubtree/wl_n_{nr_sample}_noise_{noise}_wl_{wl_it}_norm_{norm}.slurm"
 
         items = ["#!/bin/bash", 
         f"#SBATCH --time=3:00:00",
-        f"#SBATCH --job-name=wl_sbmORL_n_{nr_sample}_wl_{wl_it}_norm_{norm}",
+        f"#SBATCH --job-name=wl_sbmORL_n_{nr_sample}_noise_{noise}_wl_{wl_it}_norm_{norm}",
         f"#SBATCH --partition=amd-longq",
         f"#SBATCH --nodes=1",
         f"#SBATCH --ntasks-per-node=1",
         f"#SBATCH --cpus-per-task={cpu_per_task}",
-        f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/sbmorl_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.out",
-        f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/sbmorl_n_{nr_sample}_k_wl_{wl_it}_norm_{norm}.err",
+        f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/sbmorl_n_{nr_sample}_noise_{noise}_k_wl_{wl_it}_norm_{norm}.out",
+        f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/sbmorl_n_{nr_sample}_noise_{noise}_k_wl_{wl_it}_norm_{norm}.err",
         f"#SBATCH --mail-user={email}",
         f"#SBATCH --mail-type=FAIL",
         "module purge",
