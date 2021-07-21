@@ -194,6 +194,7 @@ if __name__ == "__main__":
         # Store the run information in a dataframe,
         tmp = pd.DataFrame({'kernel': str(kernel), 
                         'alpha':alpha,
+                        'noise':noise,
                         'normalize':normalize,
                         'wl_itr':n_itr,
                         'probs_1':str(probs_1),
