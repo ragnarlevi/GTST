@@ -73,46 +73,46 @@ ksp['sinkhorn'] = bool(args.sinkhorn)
 if kernel_name == 'wl':
     k_val = 'WLsubtree'
     unique_identifier = f'nitr_{ksp["nitr"]}'
-    script_args = f'-nitr {ksp["nitr"]}'
+    script_args = f'-kernel {kernel_name} -nitr {ksp["nitr"]}'
 elif kernel_name == 'sp':
     k_val = 'SP'
     unique_identifier = f'wlab_{int(ksp["wlab"])}'
-    script_args = f'-wlab {int(ksp["wlab"])}'
+    script_args = f'-kernel {kernel_name} -wlab {int(ksp["wlab"])}'
 elif kernel_name == 'pyramid':
     k_val = 'PYRAMID'
     unique_identifier = f'wlab{int(ksp["wlab"])}_L_{ksp["L"]}_dim_{ksp["dim"]}'
-    script_args = f'-wlab {int(ksp["wlab"])} -L {ksp["L"]} -dim {ksp["dim"]}'
+    script_args = f'-kernel {kernel_name} -wlab {int(ksp["wlab"])} -L {ksp["L"]} -dim {ksp["dim"]}'
 elif kernel_name == 'prop':
     k_val = 'PROP'
     unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M{ksp["M"]}'
-    script_args = f'-w {ksp["w"]} -tmax {ksp["tmax"]} -M {ksp["M"]}'
+    script_args = f'-kernel {kernel_name} -w {ksp["w"]} -tmax {ksp["tmax"]} -M {ksp["M"]}'
 elif kernel_name == 'wloa':
     k_val = 'WLOA'
     unique_identifier = f'nitr_{ksp["nitr"]}_'
-    script_args = f'-nitr {ksp["nitr"]}'
+    script_args = f'-kernel {kernel_name} -nitr {ksp["nitr"]}'
 elif kernel_name == 'vh':
     # vertex histogram
     k_val = 'VH'
     unique_identifier = f'_'
-    script_args = f''
+    script_args = f'-kernel {kernel_name}'
 elif kernel_name == 'rw':
     k_val = 'RW'
     unique_identifier = f'rw_{ksp["type"]}_l_{ksp["discount"]}_wlab_{int(ksp["wlab"])}'
-    script_args = f'-type {ksp["type"]} -l {ksp["discount"]} -wlab {int(ksp["wlab"])}'
+    script_args = f'-kernel {kernel_name}  -type {ksp["type"]} -l {ksp["discount"]} -wlab {int(ksp["wlab"])}'
 elif kernel_name == 'odd':
     k_val = 'ODD'
     unique_identifier = f'dagh_{ksp["dagh"]}'
-    script_args = f'-dagh {ksp["dagh"]} '
+    script_args = f'-kernel {kernel_name} -dagh {ksp["dagh"]} '
 elif kernel_name == 'dk':
     k_val = 'DK'
     unique_identifier = f'wl_{ksp["nitr"]}_t_{ksp["type"]}'
-    script_args = f'-nitr {ksp["nitr"]} -type {ksp["type"]}'
+    script_args = f'-kernel {kernel_name} -nitr {ksp["nitr"]} -type {ksp["type"]}'
 elif kernel_name == 'wwl':
     k_val = 'WWL'
     unique_identifier = f'wl_{ksp["nitr"]}_l_{ksp["discount"]}_sink_{ksp["sinkhorn"]}'
-    script_args = f'-nitr {ksp["nitr"]} -l {ksp["discount"]} -sk {ksp["sinkhorn"]}'
+    script_args = f'-kernel {kernel_name} -nitr {ksp["nitr"]} -l {ksp["discount"]} -sk {ksp["sinkhorn"]}'
 else:
-    raise ValueError(f'No kernel names {kernel_name}')
+    raise ValueError(f'No kernel named {kernel_name}')
 
 
 from pathlib import Path
