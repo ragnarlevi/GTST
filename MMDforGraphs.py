@@ -770,7 +770,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
 
 
     # Store K max for acceptance region
-    Kmax = np.array([0] * N)
+    Kmax = np.array([0] * N, dtype = np.float64)
 
     for sample in range(N):
     
