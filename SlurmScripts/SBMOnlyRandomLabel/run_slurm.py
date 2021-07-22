@@ -52,9 +52,9 @@ ksp['nitr'] = args.NumberIterations
 
 # with labels?
 if args.wlab is None:
-    ksp['with_labels'] = bool(1)
+    ksp['wlab'] = bool(1)
 else:
-    ksp['with_labels'] = bool(args.wlab)
+    ksp['wlab'] = bool(args.wlab)
 
 ksp['L'] = args.histogramlevel
 ksp['dim'] = args.dim
