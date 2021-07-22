@@ -76,12 +76,12 @@ if kernel_name == 'wl':
     script_args = f'-nitr {ksp["nitr"]}'
 elif kernel_name == 'sp':
     k_val = 'SP'
-    unique_identifier = f'wlab_{ksp["wlab"]}'
-    script_args = f'-wlab {ksp["wlab"]}'
+    unique_identifier = f'wlab_{int(ksp["wlab"])}'
+    script_args = f'-wlab {int(ksp["wlab"])}'
 elif kernel_name == 'pyramid':
     k_val = 'PYRAMID'
-    unique_identifier = f'wlab{ksp["wlab"]}_L_{ksp["L"]}_dim_{ksp["dim"]}'
-    script_args = f'-wlab {ksp["wlab"]} -L {ksp["L"]} -dim {ksp["dim"]}'
+    unique_identifier = f'wlab{int(int(ksp["wlab"]))}_L_{ksp["L"]}_dim_{ksp["dim"]}'
+    script_args = f'-wlab {int(ksp["wlab"])} -L {ksp["L"]} -dim {ksp["dim"]}'
 elif kernel_name == 'prop':
     k_val = 'PROP'
     unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M{ksp["M"]}'
@@ -97,8 +97,8 @@ elif kernel_name == 'vh':
     script_args = f''
 elif kernel_name == 'rw':
     k_val = 'RW'
-    unique_identifier = f'rw_{ksp["type"]}_l_{ksp["discount"]}_wlab_{ksp["wlab"]}'
-    script_args = f'-type {ksp["type"]} -l {ksp["discount"]} -wlab {ksp["wlab"]}'
+    unique_identifier = f'rw_{ksp["type"]}_l_{ksp["discount"]}_wlab_{int(ksp["wlab"])}'
+    script_args = f'-type {ksp["type"]} -l {ksp["discount"]} -wlab {int(ksp["wlab"])}'
 elif kernel_name == 'odd':
     k_val = 'ODD'
     unique_identifier = f'dagh_{ksp["dagh"]}'
