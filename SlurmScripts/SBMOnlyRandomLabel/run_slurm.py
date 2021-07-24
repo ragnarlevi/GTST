@@ -101,8 +101,12 @@ elif kernel_name == 'rw':
     script_args = f'-kernel {kernel_name}  -type {ksp["type"]} -l {ksp["discount"]} -wlab {int(ksp["wlab"])}'
 elif kernel_name == 'odd':
     k_val = 'ODD'
-    unique_identifier = f'dagh_{ksp["dagh"]}'
-    script_args = f'-kernel {kernel_name} -dagh {ksp["dagh"]} '
+    if ksp['dagh'] is None:
+        unique_identifier = f'dagh_{ksp["dagh"]}'
+        script_args = f'-kernel {kernel_name}'
+    else:
+        unique_identifier = f'dagh_{ksp["dagh"]}'
+        script_args = f'-kernel {kernel_name} -dagh {ksp["dagh"]} '
 elif kernel_name == 'dk':
     k_val = 'DK'
     unique_identifier = f'wl_{ksp["nitr"]}_t_{ksp["type"]}'
@@ -138,7 +142,7 @@ for nr_sample in nr_samples:
         job_file = path + f"/{k_val}/n_{nr_sample}_noise_{noise}_norm_{norm}_{unique_identifier}.slurm"
 
         items = ["#!/bin/bash", 
-        f"#SBATCH --time=8:00:00",
+        f"#SBATCH --time=12:00:00",
         f"#SBATCH --job-name={k_val}_sbmORL_n_{nr_sample}_noise_{noise}_norm_{norm}_{unique_identifier}",
         f"#SBATCH --partition=amd-longq",
         f"#SBATCH --nodes=1",
