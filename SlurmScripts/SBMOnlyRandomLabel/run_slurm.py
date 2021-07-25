@@ -67,7 +67,7 @@ ksp['type'] = args.type
 ksp['discount'] = args.discount   
 
 ksp['dagh'] = args.DAGHeight
-ksp['sinkhorn'] = bool(args.sinkhorn)
+ksp['sinkhorn'] = args.sinkhorn
 
 
 if kernel_name == 'wl':
