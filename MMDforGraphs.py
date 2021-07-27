@@ -370,7 +370,7 @@ class BoostrapMethods():
 
         # calculate p-value
         for key in sample_statistic.keys():
-            p_value_dict[key] =  (boot_statistic[key] > sample_statistic[key]).sum()/float(B)
+            p_value_dict[key] =  (boot_statistic[key] >= sample_statistic[key]).sum()/float(B)
 
 
         self.p_values = p_value_dict
