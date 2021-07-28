@@ -262,6 +262,7 @@ if __name__ == "__main__":
 
         for i in range(len(MMD_functions)):
             key = MMD_functions[i].__name__
+            #print(f'{key} pvaalue {p_values[key]}')
             power_mmd[key] = (np.array(p_values[key]) < alpha).sum()/float(N)
             if key == 'MMD_u':
                 tmp = mmd_samples[key] < (4*Kmax/np.sqrt(float(n1)))*np.sqrt(np.log(1.0/alpha))
