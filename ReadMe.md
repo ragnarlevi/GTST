@@ -1,6 +1,6 @@
 This repository contains code for kernel two-sample tests for graphs.
 
-To clone the repository use git clone `https://github.com/ragnarlevi/MMDGraph.git`.
+To clone the repository use `git clone https://github.com/ragnarlevi/MMDGraph.git`.
 
 This repository depends on
 
