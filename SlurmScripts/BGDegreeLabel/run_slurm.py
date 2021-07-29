@@ -8,8 +8,6 @@ parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give numb
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 
-parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
-
 # Kernel specifics
 parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
