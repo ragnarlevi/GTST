@@ -31,37 +31,51 @@ import MMDforGraphs as mg
 
 
 parser = argparse.ArgumentParser()
+
+# Where to save results
+parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
+
+# Number of Iterations specifics
 parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give number of bootstraps')
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
-parser.add_argument('-p', '--path', type=str,metavar='', help='Give path (including filename) to where the data should be saved')
-parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
+
+# Graph generation specifics
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 2')
-parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
 parser.add_argument('-noise', '--noise', type=float,metavar='', help='How much heteroskedasticity of block labels')
 
-parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
+# parallelization specifics
+parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
 
-parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations')
-parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?')
+# Kernel specifics
+parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
+parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
+
+# Shared parameters
+parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk')
+parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?, sp, rw, pyramid')
+parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl)')
+parser.add_argument('-l', '--discount', type=float,metavar='', help='RW, wwl lambda/discount')
+parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of walks, used in propagation and RW.')
 
 # pyramid only
 parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
 parser.add_argument('-dim', '--dim', type=int,metavar='', help='The dimension of the hypercube.')
 
-group = parser.add_mutually_exclusive_group()
-group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
-
-parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of iterations.')
+# Propagation only
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
 parser.add_argument('-M', '--Distance', type=str,metavar='', help='The preserved distance metric (on local sensitive hashing):')
 
-parser.add_argument('-type', '--type', type=str,metavar='', help='Type of rw, deepkernel, ....')
-parser.add_argument('-l', '--discount', type=float,metavar='', help='RW lambda')
-
+# ODD only
 parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
 
+# WWL only
 parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
+
+
+group = parser.add_mutually_exclusive_group()
+group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
+
 
 args = parser.parse_args()
 
@@ -168,7 +182,12 @@ if __name__ == "__main__":
         # vertex histogram
         kernel = [{"name": "vertex_histogram"}]
     elif kernel_name == 'rw':
-        kernel = [{"name": "RW", "with_labels": kernel_specific_params.get('with_labels', True), "lamda":kernel_specific_params['discount'] , "kernel_type":kernel_specific_params['type']}]
+        kernel = [{"name": "RW", 
+                    "with_labels": kernel_specific_params.get('with_labels', True), 
+                    "lamda":kernel_specific_params['discount'] , 
+                    "kernel_type":kernel_specific_params['type'],
+                    "method_type":'fast',
+                    'p':kernel_specific_params.get('tmax', None)}]
     elif kernel_name == 'odd':
         kernel = [{"name":'odd_sth', 'h':kernel_specific_params['dagh']}]
     elif kernel_name == 'dk':
