@@ -65,6 +65,10 @@ class HashKernel():
 
     @staticmethod
     def wl_coloring(M, colors, log_primes):
+        """
+        Each color gets its unique prime number, The adjancy matrix = neighbours are multiplied with the prime numbers.
+        The color will be unique because we are using prime numbers.
+        """
 
         log_prime_colors = np.array([log_primes[i] for i in colors], dtype=np.float64)
         colors = colors + M.dot(log_prime_colors)
@@ -221,7 +225,6 @@ class HashKernel():
             adjacency_matrices.append(np.array(nx.adjacency_matrix(g).todense()))
         M = sp.sparse.block_diag(tuple(adjacency_matrices), dtype=np.float64, format="csr")
         num_vertices = M.shape[0]
-        #print(num_vertices)
 
         # Load list of precalculated logarithms of prime numbers
         log_primes = log_pl.log_primes[0:num_vertices]
