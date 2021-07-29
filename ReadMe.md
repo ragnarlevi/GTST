@@ -71,5 +71,7 @@ In this repository you can also find the folder [Analysis](https://github.com/ra
 
 Another folder is [_Workbench](https://github.com/ragnarlevi/MMDGraph/tree/master/_Workbench) which contains notebooks where I do some testing before doing experiments or before writing "production" code. The notebooks use functions/classes from [MMDforGraphs.py](https://github.com/ragnarlevi/MMDGraph/blob/master/MMDforGraphs.py)
 
+There is also the folder [Yahoo](https://github.com/ragnarlevi/MMDGraph/tree/master/Yahoo) which contains contains notebooks scraping yahoo data and creating financial clique graph.
+
 
 
