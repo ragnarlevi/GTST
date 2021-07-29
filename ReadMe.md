@@ -21,7 +21,7 @@ The experiments available are under the folder [Experiments](https://github.com/
 * -p the path to where the pandas dataframe (containing ROC curve for each test) should be saved
 * -d Number of processes used to simulate the iterations. Each core will process N/d simulations. Preferably, we should have the relationship $d*i = N$, where $i$ is an integer
 
-The kernel specifics depends on the kernel that is used. If the kernel of choice does not use a specific parameter, simply skip
+The kernel specifics depends on the kernel that is used. If the kernel of choice does not use a specific parameter, simply omit it.
 
 * -kernel The name of the kernel to be used:
   * wl for the Weisfeiler-Lehman subtree kernel (Grakel package)
