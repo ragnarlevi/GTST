@@ -143,12 +143,12 @@ degree_offsets = [0.25, 0.5, 0.75]
 
 
 for nr_node_2_offset in nr_node_2_offsets:
-        for nr_sample in nr_samples:
-            for k_off in degree_offsets:
+    for nr_sample in nr_samples:
+        for k_off in degree_offsets:
 
-                nr_node_2 = nr_node_1 + nr_node_2_offset
+            nr_node_2 = nr_node_1 + nr_node_2_offset
 
-                        
+                    
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
             data_name = f'data/BGDegreeLabel/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.pkl'
             
