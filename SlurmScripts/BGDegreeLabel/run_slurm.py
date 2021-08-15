@@ -133,31 +133,36 @@ Path(f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel/{k_val}").mkdir(pa
 path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 
 
-nr_nodes = [40, 60, 80]
+# the parameters and for loops should be changed for a custom experiment
+# nr_nodes = [40, 60, 80]
+nr_node_1 = 60
+nr_node_2_offsets = [5, 10, 15, 20, 30]
 nr_samples = [20, 60, 100]
 k = 4
-degree_offsets = [0.25, 0.5, 0.75, 1]
+degree_offsets = [0.25, 0.5, 0.75]
 
 
-for nr_node in nr_nodes:
-    for nr_sample in nr_samples:
-        for k_off in degree_offsets:
+for nr_node_2_offset in nr_node_2_offsets:
+        for nr_sample in nr_samples:
+            for k_off in degree_offsets:
 
-                    
+                nr_node_2 = nr_node_1 + nr_node_2_offset
+
+                        
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
-            data_name = f'data/BGDegreeLabel/{k_val}/v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.pkl'
+            data_name = f'data/BGDegreeLabel/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.pkl'
             
-            job_file = path + f"/{k_val}/v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.slurm"
+            job_file = path + f"/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.slurm"
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=12:00:00",
-            f"#SBATCH --job-name={k_val}_bgdeg_v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}",
+            f"#SBATCH --job-name={k_val}_bgdeg_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
             f"#SBATCH --cpus-per-task={cpu_per_task}",
-            f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/{k_val}_bgdeg_v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.out",
-            f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/{k_val}_bgdeg_v_{nr_node}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.err",
+            f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/{k_val}_bgdeg_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.out",
+            f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/{k_val}_bgdeg_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.err",
             f"#SBATCH --mail-user={email}",
             f"#SBATCH --mail-type=FAIL",
             "module purge",
@@ -167,7 +172,7 @@ for nr_node in nr_nodes:
             ]
             
 
-            items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {B} -n1 {nr_sample} -n2 {nr_sample} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node} -nnode2 {nr_node} -k1 {k} -k2 {k + k_off} {script_args}")
+            items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {B} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off} {script_args}")
 
 
 
