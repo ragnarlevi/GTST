@@ -155,7 +155,7 @@ for nr_node_2_offset in nr_node_2_offsets:
             job_file = path + f"/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}.slurm"
 
             items = ["#!/bin/bash", 
-            f"#SBATCH --time=12:00:00",
+            f"#SBATCH --time=15:00:00",
             f"#SBATCH --job-name={k_val}_bgdeg_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_k_{k_off}_norm_{norm}_{unique_identifier}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
