@@ -172,7 +172,7 @@ for nr_node_2_offset in nr_node_2_offsets:
             ]
             
 
-            items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {B} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off} {script_args}")
+            items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {N} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off} {script_args}")
 
 
 

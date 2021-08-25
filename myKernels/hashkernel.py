@@ -92,7 +92,7 @@ class HashKernel():
         g = X[0]
         tmp = nx.get_node_attributes(g,self.param['attr_name'])
         dim_attributes = len(tmp[0])
-        print(f'dimension is {dim_attributes}')
+        # print(f'dimension is {dim_attributes}')
         colors_0 = np.zeros([num_vertices, dim_attributes])
         offset = 0
 
@@ -139,7 +139,7 @@ class HashKernel():
         gram_matrix = feature_vectors.dot(feature_vectors.T)
         gram_matrix = gram_matrix.toarray()
 
-        if self.param['normalize']:
+        if self.param.get('normalize', False):
             gram_matrix = self.normalize_gram_matrix(gram_matrix)
 
         return gram_matrix

@@ -187,7 +187,18 @@ class WWL():
                         
         M = (M + M.T)
 
-        return  np.exp(-self.param['discount']*M)
+        K = np.exp(-self.param['discount']*M)
+
+        if self.param.get('normalize', False):
+            K = self.normalize_gram_matrix(K)
+
+        return  K
+
+    @staticmethod
+    def normalize_gram_matrix(x):
+        k = np.reciprocal(np.sqrt(np.diag(x)))
+        k = np.resize(k, (len(k), 1))
+        return np.multiply(x, k.dot(k.T))
 
     def compute_wl_embeddings_discrete(self, graphs, h):
 

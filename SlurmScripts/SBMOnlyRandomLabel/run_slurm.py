@@ -174,7 +174,7 @@ for nr_sample in nr_samples:
         ]
         
 
-        items.append(f"python3 Experiments/SBMOnlyRandomLabel/run.py -B {B} -N {B} -n1 {nr_sample} -n2 {nr_sample} -p {data_name} -norm {norm} -d {cpu_per_task} -noise {noise} {script_args}")
+        items.append(f"python3 Experiments/SBMOnlyRandomLabel/run.py -B {B} -N {N} -n1 {nr_sample} -n2 {nr_sample} -p {data_name} -norm {norm} -d {cpu_per_task} -noise {noise} {script_args}")
 
 
 

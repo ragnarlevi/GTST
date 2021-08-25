@@ -254,10 +254,10 @@ def transitivity(G):
 
 class DegreeGraphs():
     """
-    Wrapper for graph generator which are fully specified by degree
+    Wrapper for a graph generator. Defines the labels and attribute generation. Used as a parent class.
     """
 
-    def __init__(self, n, nnode, k, l = None,  a = None, fullyConnected = False, **kwargs) -> None:
+    def __init__(self, n, nnode, k = None, l = None,  a = None, fullyConnected = False, **kwargs) -> None:
         """
         :param kernel: Dictionary with kernel information
         :param n: Number of samples
@@ -265,7 +265,7 @@ class DegreeGraphs():
         :param k: Degree
         :param l: Labelling scheme
         :param a: Attribute scheme
-        :param **kwargs: Arguments for the labelling functions
+        :param **kwargs: Arguments for the labelling/attribute functions
         :param path: save data path
         """
         self.n = n
@@ -284,6 +284,14 @@ class DegreeGraphs():
         :param G: Networkx graph
         """
         return dict( ( (i, 'a') for i in range(len(G)) ) )
+
+    def samelabels_float(self, G):
+        """
+        labelling Scheme. All nodes get same label
+
+        :param G: Networkx graph
+        """
+        return dict( ( (i, 0.0) for i in range(len(G)) ) )
 
     def degreelabels(self, G):
         """
@@ -328,6 +336,52 @@ class DegreeGraphs():
         letters = list(string.ascii_lowercase[:self.kwargs['nr_letters']])
         return dict( ( (i, np.random.choice(letters, p = pmf)) for i in range(len(G)) ) )
 
+    def normal_conditional_on_latent_mean_rv(self, G):
+        """
+        Generate a random variable where the mean follows another normal distribution
+        scale: sd of normal
+        scale_latent: sd of the latent normal
+        """
+
+        loc = np.random.normal(self.kwargs.get('loc_latent', 1), self.kwargs.get('scale_latent', 1), size = self.nnode)
+        scale = self.kwargs.get('scale', 1)
+        return dict( ( (i, np.random.normal(loc = loc[i], scale = scale, size = (1,))) for i in range(len(G)) ) )
+
+
+class CliqueGraph(DegreeGraphs):
+    """
+    a Class that generates clique graphs
+    """
+
+    def __init__(self,  n, nnode, l = None,  a = None, **kwargs):
+        super().__init__( n = n, nnode = nnode, l = l ,  a = a, **kwargs )
+
+    def Generate(self):
+
+        self.Gs = []
+        for _ in range(self.n):
+            
+            G = nx.Graph()
+            G.add_nodes_from(range(self.nnode))
+            from itertools import product
+            G.add_edges_from((a,b) for a,b in product(list(G.nodes()), list(G.nodes())) if a != b)
+
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            self.Gs.append(G)
 
 class BinomialGraphs(DegreeGraphs):
     """
@@ -574,7 +628,26 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
         elif kernel_library == "wwl":
             import myKernels.WWL as wl
             #import myKernels.hashkernel as hk
-            init_kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'] })
+            init_kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'], 'normalize':kernel['normalize']})
+            K = init_kernel.fit_transform(Gs)
+        elif kernel_library == "gik":
+            import myKernels.GraphInvariant as gi
+            init_kernel = gi.GIK(local = True, label_name = 'label', attr_name= 'attr', params = {'wl_itr':kernel['wl_itr'], 
+                                                                                            'distances':kernel['distances'],  
+                                                                                            'c':kernel['c'],
+                                                                                            'normalize':kernel['normalize']})
+            K = init_kernel.fit_transform(Gs)
+        elif kernel_library == 'hash':
+            import myKernels.hashkernel as hashkernel
+            init_kernel = hashkernel.HashKernel(base_kernel = kernel['base_kernel'], param = {'iterations':kernel['iterations'],
+                                                                                         'lsh_bin_width':kernel['lsh_bin_width'], 
+                                                                                         'sigma':kernel['sigma'],
+                                                                                         'normalize':kernel['normalize'],
+                                                                                         'scale_attributes':kernel['scale_attributes'],
+                                                                                         'attr_name': 'attr',
+                                                                                         'label_name':'label',
+                                                                                         'wl_iterations':kernel['wl_iterations'],
+                                                                                         'normalize':kernel['normalize']})
             K = init_kernel.fit_transform(Gs)
         else:
             raise ValueError(f"{kernel_library} not defined")

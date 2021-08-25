@@ -191,9 +191,9 @@ if __name__ == "__main__":
     elif kernel_name == 'odd':
         kernel = [{"name":'odd_sth', 'h':kernel_specific_params['dagh']}]
     elif kernel_name == 'dk':
-        kernel = {"type":kernel_specific_params['type'], 'wl_it':kernel_specific_params.get('nitr', 4)}
+        kernel = {"type":kernel_specific_params['type'], 'wl_it':kernel_specific_params.get('nitr', 4), 'normalize':normalize}
     elif kernel_name == 'wwl':
-        kernel = {'discount':kernel_specific_params['discount'],'h':kernel_specific_params['nitr'], 'sinkhorn':kernel_specific_params['sinkhorn'] }
+        kernel = {'discount':kernel_specific_params['discount'],'h':kernel_specific_params['nitr'], 'sinkhorn':kernel_specific_params['sinkhorn'],'normalize':normalize }
     else:
         raise ValueError(f'No kernel names {kernel_name}')
 

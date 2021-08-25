@@ -18,6 +18,8 @@ import argparse
 import warnings
 import concurrent.futures
 
+from scipy.linalg.misc import norm
+
 # add perant dir 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -43,8 +45,8 @@ parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of 
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 2')
 parser.add_argument('-nnode1', '--NrNodes1', type=int,metavar='', help='Number of nodes in each graph in sample 1')
 parser.add_argument('-nnode2', '--NrNodes2', type=int,metavar='', help='Number of nodes in each graph in sample 2')
-parser.add_argument('-k1', '--AverageDegree1', type=float,metavar='', help='Average degree of each graph in sample 1')
-parser.add_argument('-k2', '--AverageDegree2', type=float,metavar='', help='Average degree of each graph in sample 2')
+parser.add_argument('-latent1', '--latent1', type=float,metavar='', help='The mean of the latent normal governing the mean of nodes in a graph in sample 1')
+parser.add_argument('-latent2', '--latent2', type=float,metavar='', help='The mean of the latent normal governing the mean of nodes in a graph in sample 2')
 
 # parallelization specifics
 parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
@@ -54,25 +56,24 @@ parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
 
 # Shared parameters
-parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk')
+parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk, hashkernel ')
 parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?, sp, rw, pyramid')
-parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl)')
+parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl), haskenrel(sp or wl)')
 parser.add_argument('-l', '--discount', type=float,metavar='', help='RW, wwl lambda/discount')
 parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of walks, used in propagation and RW.')
 
-# pyramid only
-parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
-parser.add_argument('-dim', '--dim', type=int,metavar='', help='The dimension of the hypercube.')
+# Hash graph
+parser.add_argument('-iterations', '--iterations', type=int,metavar='', help='hash kernel iteration')
+parser.add_argument('-basekernel', '--basekernel', type=str,metavar='', help='Base kernel wl or sp')
+parser.add_argument('-scale', '--scale', type=int,metavar='', help='Scale attrubutes?')
+
 
 # Propagation only
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
 parser.add_argument('-M', '--Distance', type=str,metavar='', help='The preserved distance metric (on local sensitive hashing):')
 
-# ODD only
-parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (single) dag height. If None there is no restriction.')
-
-# WWL only
-parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
+# Gik
+parser.add_argument('-distances', '--distances', type=int,metavar='', help='node neigbourhood depth')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
@@ -102,8 +103,8 @@ if __name__ == "__main__":
     n2 = args.NrSamples2
     nnode1 = args.NrNodes1
     nnode2 = args.NrNodes2
-    k1 = args.AverageDegree1
-    k2 = args.AverageDegree2
+    loc_latent_1 = args.latent1
+    loc_latent_2 = args.latent2
 
     # number of cores
     d = args.division
@@ -121,18 +122,25 @@ if __name__ == "__main__":
     else:
         kernel_specific_params['with_labels'] = bool(args.wlab)
 
-    kernel_specific_params['L'] = args.histogramlevel
-    kernel_specific_params['dim'] = args.dim
 
+    
     kernel_specific_params['w'] = args.binwidth
+
+    # gik
+    kernel_specific_params['distances'] = args.distances
+
+    # Hash
+    kernel_specific_params['iterations'] = args.iterations
+    kernel_specific_params['scale'] = args.scale
+    kernel_specific_params['basekernel'] = args.basekernel
+
+    # Propagation
     kernel_specific_params['tmax'] = args.tmax
     kernel_specific_params['M'] = args.Distance
 
     kernel_specific_params['type'] = args.type  
     kernel_specific_params['discount'] = args.discount   
 
-    kernel_specific_params['dagh'] = args.DAGHeight
-    kernel_specific_params['sinkhorn'] = bool(args.sinkhorn)
 
     
     # functions used for kernel testing
@@ -143,8 +151,8 @@ if __name__ == "__main__":
     kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
     # Initialize Graph generator class
-    bg1 = mg.BinomialGraphs(n1, nnode1, k1, l = 'degreelabels', fullyConnected = True)
-    bg2 = mg.BinomialGraphs(n2, nnode2, k2, l = 'degreelabels', fullyConnected = True)
+    bg1 = mg.CliqueGraph(n1, nnode1,  l = 'samelabels_float', a = 'normal_conditional_on_latent_mean_rv', loc_latent = loc_latent_1)
+    bg2 = mg.CliqueGraph(n2, nnode2,  l = 'samelabels_float', a = 'normal_conditional_on_latent_mean_rv', loc_latent = loc_latent_2)
 
     # Probability of type 1 error
     alphas = np.linspace(0.01, 0.99, 99)
@@ -157,32 +165,27 @@ if __name__ == "__main__":
     # Kernel specification
     # kernel = [{"name": "WL", "n_iter": 4}]
 
-    if kernel_name == 'wl':
-        kernel = [{"name": "weisfeiler_lehman", "n_iter": kernel_specific_params['nitr']}, {"name": "vertex_histogram"}]
-    elif kernel_name == 'sp':
-        kernel = [{"name": "SP", "with_labels": kernel_specific_params.get('with_labels', True)}]
-    elif kernel_name == 'pyramid':
-        kernel = [{"name": "pyramid_match", "with_labels":kernel_specific_params.get('with_labels', True), "L":kernel_specific_params['L'], "d":kernel_specific_params['dim']}]
+    if kernel_name == 'gh':
+        kernel = [{"name": "GH", 'kernel_type':kernel_specific_params['type']}]
+    elif kernel_name == 'hash':
+        kernel = {'base_kernel':kernel_specific_params['basekernel'], 'iterations':kernel_specific_params['iterations'],
+                                                                    'lsh_bin_width':kernel_specific_params['w'], 
+                                                                    'sigma':1,
+                                                                    'normalize':bool(normalize),
+                                                                    'scale_attributes':bool(kernel_specific_params['scale']),
+                                                                    'attr_name': 'attr',
+                                                                    'label_name':'label',
+                                                                    'wl_iterations':kernel_specific_params['nitr'],
+                                                                    'normalize':normalize}
+    elif kernel_name == 'gik':
+        kernel = {'local':True, 'label_name':'label', 'attr_name':'attr', 
+        'wl_itr':kernel_specific_params['nitr'], 
+        'distances':kernel_specific_params['distances'],  
+        'c':kernel_specific_params['discount'],
+        'normalize':normalize}
     elif kernel_name == 'prop':
-        kernel = [{"name": "propagation", "t_max": kernel_specific_params['tmax'], "w":kernel_specific_params['w'], "M":kernel_specific_params['M']}]
-    elif kernel_name == 'wloa':
-        kernel = [{"name": "WL-OA", "n_iter": kernel_specific_params['nitr']}]
-    elif kernel_name == 'vh':
-        # vertex histogram
-        kernel = [{"name": "vertex_histogram"}]
-    elif kernel_name == 'rw':
-        kernel = [{"name": "RW", 
-                    "with_labels": kernel_specific_params.get('with_labels', True), 
-                    "lamda":kernel_specific_params['discount'] , 
-                    "kernel_type":kernel_specific_params['type'],
-                    "method_type":'fast',
-                    'p':kernel_specific_params.get('tmax', None)}]
-    elif kernel_name == 'odd':
-        kernel = [{"name":'odd_sth', 'h':kernel_specific_params['dagh']}]
-    elif kernel_name == 'dk':
-        kernel = {"type":kernel_specific_params['type'], 'wl_it':kernel_specific_params.get('nitr', 4),'normalize':normalize}
-    elif kernel_name == 'wwl':
-        kernel = {'discount':kernel_specific_params['discount'],'h':kernel_specific_params['nitr'], 'sinkhorn':kernel_specific_params['sinkhorn'],'normalize':normalize }
+        kernel = [{"name": "propagation", "t_max": kernel_specific_params['tmax'], "w":kernel_specific_params['w'], "M":kernel_specific_params['M'], 'with_attributes':True}]
+
     else:
         raise ValueError(f'No kernel names {kernel_name}')
     
@@ -215,11 +218,15 @@ if __name__ == "__main__":
         kernel_library="deepkernel"
     elif kernel_name == 'wwl':
         kernel_library = 'wwl'
+    elif kernel_name == 'hash':
+        kernel_library = 'hash'
+    elif kernel_name == 'gik':
+        kernel_library = 'gik'
     else:
         kernel_library = "Grakel"
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis, kernel_library) for n in [part] * d]
+        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis, kernel_library, node_labels_tag='attr') for n in [part] * d]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0
@@ -276,12 +283,8 @@ if __name__ == "__main__":
                         'normalize':normalize,
                         'nr_nodes_1': nnode1,
                         'nr_nodes_2': nnode2,
-                        'p_edge_1': k1/float(nnode1-1),
-                        'p_edge_2': k2/float(nnode2-1),
-                        'degree_1': k1 ,
-                        'degree_2': k2,
-                        'ratio_p': np.round(k1/float(nnode1-1)/k2/float(nnode2-1),3),
-                        'ratio_degree': np.round(k2/k1,3),
+                        'loc_latent_1':loc_latent_1,
+                        'loc_latent_1':loc_latent_1,
                         'n':n1,
                         'm':n2,
                         'timestap':time,
