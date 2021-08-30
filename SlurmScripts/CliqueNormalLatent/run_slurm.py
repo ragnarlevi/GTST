@@ -15,7 +15,7 @@ parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should ke
 # Shared parameters
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk, hashkernel ')
 parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?, sp, rw, pyramid')
-parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl), haskenrel(sp or wl)')
+parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl), hashkenrel(sp or wl), graph hopper (gh) ( ‘linear’, ‘gaussian’, ‘bridge’)')
 parser.add_argument('-l', '--discount', type=float,metavar='', help='RW, wwl lambda/discount')
 parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of walks, used in propagation and RW.')
 
@@ -105,10 +105,10 @@ elif kernel_name == 'gik':
 #     k_val = 'PYRAMID'
 #     unique_identifier = f'wlab{int(ksp["wlab"])}_L_{ksp["L"]}_dim_{ksp["dim"]}'
 #     script_args = f'-kernel {kernel_name} -wlab {int(ksp["wlab"])} -L {ksp["L"]} -dim {ksp["dim"]}'
-# elif kernel_name == 'prop':
-#     k_val = 'PROP'
-#     unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M{ksp["M"]}'
-#     script_args = f'-kernel {kernel_name} -w {ksp["w"]} -tmax {ksp["tmax"]} -M {ksp["M"]}'
+elif kernel_name == 'prop':
+    k_val = 'PROP'
+    unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M_{ksp["M"]}'
+    script_args = f'-kernel {kernel_name} -w {ksp["w"]} -tmax {ksp["tmax"]} -M {ksp["M"]}'
 # elif kernel_name == 'wloa':
 #     k_val = 'WLOA'
 #     unique_identifier = f'nitr_{ksp["nitr"]}_'
@@ -159,7 +159,7 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/{experiment_name}"
 # nr_nodes = [40, 60, 80]
 nr_node_1 = 15
 nr_node_2_offsets = [5, 10, 15, 20]
-nr_samples = [60]
+nr_samples = [20, 60]
 lat_1 = 0
 lat_offsets = [0.1, 0.2, 0.3]
 
