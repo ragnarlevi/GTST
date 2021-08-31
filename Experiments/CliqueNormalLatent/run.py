@@ -64,7 +64,7 @@ parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number
 
 # Hash graph
 parser.add_argument('-iterations', '--iterations', type=int,metavar='', help='hash kernel iteration')
-parser.add_argument('-basekernel', '--basekernel', type=str,metavar='', help='Base kernel wl or sp')
+parser.add_argument('-basekernel', '--basekernel', type=str,metavar='', help='Base kernel WL_kernel or shortest_path_kernel')
 parser.add_argument('-scale', '--scale', type=int,metavar='', help='Scale attrubutes?')
 
 

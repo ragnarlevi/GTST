@@ -18,6 +18,7 @@ parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?, 
 parser.add_argument('-type', '--type', type=str,metavar='', help='Type of... rw (geometric or exponential) , deepkernel (sp or wl), hashkenrel(sp or wl), graph hopper (gh) ( ‘linear’, ‘gaussian’, ‘bridge’)')
 parser.add_argument('-l', '--discount', type=float,metavar='', help='RW, wwl lambda/discount')
 parser.add_argument('-tmax', '--tmax', type=int,metavar='', help='Maximum number of walks, used in propagation and RW.')
+parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
 
 # Hash graph
 parser.add_argument('-iterations', '--iterations', type=int,metavar='', help='hash kernel iteration')
@@ -26,7 +27,7 @@ parser.add_argument('-scale', '--scale', type=int,metavar='', help='Scale attrub
 
 
 # Propagation only
-parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
+
 parser.add_argument('-M', '--Distance', type=str,metavar='', help='The preserved distance metric (on local sensitive hashing):')
 
 # Gik
@@ -167,25 +168,25 @@ lat_offsets = [0.1, 0.2, 0.3]
 for nr_node_2_offset in nr_node_2_offsets:
     for nr_sample in nr_samples:
         for lat_off in lat_offsets:
-            lat_2 = lat_1 = lat_off
+            lat_2 = lat_1 + lat_off
 
             nr_node_2 = nr_node_1 + nr_node_2_offset
 
                     
             # Note that in the slurm batch file we set another working directory which is the reason for this data_name path
-            data_name = f'data/CliqueNormalLatent/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_{lat_2}_norm_{norm}_{unique_identifier}.pkl'
+            data_name = f'data/CliqueNormalLatent/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_lat2_{lat_2}_norm_{norm}_{unique_identifier}.pkl'
             
-            job_file = path + f"/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_{lat_2}_norm_{norm}_{unique_identifier}.slurm"
+            job_file = path + f"/{k_val}/v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_lat2_{lat_2}_norm_{norm}_{unique_identifier}.slurm"
 
             items = ["#!/bin/bash", 
             f"#SBATCH --time=15:00:00",
-            f"#SBATCH --job-name={k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_{lat_2}_norm_{norm}_{unique_identifier}",
+            f"#SBATCH --job-name={k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_lat2_{lat_2}_norm_{norm}_{unique_identifier}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
             f"#SBATCH --ntasks-per-node=1",
             f"#SBATCH --cpus-per-task={cpu_per_task}",
-            f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/{k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_{lat_2}_norm_{norm}_{unique_identifier}.out",
-            f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/{k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_{lat_2}_norm_{norm}_{unique_identifier}.err",
+            f"#SBATCH --output=/home/{usr}/projects/MMDGraph/outputs/{k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_lat2_{lat_2}_norm_{norm}_{unique_identifier}.out",
+            f"#SBATCH --error=/home/{usr}/projects/MMDGraph/errors/{k_val}_normlat_v1_{nr_node_1}_v2_{nr_node_2}_n_{nr_sample}_lat1_{lat_1}_lat2_{lat_2}_norm_{norm}_{unique_identifier}.err",
             f"#SBATCH --mail-user={email}",
             f"#SBATCH --mail-type=FAIL",
             "module purge",

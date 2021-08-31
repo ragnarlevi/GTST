@@ -88,7 +88,7 @@ elif kernel_name == 'pyramid':
 
 elif kernel_name == 'prop':
     k_val = 'PROP'
-    unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M{ksp["M"]}'
+    unique_identifier = f'w{ksp["w"]}_tmax{ksp["tmax"]}_M_{ksp["M"]}'
     script_args = f'-kernel {kernel_name} -w {ksp["w"]} -tmax {ksp["tmax"]} -M {ksp["M"]}'
 
 elif kernel_name == 'wloa':
