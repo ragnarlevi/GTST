@@ -13,7 +13,7 @@ parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
 
 # Graph hopper
-parser.add_argument('-mu', '--mu', type=int,metavar='', help='parameter of gaussian')
+parser.add_argument('-mu', '--mu', type=float,metavar='', help='parameter of gaussian')
 
 # Shared parameters
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk, hashkernel ')

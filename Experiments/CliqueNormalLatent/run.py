@@ -68,7 +68,7 @@ parser.add_argument('-basekernel', '--basekernel', type=str,metavar='', help='Ba
 parser.add_argument('-scale', '--scale', type=int,metavar='', help='Scale attrubutes?')
 
 # Graph hopper
-parser.add_argument('-mu', '--mu', type=int,metavar='', help='parameter of gaussian')
+parser.add_argument('-mu', '--mu', type=float, metavar='', help='parameter of gaussian')
 
 
 # Propagation only
