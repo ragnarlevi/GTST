@@ -12,6 +12,9 @@ parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per tas
 parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
 
+# Graph hopper
+parser.add_argument('-mu', '--mu', type=int,metavar='', help='parameter of gaussian')
+
 # Shared parameters
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk, hashkernel ')
 parser.add_argument('-wlab', '--wlab', type=int,metavar='', help='With labels?, sp, rw, pyramid')
@@ -60,6 +63,9 @@ else:
 
 ksp['w'] = args.binwidth
 
+# graph hopper
+ksp['mu'] = args.mu
+
 # gik
 ksp['distances'] = args.distances
 
@@ -82,8 +88,12 @@ experiment_name = 'CliqueNormalLatent'
 
 if kernel_name == 'gh':
     k_val = 'GH'
-    unique_identifier = f'ktype_{ksp["type"]}'
-    script_args = f'-kernel {kernel_name} -type {ksp["type"]}'
+    if ksp["type"] == 'gaussian':
+        unique_identifier = f'ktype_{ksp["type"]}_mu_{ksp["mu"]}'
+        script_args = f'-kernel {kernel_name} -type {ksp["type"]} -mu {ksp["mu"]}'
+    else:
+        unique_identifier = f'ktype_{ksp["type"]}_mu_NA'
+        script_args = f'-kernel {kernel_name} -type {ksp["type"]}'
 elif kernel_name == 'hash':
     k_val = 'HASH'
     unique_identifier = f'its_{ksp["iterations"]}_scale_{ksp["scale"]}_w_{ksp["w"]}_nitr_{ksp["nitr"]}_bkernel_{ksp["basekernel"]}'

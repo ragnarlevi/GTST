@@ -67,6 +67,9 @@ parser.add_argument('-iterations', '--iterations', type=int,metavar='', help='ha
 parser.add_argument('-basekernel', '--basekernel', type=str,metavar='', help='Base kernel WL_kernel or shortest_path_kernel')
 parser.add_argument('-scale', '--scale', type=int,metavar='', help='Scale attrubutes?')
 
+# Graph hopper
+parser.add_argument('-mu', '--mu', type=int,metavar='', help='parameter of gaussian')
+
 
 # Propagation only
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
@@ -125,6 +128,9 @@ if __name__ == "__main__":
 
     
     kernel_specific_params['w'] = args.binwidth
+    
+    # graph hopper
+    kernel_specific_params['mu'] = args.mu
 
     # gik
     kernel_specific_params['distances'] = args.distances
@@ -166,7 +172,11 @@ if __name__ == "__main__":
     # kernel = [{"name": "WL", "n_iter": 4}]
 
     if kernel_name == 'gh':
-        kernel = [{"name": "GH", 'kernel_type':kernel_specific_params['type']}]
+        kernel_type = kernel_specific_params['type']
+        if kernel_type == "gaussian":
+            kernel = [{"name": "GH", 'kernel_type':('gaussian', kernel_specific_params['mu'])}]
+        else:
+            kernel = [{"name": "GH", 'kernel_type':kernel_specific_params['type']}]
     elif kernel_name == 'hash':
         kernel = {'base_kernel':kernel_specific_params['basekernel'], 'iterations':kernel_specific_params['iterations'],
                                                                     'lsh_bin_width':kernel_specific_params['w'], 
@@ -285,7 +295,7 @@ if __name__ == "__main__":
                         'nr_nodes_2': nnode2,
                         'loc_latent_1':loc_latent_1,
                         'loc_latent_2':loc_latent_2,
-                        'ratio_latent':loc_latent_2/loc_latent_1,
+                        'latent_diff':loc_latent_2-loc_latent_1,
                         'n':n1,
                         'm':n2,
                         'timestap':time,
