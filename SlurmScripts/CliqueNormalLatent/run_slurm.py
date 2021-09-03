@@ -169,7 +169,7 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/{experiment_name}"
 # the parameters and for loops should be changed for a custom experiment
 # nr_nodes = [40, 60, 80]
 nr_node_1 = 15
-nr_node_2_offsets = [5, 10, 15, 20]
+nr_node_2_offsets = [0, 5, 10, 15, 20]
 nr_samples = [20, 60]
 lat_1 = 0
 lat_offsets = [0.1, 0.2, 0.3]

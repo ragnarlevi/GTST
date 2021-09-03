@@ -74,7 +74,8 @@ class BoostrapMethods():
         """
 
         K_i = np.empty(K.shape)
-        index = np.random.choice(K.shape[0])
+        index = np.random.choice(K.shape[0], size = K.shape[0])
+    
         for i in range(len(index)):
             for j in range(len(index)):
                 K_i[i,j] = K[index[i], index[j]]
@@ -317,7 +318,7 @@ class DegreeGraphs():
 
     def rnglabels(self, G):
         """
-        labelling Scheme. Nodes labelled accodring to a discrete pmf
+        labelling Scheme. Nodes labelled according to a discrete pmf
 
         :param G: Networkx graph
         :param pmf: pmf as list. If None then uniform over all entries
@@ -325,13 +326,14 @@ class DegreeGraphs():
         """
         import string
         assert not self.kwargs['nr_letters'] is None, "Number of letters (nr_letters) has to be specified"
-        assert  np.sum(self.kwargs['pmf']) >0.999, "pmf has to sum to 1"
+        
 
         # check if the pmf of labels has been given
         if not 'pmf' in self.kwargs.keys():
             pmf = None
         else:
             pmf = self.kwargs['pmf']
+            assert  np.sum(self.kwargs['pmf']) >0.999, "pmf has to sum to 1"
 
         letters = list(string.ascii_lowercase[:self.kwargs['nr_letters']])
         return dict( ( (i, np.random.choice(letters, p = pmf)) for i in range(len(G)) ) )
