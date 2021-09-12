@@ -8,6 +8,7 @@ parser.add_argument('-B', '--NrBootstraps',metavar='', type=int, help='Give numb
 parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Give number of sample iterations')
 parser.add_argument('-c', '--CpuPerTask',metavar='', type=int, help='cpu per task', const=4, nargs = "?")
 
+
 # Kernel specifics
 parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
@@ -33,11 +34,13 @@ parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (
 # WWL only
 parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
 
+
 args = parser.parse_args()
 
 usr = args.username
 email = args.email
 cpu_per_task = args.CpuPerTask
+
 
 norm = args.normalize
 B = args.NrBootstraps
@@ -120,6 +123,9 @@ elif kernel_name == 'wwl':
     k_val = 'WWL'
     unique_identifier = f'wl_{ksp["nitr"]}_l_{ksp["discount"]}_sink_{ksp["sinkhorn"]}'
     script_args = f'-kernel {kernel_name} -nitr {ksp["nitr"]} -l {ksp["discount"]} -sk {ksp["sinkhorn"]}'
+elif kernel_name == 'graphstat':
+    k_val = 'GRAPHSTATS' 
+    unique_identifier = ''
 else:
     raise ValueError(f'No kernel named {kernel_name}')
 
@@ -171,8 +177,10 @@ for nr_node_2_offset in nr_node_2_offsets:
             "source .venv/bin/activate"
             ]
             
-
-            items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {N} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off} {script_args}")
+            if k_val == 'GRAPHSTATS' :
+                items.append(f"python3 Experiments/BGDegreeLabel/run_graphstat.py -B {B} -N {N} -p {data_name} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off}")
+            else:
+                items.append(f"python3 Experiments/BGDegreeLabel/run.py -B {B} -N {N} -p {data_name} -norm {norm} -d {cpu_per_task} -n1 {nr_sample} -n2 {nr_sample} -nnode1 {nr_node_1} -nnode2 {nr_node_2} -k1 {k} -k2 {k + k_off} {script_args}")
 
 
 
