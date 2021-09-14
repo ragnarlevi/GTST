@@ -142,7 +142,7 @@ path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/BGDegreeLabel"
 # the parameters and for loops should be changed for a custom experiment
 # nr_nodes = [40, 60, 80]
 nr_node_1 = 60
-nr_node_2_offsets = [5, 10, 15, 20, 30]
+nr_node_2_offsets = [0, 5, 10, 15, 20, 30]
 nr_samples = [20, 60, 100]
 k = 4
 degree_offsets = [0.25, 0.5, 0.75]
