@@ -479,6 +479,15 @@ class SBMGraphs():
         label_pmf = self.params['label_pmf']
         return {v[0]:np.random.choice(letters[:nr_blocks],p = label_pmf[v[1]["block"],:] )  for v in G.nodes(data=True) } 
 
+    def blockmean(self,G):
+        """
+        Attribute Scheme. Nodes get attributes according to a normal distribution with standar deviation 1. Their mean is governed by their block membership.
+
+        Assumes that the class was initalized with list called block_mean. First item is mean of block 0, next is mean of block 1 etc..
+        """
+
+        block_mean = self.params['block_mean']
+        return {v[0]:np.array([np.random.normal(block_mean[v[1]['block']])]) for v in G.nodes(data=True) } 
 
 
     def Generate(self):
