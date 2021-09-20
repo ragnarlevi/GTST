@@ -179,8 +179,10 @@ for nr_sample in nr_samples:
     for nnode in nnodes:
         for mdiff in mean_diffs:
 
-            mean11, mean21 = 0
-            mean12, mean22 = 1
+            mean11 = 0
+            mean21 = 0
+            mean12 = 1
+            mean22 = 1
             mean13 = 2
             mean23 =  mean13 + mdiff
 
