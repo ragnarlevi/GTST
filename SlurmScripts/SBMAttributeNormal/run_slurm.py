@@ -169,9 +169,9 @@ Path(f"/home/{usr}/projects/MMDGraph/SlurmBatch/SBMAttributeNormal/{k_val}").mkd
 path = f"/home/{usr}/projects/MMDGraph/SlurmBatch/SBMAttributeNormal"
 
 
-nr_samples = [10, 20, 40, 60, 100, 150]
-nnodes = [35, 63, 105, 175]
-mean_diffs = [0.05, 0.1, 0.2, 1, 2]
+nr_samples = [20, 60, 100]
+nnodes =  [63, 105, 175]
+mean_diffs = [0.05, 0.1, 0.2, 1]
 
 
 
