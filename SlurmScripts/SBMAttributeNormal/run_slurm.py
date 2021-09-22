@@ -193,7 +193,7 @@ for nr_sample in nr_samples:
             job_file = path + f"/{k_val}/n_{nr_sample}_nnode{nnode}_mdiff_{mdiff}_norm_{norm}_{unique_identifier}.slurm"
 
             items = ["#!/bin/bash", 
-            f"#SBATCH --time=12:00:00",
+            f"#SBATCH --time=20:00:00",
             f"#SBATCH --job-name={k_val}_sbmORL_n_{nr_sample}_nnode{nnode}_mdiff_{mdiff}_norm_{norm}_{unique_identifier}",
             f"#SBATCH --partition=amd-longq",
             f"#SBATCH --nodes=1",
