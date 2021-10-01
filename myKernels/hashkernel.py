@@ -110,24 +110,20 @@ class HashKernel():
         # Normalize attributes: center to the mean and component wise scale to unit variance
         if self.param['scale_attributes']:
             colors_0 = pre.scale(colors_0, axis=0)
+        #print(colors_0)
 
-
+        # retrieve base kernel from parameter input
         base_kernel_func = getattr(self, self.base_kernel)
+
         for it in range(self.param['iterations']):
             colors_hashed = self.locally_sensitive_hashing(colors_0, dim_attributes, self.param['lsh_bin_width'], sigma=self.param['sigma'])
 
+            # caclulate feature vector based on base_kernel
             tmp = base_kernel_func(X, colors_hashed, self.param)
 
-            if it == 0: #and not use_gram_matrices:
+            if it == 0:
                 feature_vectors = tmp
             else:
-                # if use_gram_matrices:
-                #     feature_vectors = tmp
-                #     feature_vectors = feature_vectors.tocsr()
-                #     feature_vectors = np.sqrt(1.0 / iterations) * (feature_vectors)
-                #     gram_matrix += feature_vectors.dot(feature_vectors.T).toarray()
-
-                #else:
                 feature_vectors = sparse.hstack((feature_vectors, tmp)) # Note feature_vectors is a matrix, so we are stacking matrices horizontally
 
         feature_vectors = feature_vectors.tocsr()
