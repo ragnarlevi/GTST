@@ -218,7 +218,7 @@ def construct_covariance(x, sector_dict, step = 30, remove_market = True, remove
             # drop rows with na values (so we can keep all nodes)
             x_sector_drop = x_sector.dropna(axis = 0)
             if nr_data_points_before*0.7 > float(x_sector_drop.shape[0]):
-                warnings.warn("Columns contaning NA removed. Post matrix has less the 70pct data points. Will instead remove the columns with NA vale")
+                # warnings.warn("rows contaning NA removed. Post matrix has less the 70pct data points. Will instead remove the columns with NA vale")
                 x_sector_drop = x_sector.dropna(axis = 1)
 
             # we need to keep track of missing data points in our market_return as well

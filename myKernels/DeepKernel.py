@@ -53,7 +53,7 @@ class DK():
             for source, sink_map in all_shortest_paths:
                 for sink, path in sink_map.items():
                     sp_length = len(path)-1
-                    label = "_".join(map(str, sorted([label_map[source][0],label_map[sink][0]]))) + "_" + str(sp_length) 
+                    label = "_".join(map(str, sorted([label_map[source],label_map[sink]]))) + "_" + str(sp_length) 
                     tmp_corpus.append(label)
                     prob_map[gidx][label] = prob_map[gidx].get(label, 0) + 1
                     vocabulary.add(label)
@@ -71,30 +71,30 @@ class DK():
         vocabulary = set()
         num_graphs = len(X)
 
-        # wl_graph_map the key is the label and the value counts how often the label appears in each graphs gids. it stands for wl iteration. the initial labelling is indexed at [-1]
+        # it stands for wl iteration. the initial labelling is indexed at [-1]
+        # Contains features, which are coiunts
         wl_graph_map = {it: {gidx: dict() for gidx in range(num_graphs)} for it in range(-1, max_h)} # if key error, return 0
 
       
         # initial labeling
-        # label look up is a dictionary where key is the label. This loops count how often the 
+        # label_lookup is a dictionary where key is the label. This loops count how often the 
         for gidx in range(num_graphs):
-            labels[gidx] = np.zeros(len(X[gidx]), dtype = np.int32)
+            labels[gidx] = np.zeros(len(X[gidx]))
             current_graph_labels = nx.get_node_attributes(X[gidx],'label')
             for node in X[gidx].nodes():
                 label = current_graph_labels.get(node, -1) # label of current node, if not labelled it gets -1
                 if not label in label_lookup:
-                    # if we have not observed this label we relabel at is the current label_counter
+                    # if we have not observed this label we relabel at the current label_counter
                     label_lookup[label] = label_counter 
                     labels[gidx][node] = label_counter
                     label_counter += 1
                 else:
                     labels[gidx][node] = label_lookup[label]
+                # add feature, features are counts
                 wl_graph_map[-1][gidx][label_lookup[label]] = wl_graph_map[-1][gidx].get(label_lookup[label], 0) + 1
-        # we are constantly changing the label dictionary so we do a deepcopy as it is mutable
+        # we are constantly changing the label dictionary so we do a deepcopy
         compressed_labels = copy.deepcopy(labels)
-    #     end = timer() 
-    #    # print(f' Initial labelling took {end - start}')
-    #     start = timer()
+
 
         # WL iterations
         for it in range(max_h):
@@ -136,6 +136,8 @@ class DK():
                         graphs[gidx].append(label)
                     vocabulary.add(label)
                     prob_map[gidx][label] = count
+
+        prob_map = {gidx: {path: count/float(sum(paths.values())) for path, count in paths.items()} for gidx, paths in prob_map.items()}
 
         corpus = [graph for graph in graphs.values()]
         vocabulary = sorted(vocabulary)

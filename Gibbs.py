@@ -2,6 +2,7 @@
 from matplotlib.pyplot import axis
 import lcurve
 import numpy as np
+from scipy.stats import invgamma
 
 def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1):
     """
@@ -19,6 +20,7 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
     state_cov_one_step = np.zeros((y.shape[0], init_x.shape[0], init_x.shape[0]))
 
     R_cond = np.zeros((y.shape[0], 2))
+    R_inv = np.zeros((y.shape[0], y.shape[1], y.shape[1]))
 
     y_est = np.zeros(y.shape)
 
@@ -36,6 +38,7 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         tmp_A[i, np.isnan(y[i,:])] = 0 
 
 
+    neglik = 0
     for i in range(y.shape[0]):
 
         state_one_step[i] = np.dot(G, state[i]) + B
@@ -69,16 +72,22 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
             R = R + reg_param*np.identity(tmp_V.shape[0])
 
         if R.ndim == 1:
+            R_inv[i] = 1/R
             Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(1/R)
         else:
-            Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(np.linalg.inv(R))
+            R_inv[i] = np.linalg.inv(R)
+            Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(R_inv[i])
 
         state[i+1] = state_one_step[i] + np.dot(Kalman_gain, tmp_y - tmp_A[i] - np.dot(tmp_F, state_one_step[i]))
         state_cov[i+1] = state_cov_one_step[i] - np.dot(Kalman_gain, tmp_F).dot(state_cov_one_step[i])
         y_est[i] = np.dot(F, state[i+1]) + tmp_A[i]
 
+        e = y[i] - np.dot(F, state_one_step[i]) - tmp_A[i]
+        neglik += 0.5* np.log(np.linalg.det(R)) + 0.5 * np.dot(e, R_inv[i]).dot(e)
+
+
     print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
-    return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond
+    return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
 
 
 def KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, G, B, W, regularize = False, reg_param = 0.1):
@@ -124,7 +133,7 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize_F = 
     """
 
 
-    state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond = KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond, regularize_F, reg_params['reg_f'])
+    state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik = KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond, regularize_F, reg_params['reg_f'])
 
 
     smooth_state = np.zeros((state.shape[0], state.shape[1]))
@@ -309,6 +318,22 @@ def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, r
 
 
 
+def group_membering(data, group_column):
+
+    """
+    :param group_column: column of grouping identification
+    """
+
+    groups = np.unique(data[group_column])
+
+    vocab = dict()
+
+    for idx, name in enumerate(groups):
+
+        vocab[name] = idx
+
+    return vocab
+
 
 def em_cov_missing_data(y, nr_iterations, Sigma, mu):
     """
@@ -357,8 +382,115 @@ def em_cov_missing_data(y, nr_iterations, Sigma, mu):
 
 
 
-            
-from scipy.stats import invgamma
+def lc_sector_ml(param, y, group_membership):
+
+    n_stock = y.shape[1]
+    T = y.shape[0]
+    n_groups = len(np.unique(group_membership))
+
+    # index to help count
+    index = np.array(range(n_stock))
+
+    
+    beta_vec = param[:(2*n_stock)]
+    # constraints
+    # beta_vec[:n_stock] = beta_vec[:n_stock]/np.sum(beta_vec[:n_stock])
+
+    # for j in range(n_groups):
+    #     beta_vec[n_stock + index[group_membership == j]] = beta_vec[n_stock + index[group_membership == j]]/np.sum(beta_vec[n_stock + index[group_membership == j]])
+
+    F = np.zeros((n_stock,  1+ n_groups))
+    F[:,0] = beta_vec[:n_stock]
+    for j in range(n_groups):
+        F[index[group_membership == j],1 + j] = beta_vec[n_stock + index[group_membership == j]]
+
+    G = np.identity(1 + n_groups)
+    eta = param[(2*n_stock):(2*n_stock + 1 + n_groups)]
+    a = param[(2*n_stock + 1 + n_groups): (2*n_stock + 1 + n_groups + n_stock)]
+    w = param[(2*n_stock + 1 + n_groups + n_stock): (2*n_stock + 1 + n_groups + 1 + n_stock + n_groups)]
+    W = np.diag(w)
+    v = param[(2*n_stock + 1 + n_groups + 1 + n_stock + n_groups):(2*n_stock + 1 + n_groups + 1 + n_stock + n_groups + n_stock)]
+    V = np.diag(v)
+
+    init_x = np.array([0.0] * (1 + n_groups))
+    init_c = np.identity((1 + n_groups)) * 10
+
+    state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik = KalmanFilter(y, G, eta, W, F, a, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1)
+    smooth_state, smooth_state_cov = KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, G, eta, W, regularize = False, reg_param = 0.1)
+
+    # smooth_state_new = smooth_state[1:]  - np.mean(smooth_state[1:] , axis = 0)
+    smooth_state_new = smooth_state[1:] 
+    # calculate likelihood
+
+    neglike = 0
+    for i in range(T):
+        e = y[i,:] - np.dot(F, smooth_state_new[i]) - a
+        Sigma = np.dot(F, smooth_state_cov[i]).dot(F.T) + V
+        Sigma_inv = np.linalg.inv(Sigma)
+        neglike += 0.5* np.log(np.linalg.det(Sigma)) + 0.5 * np.dot(e, Sigma_inv).dot(e)
+
+    print(eta)
+    print(neglike)
+    return neglike
+
+
+
+
+def lc_sector_ml_2(x, y, group_membership):
+
+    n_stock = y.shape[1]
+    T = y.shape[0]
+    n_groups = len(np.unique(group_membership))
+
+
+    param = x.copy()
+
+
+
+
+    # index to help count
+    index = np.array(range(n_stock))
+
+    
+    beta_vec = param[:(2*n_stock)]
+    # constraints
+    # beta_vec[:n_stock] = beta_vec[:n_stock]/np.sum(beta_vec[:n_stock])
+
+    # for j in range(n_groups):
+    #     beta_vec[n_stock + index[group_membership == j]] = beta_vec[n_stock + index[group_membership == j]]/np.sum(beta_vec[n_stock + index[group_membership == j]])
+
+    F = np.zeros((n_stock,  1+ n_groups))
+    F[:,0] = beta_vec[:n_stock]
+    for j in range(n_groups):
+        F[index[group_membership == j],1 + j] = beta_vec[n_stock + index[group_membership == j]]
+
+    G = np.identity(1 + n_groups)
+    eta = param[(2*n_stock):(2*n_stock + 1 + n_groups)]
+    a = param[(2*n_stock + 1 + n_groups): (2*n_stock + 1 + n_groups + n_stock)]
+    w = param[(2*n_stock + 1 + n_groups + n_stock): (2*n_stock + 1 + n_groups + n_stock + 1)]
+    v = param[(2*n_stock + 1 + n_groups + n_stock +1): (2*n_stock + 1 + n_groups + n_stock + 2)]
+    W = np.identity(1+n_groups) * w
+    V =np.identity(n_stock) * v
+    # w = param[(2*n_stock + 1 + n_groups + n_stock): (2*n_stock + 1 + n_groups + 1 + n_stock + n_groups)]
+    # W = np.diag(w)
+    # v = param[(2*n_stock + 1 + n_groups + 1 + n_stock + n_groups):(2*n_stock + 1 + n_groups + 1 + n_stock + n_groups + n_stock)]
+    # V = np.diag(v)
+
+
+    init_x = np.array([0.0] * (1 + n_groups))
+    init_c = np.identity((1 + n_groups)) * 10
+
+    state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglike = KalmanFilter(y, G, eta, W, F, a, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1)
+
+
+    print(param[0])
+    print(neglike)
+    return neglike
+
+
+
+
+
 
 def lc_sector_test(N, y,x, calc_cond = False):
     """

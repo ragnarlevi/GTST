@@ -137,7 +137,7 @@ def PlotROCGeneral(df, power_measure, comparison, n1 , nr_nodes_1, n2 = None, nr
 
 def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", color_name = "viridis"):
 
-        _, ax = plt.subplots(figsize = (25,12))
+        _, ax = plt.subplots(figsize = (20,12))
 
         
         # select the fixed parameters
@@ -195,12 +195,14 @@ def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", colo
         #ax.legend(label)
         h, l = ax.get_legend_handles_labels()
 
-        ax.legend(handles=h, labels=label, 
-                handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, title = param_vary_name, bbox_to_anchor=(1, 0.4))
+        leg = ax.legend(handles=h, labels=label, 
+                handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 14)
 
-        ax.set_xlabel('alpha')
-        ax.set_ylabel('Power')
-        ax.set_title(str(params_fixed))
+        leg.set_title(param_vary_name, prop={'size':20})
+
+        ax.set_xlabel('alpha', fontsize = 20)
+        ax.set_ylabel('Power', fontsize = 20)
+        ax.set_title(str(params_fixed), fontsize = 20)
 
 
         plt.show()
