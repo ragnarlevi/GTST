@@ -37,6 +37,8 @@ def pca_projection(x, axis, cov = None, scale = 'empirical_correlation' ):
         v = v[:, axis].reshape((v.shape[0], len(axis)))
         pca_projection_out = projection(x_scaled, v)*scaler.scale_ + scaler.mean_
 
+        
+
     elif scale == 'covariance':
         scaler = StandardScaler()
         x_scaled = scaler.fit_transform(x)
@@ -49,7 +51,7 @@ def pca_projection(x, axis, cov = None, scale = 'empirical_correlation' ):
 
     elif scale == 'robust_correlation' and not cov is None:
         
-        sd = np.sqrt(np.diag(cov))
+        sd = np.diag(np.sqrt(cov))
         mu = np.median(x, axis = 0)
         x_scaled = scale_data(x, mu, sd)
 
@@ -60,6 +62,9 @@ def pca_projection(x, axis, cov = None, scale = 'empirical_correlation' ):
         v = v[:, axis].reshape((v.shape[0], len(axis)))
         pca_projection_out = projection(x_scaled, v)*sd + mu
 
+
+    if np.sum(np.isnan(pca_projection_out)) > 0:
+                    warnings.warn(f"nan value in pca_projection_out")
 
     return pca_projection_out
 
@@ -85,8 +90,10 @@ def corrMat(cov):
  
         for j in range(cov.shape[0]):
 
-            # not here that we are just normalizing the covariance matrix
-            corr_mat[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
+            if cov[i,i] == 0 or cov[j,j] == 0:
+                corr_mat[i,j] = 0
+            else:
+                corr_mat[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
  
     return corr_mat
 
@@ -95,7 +102,10 @@ def scale_data(x, mu, sd):
 
     x_scaled = x.copy()
     for j in range(x.shape[1]):
-        x_scaled[:,j] = (x_scaled[:,j] - mu[j])/sd[j]
+        if sd[j] != 0.0:
+            x_scaled[:,j] = (x_scaled[:,j] - mu[j])/sd[j]
+        else:
+            x_scaled[:,j] = (x_scaled[:,j] - mu[j])/sd[j]
 
     return x_scaled
 
@@ -190,24 +200,34 @@ def construct_covariance(x, sector_dict, step = 30, remove_market = True, remove
 
 
     # dictionary that will store covariances, and nodes at each snap shot, for each sector
+    correlation_dict = dict()
     covariance_dict = dict()
     nodes_dict = dict()
+    stock_array_dict = dict()
+    stock_array_no_market_dict = dict()
+    pre_v = dict()
     for k in sector_dict.keys():
+        correlation_dict[k] = list()
         covariance_dict[k] = list()
         nodes_dict[k] = list()
+        stock_array_dict[k] = list()
+        stock_array_no_market_dict[k] = list()
+        pre_v[k] = list()
 
     # time_index that will store the time of each covariance
     time_index = list()
 
     n = x.shape[0]
 
-    for i in range(0, n, step):
+    for i in range(0, n, step):   
         
         if i > n-step:
             break
-
+        
+        time_index.append(list(x.index[i:(step+i)]))
 
         for k in sector_dict.keys():
+            print(f'{k} {int(i/step)}')
             #print(k)
             x_sector = x.loc[:,x.columns.isin(sector_dict[k])].iloc[i:(step+i)].copy()
 
@@ -232,7 +252,8 @@ def construct_covariance(x, sector_dict, step = 30, remove_market = True, remove
             nodes_dict[k].append(list(x_sector.columns))
             x_sector_array = np.array(x_sector)
 
-            time_index.append(list(x_sector.index[i:(step+i)]))
+            stock_array_dict[k].append(x_sector)
+
 
             if x_sector.shape[0] != x_sector_array.shape[0]:
                 raise ValueError("Some error during casting pandas to array, x_sector pandas and x_sector_array")
@@ -242,29 +263,39 @@ def construct_covariance(x, sector_dict, step = 30, remove_market = True, remove
                     x_no_market = remove_effect(x_sector_array, effect_type = 'pca')
                 elif remove_market_type == 'rob_pca':
                     mu, V, dist = S_estimation_cov(x_sector_array, initial='K', maxsteps=5, propmin=0.01, qs=2, maxit=200, tol=1e-4, corr=False)
+                    #print(np.diag(V))
+                    pre_v[k].append(V)
                     x_no_market = remove_effect(x_sector_array, effect_type = remove_market_type, cov = V)
                 elif remove_market_type in ['reg', 'rob_reg']:
-                    x_no_market = np.log(remove_effect(np.exp(x_sector_array), effect_type = remove_market_type, market_return= market))
+                    x_no_market = remove_effect(x_sector_array, effect_type = remove_market_type, market_return= market)
                 else:
                     raise ValueError("remove_market_type should be pca, rob_pca, reg, rob_reg ")
 
                 if np.sum(np.isnan(x_no_market)) > 0:
-                    warnings.warn("nan value in x_no_market")
+                    warnings.warn(f"nan value in x_no_market {k} {int(i/step)}")
+                    # print(x_sector_array)
 
 
+
+                stock_array_no_market_dict[k].append(x_no_market)
                 if reconstruction_type == 'empirical':
-                    covariance_dict[k].append(np.corrcoef(x_no_market.T))
+                    V = np.cov(x_no_market.T)
+                    covariance_dict[k].append(V)
+                    correlation_dict[k].append(corrMat(V))
                 elif reconstruction_type == 'robust':
                     mu, V, dist = S_estimation_cov(x_no_market, initial='K', maxsteps=5, propmin=0.01, qs=2, maxit=200, tol=1e-4, corr=False)
                     V_cor = corrMat(V)
-                    covariance_dict[k].append(V_cor)
+                    covariance_dict[k].append(V)
+                    correlation_dict[k].append(V_cor)
                 else:
                     raise ValueError("reconstruction_type should be emprical or robust ")
             else:
-                covariance_dict[k].append(np.corrcoef(x_sector_array.T))
+                V = np.cov(x_no_market.T)
+                covariance_dict[k].append(V)
+                correlation_dict[k].append(corrMat(V))
 
 
-    return covariance_dict, nodes_dict, time_index
+    return covariance_dict, correlation_dict, nodes_dict, time_index, stock_array_dict, stock_array_no_market_dict, pre_v
 
     
 
@@ -384,7 +415,8 @@ def consRocke(p, n, initial):
         alpha = 1e-6
     return gamma, alpha
 
-
+def is_invertible(a):
+    return a.shape[0] == a.shape[1] and np.linalg.matrix_rank(a) == a.shape[0]
 
 def S_estimation_cov(x, mahalanobis_type = 'svd', initial='K',  maxsteps=5, propmin=2, qs=2, maxit=50, tol=1e-4, corr=False, mahalanobis_cutoff = 0.99):
 
@@ -451,6 +483,8 @@ def S_estimation_cov(x, mahalanobis_type = 'svd', initial='K',  maxsteps=5, prop
             sig = MScalRocke(x=dist, gamma=gamma0, q=qs, delta=delta) 
 
 
+        if ~is_invertible(V0):
+            V0 = V0 + 0.1*np.identity(V0.shape[0])
         dif1 = np.array(np.dot((mu-mu0).T, np.dot(np.linalg.inv(V0), mu-mu0) ))
         ok = np.linalg.inv(V0)
         dif2 = np.max(np.abs(np.dot(ok, V)-np.identity(p)))
