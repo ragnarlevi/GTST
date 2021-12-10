@@ -56,6 +56,47 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         tmp_V[:,np.isnan(y[i,:])] = 0
         tmp_V[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
+        # U_C_t, D_C_t, V_C_t_trans = np.linalg.svd(state_cov_one_step[i])
+        # S_C_t = np.diag(np.sqrt(D_C_t))
+
+        # U_W, D_W, V_W_trans = np.linalg.svd(W)
+        # S_W = np.diag(np.sqrt(D_W))
+
+        # N_W = np.dot(S_W,V_W_trans.T)
+
+        # N_R_t = np.vstack((np.dot(S_C_t, U_C_t.T).dot(G.T), N_W))
+
+        # U_R_t, D_R_t, V_R_t_T = np.linalg.svd(N_R_t)
+        # U_R_t = V_R_t_T.T
+
+        # S_R_t_inv = np.reciprocal(D_R_t)
+        # S_R_t_inv[np.isinf(S_R_t_inv)] = 0
+        # S_R_t_inv[np.isnan(S_R_t_inv)] = 0
+
+        # V_inv = np.linalg.pinv(tmp_V)
+        # U_V_inv_t, D_V_inv_t, V_V_inv_t_trans = np.linalg.svd(V_inv)
+        # S_V = np.diag(np.sqrt(D_V_inv_t))
+        # N_V_inv = np.dot(S_V,V_V_inv_t_trans)
+
+        # N_C_inv_t = np.vstack((np.dot(N_V_inv, tmp_F).dot(U_R_t), S_R_t_inv))
+        # U_N_C_inv_t, D_N_C_inv_t, V_N_C_inv_t_trans = np.linalg.svd(N_C_inv_t)
+
+        # # C_inv_t = np.dot(U_R_t, N_C_inv_t.T).dot(N_C_inv_t).dot(U_R_t.T)
+
+        # S_C_t = np.reciprocal(D_N_C_inv_t)
+        # S_C_t[np.isinf(S_C_t)] = 0
+        # S_C_t[np.isnan(S_C_t)] = 0
+
+        # U_C_t = np.dot(U_R_t, V_N_C_inv_t_trans.T)
+
+        # N_C_t = np.dot(S_C_t, U_C_t.T)
+        # C_t = np.dot(N_C_t.T, U_C_t)
+
+
+        # R = np.dot(N_R_t.T, N_R_t)
+
+        # Kalman_gain = np.dot(C_t, tmp_F.T).dot(N_V_inv.T).dot(N_V_inv)
+
         R = np.dot(tmp_F, state_cov_one_step[i]).dot(tmp_F.T) + tmp_V
         R[np.isnan(y[i,:]),:] = 0 
         R[:,np.isnan(y[i,:])] = 0
@@ -75,7 +116,7 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
             R_inv[i] = 1/R
             Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(1/R)
         else:
-            R_inv[i] = np.linalg.inv(R)
+            R_inv[i] = np.linalg.pinv(R)
             Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(R_inv[i])
 
         state[i+1] = state_one_step[i] + np.dot(Kalman_gain, tmp_y - tmp_A[i] - np.dot(tmp_F, state_one_step[i]))
@@ -83,10 +124,23 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         y_est[i] = np.dot(F, state[i+1]) + tmp_A[i]
 
         e = y[i] - np.dot(F, state_one_step[i]) - tmp_A[i]
-        neglik += 0.5* np.log(np.linalg.det(R)) + 0.5 * np.dot(e, R_inv[i]).dot(e)
+
+
+        u, w, vt = np.linalg.svd(R)
+        w = w[w>0]
+
+
+        d1 = np.sum(np.log(w))
+        d2 = np.dot(e, R_inv[i]).dot(e)
+        # print(f'det {d1} inverse {d2}')
+        neglik += 0.5* d1 + 0.5 * d2
+
+
+
 
 
     print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
+    print(f'negative likelihood {neglik}')
     return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
 
 
@@ -164,11 +218,16 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize_F = 
     return smooth_state_draws, R_cond
 
 
-def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
+def lc_sector(N, y, group_membership, init_params, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
     """
     Calculate Kalman Smoother
     y_t = Fx_t + A
     x_t = Gx_{t-1} + B 
+
+    :param N: Number of samples
+    :param y: np.array of data n times p
+    :param group_membership: a array indicating the group stock i belongs to. The grouping should have the form  0,1,2,3,..,k-1. where k is the number of groups.
+    :param init_params: dict with the prior parameters and initial guess 
     """
 
     n_stock = y.shape[1]
@@ -177,29 +236,32 @@ def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, r
 
     print(f'T {T}, n_stock {n_stock}, n_groups {n_groups}')
 
-    beta_mean = 1.0
-    beta_var = 1.0 
+    # Priors
+    beta_mean = init_params['beta_mean']
+    beta_var = init_params['beta_var']
 
-    alpha_mean = np.array([70.0] * n_stock)
-    alpha_var = np.array([10.0] * n_stock) 
+    alpha_mean = init_params['alpha_mean']
+    alpha_var = init_params['alpha_var']
 
-    eta_mean = np.array([0.0] * (1 + n_groups))
-    eta_var = np.array([2.0] * (1 + n_groups))
+    eta_mean = init_params['eta_mean']
+    eta_var = init_params['eta_var']
 
-    v_alpha = 10.0 
-    v_beta = 0.1
+    v_alpha = init_params['v_alpha']
+    v_beta = init_params['v_beta']
 
-    w_alpha = 10.0
-    w_beta = 0.1
+    w_alpha = init_params['w_alpha']
+    w_beta = init_params['w_beta']
 
-    beta_init = np.array([0.1] * n_stock + [0.1] * n_stock )
-    alpha_init = np.nanmean(y, axis = 0)
-    eta_init = 0.0 * np.ones(1 + n_groups) 
-    w_init = 0.001 * np.ones(1 + n_groups) 
-    v_init = 0.001*np.ones(n_stock) 
+    # initial gibbs
+    beta_init = init_params['beta_init']
+    alpha_init = init_params['alpha_init']
+    eta_init = init_params['eta_init']
+    w_init = init_params['w_init']
+    v_init = init_params['v_init']
 
-    init_x = np.array([0.0] * (1+n_groups))
-    init_c = np.identity((1 + n_groups)) * 10
+    # init kalman
+    init_x = init_params['init_x']
+    init_c = init_params['init_c']
 
 
     B_vec = np.zeros((N+1,1 + n_groups))

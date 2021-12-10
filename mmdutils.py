@@ -1,12 +1,15 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import seaborn as sns
 import matplotlib
 from matplotlib.cm import get_cmap
 import pandas as pd
 import os
-
+from scipy import linalg
+from scipy import sparse
+from scipy import stats
 
 
 def readfoldertopanda(path):
@@ -21,6 +24,44 @@ def readfoldertopanda(path):
         df.append(pd.read_pickle(os.path.join(path, file)))
 
     return pd.concat(df)
+
+def plot_corr(A, ax=None, dw=0.125, cbar_length=0.8):
+
+    # Normalize colormap
+    min_w = np.min(np.triu(A))
+    max_w = np.max(np.triu(A))
+    disc_min_w = dw * np.floor(min_w / dw)
+    disc_max_w = dw * np.ceil(max_w / dw)
+    bounds = np.linspace(
+        disc_min_w, disc_max_w, np.round((disc_max_w - disc_min_w) / dw).astype(int) + 1
+    )
+    norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
+    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+
+    # Draw heatmap
+    ax = sns.heatmap(
+        A,
+        cmap=cmap,
+        center=0,
+        vmax=max_w,
+        vmin=min_w,
+        square=True,
+        mask=A == 0,
+        cbar_kws=dict(use_gridspec=False, location="bottom", shrink=cbar_length),
+        norm=norm,
+        ax=ax,
+    )
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # Draw frame
+    ax.axhline(y=0, color="k", linewidth=2)
+    ax.axhline(y=A.shape[1], color="k", linewidth=2)
+    ax.axvline(x=0, color="k", linewidth=2)
+    ax.axvline(x=A.shape[0], color="k", linewidth=2)
+
+    return ax
 
 
 
@@ -135,7 +176,7 @@ def PlotROCGeneral(df, power_measure, comparison, n1 , nr_nodes_1, n2 = None, nr
     plt.show()
 
 
-def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", color_name = "viridis"):
+def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", color_name = "viridis", set_legend = True):
 
         _, ax = plt.subplots(figsize = (20,12))
 
@@ -193,12 +234,13 @@ def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", colo
 
 
         #ax.legend(label)
-        h, l = ax.get_legend_handles_labels()
+        if set_legend:
+            h, l = ax.get_legend_handles_labels()
 
-        leg = ax.legend(handles=h, labels=label, 
-                handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 14)
+            leg = ax.legend(handles=h, labels=label, 
+                    handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 14)
 
-        leg.set_title(param_vary_name, prop={'size':20})
+            leg.set_title(param_vary_name, prop={'size':20})
 
         ax.set_xlabel('alpha', fontsize = 20)
         ax.set_ylabel('Power', fontsize = 20)
@@ -236,3 +278,188 @@ def findAUC(keys:list, params:list, stats:list, df):
         auc.append(row)
 
     return pd.concat(auc)
+
+
+
+def _fast_mat_inv_lapack(Mat):
+    """
+        Compute the inverse of a positive semidefinite matrix.
+    
+        This function exploits the positive semidefiniteness to speed up
+        the matrix inversion.
+            
+        Parameters
+        ----------
+        Mat : 2D numpy.ndarray, shape (N, N)
+            A positive semidefinite matrix.
+    
+        Returns
+        -------
+        inv_Mat : 2D numpy.ndarray, shape (N, N)
+            Inverse of Mat.
+        """
+
+    zz, _ = linalg.lapack.dpotrf(Mat, False, False)
+    inv_Mat, info = linalg.lapack.dpotri(zz)
+    inv_Mat = np.triu(inv_Mat) + np.triu(inv_Mat, k=1).T
+    return inv_Mat
+
+
+
+def _comp_EBIC(W, C_samp, C_null, L, beta, Knull, input_matrix_type):
+    """
+        Compute the extended Bayesian Information Criterion (BIC) for a network. 
+        
+        Parameters
+        ----------
+        W : 2D numpy.ndarray, shape (N, N)
+            Weighted adjacency matrix of a network.
+        C_samp : 2D numpy.ndarray, shape (N, N)
+            Sample correlation matrix.
+        C_null : 2D numpy.ndarray, shape (N, N)
+            Null correlation matrix used for constructing the network.
+        L : int
+            Number of samples.
+        beta : float
+            Parameter for the extended BIC. 
+        K_null: int
+            Number of parameters of the null correlation matrix.
+        input_matrix_type: string
+	    Type of matrix to be given (covariance or precision)
+    
+        Returns
+        -------
+        EBIC : float
+            The extended BIC value for the generated network.
+        """
+    k = Knull + np.count_nonzero(np.triu(W, 1))  + np.count_nonzero(np.diag(W))
+    EBIC = (
+        np.log(L) * k
+        - 2 * L * _comp_loglikelihood(W, C_samp, C_null, input_matrix_type)
+        + 4 * beta * k * np.log(W.shape[0])
+    )
+    return EBIC
+
+
+def _comp_loglikelihood(W, C_samp, C_null, input_matrix_type):
+    """
+        Compute the log likelihood for a network. 
+        
+        Parameters
+        ----------
+        W : 2D numpy.ndarray, shape (N, N)
+            Weighted adjacency matrix of a network.
+        C_samp : 2D numpy.ndarray, shape (N, N)
+            Sample correlation matrix. 
+        C_null : 2D numpy.ndarray, shape (N, N)
+            Null correlation matrix used for constructing the network.
+        input_matrix_type: string
+	    Type of matrix to be given (covariance or precision)
+    
+        Returns
+        -------
+        l : float
+            Log likelihood for the generated network. 
+        """
+    if input_matrix_type == "cov":
+        Cov = W + C_null
+
+        iCov, w = _truncated_inverse(Cov)
+        # iCov = np.real(np.matmul(np.matmul(v, np.diag(1 / w)), v.T))
+        l = (
+            -0.5 * np.sum(np.log(w))
+            - 0.5 * np.trace(np.matmul(C_samp, iCov))
+            - 0.5 * Cov.shape[0] * np.log(2 * np.pi)
+        )
+    else:
+        iCov = W + C_null
+        w, v = np.linalg.eig(iCov)
+
+        if np.min(w) < 0:
+            v = v[:, w > 0]
+            w = w[w > 0]
+        l = (
+            0.5 * np.sum(np.log(w))
+            - 0.5 * np.trace(np.matmul(C_samp, iCov))
+            - 0.5 * iCov.shape[0] * np.log(2 * np.pi)
+        )
+
+    return np.real(l)
+
+
+def _remedy_degeneracy(C_samp, rho = 1e-3, scale = True):
+    """
+    Create an invertible matrix from a degenerate one
+
+    Parameters
+    --------------
+    scale: scale the matrix to get correlation?
+    """
+    w, v = np.linalg.eigh(C_samp)
+    if np.min(w) < rho:
+
+        w[w<0] = rho
+
+        # Compute the precision matrix from covariance matrix with a ridge regularization.
+        lambda_hat = 2 / (np.sqrt(w ** 2) + np.sqrt(w ** 2 + 8 * rho))
+        iC = np.matmul(np.matmul(v, np.diag(lambda_hat)), v.T)
+
+        # Compute the correlation matrix from the precision matrix
+        _C_samp = np.linalg.inv(iC)
+        
+        # Homogenize the variance 
+        std_ = np.sqrt(np.diag(_C_samp))
+        if scale:
+            C_samp = _C_samp / np.outer(std_, std_)
+        else:
+            C_samp = _C_samp
+
+    return C_samp
+
+
+def _truncated_inverse(X):
+    """
+    Inverse a matrix based on truncated svd
+    """
+
+    u, l, vt = np.linalg.svd(X)
+
+    v = vt.T
+
+    v = v[:, l > 0]
+    u = u[:, l > 0]
+    l = l[l>0]
+    l_cum = np.cumsum(l)/np.sum(l)
+
+    l_store = l.copy()
+    l = l[l_cum < 0.9999]
+    if len(l) <= 0:
+        # there was only one eigenvalue containing all the variance, l looked something like [21.2, e-18, e-18,...]
+        l = np.array([l_store[0]])
+
+    iX = np.zeros(X.shape)
+    for i in range(len(l)):
+
+        iX += (1.0/l[i]) * np.outer(v[:, i], u[:, i])
+
+    return iX, l
+
+
+
+def mahalanobis_distance(x, mu, Sigma_inv):
+    """
+    Return the Mahalanobis distance between mu and all vector in x
+
+    :param x: A N by p matrix, N number of data points
+    
+    """
+
+
+    d = np.zeros(x.shape[0])
+    for i in range(x.shape[0]):
+        d[i] = np.dot(x[i,:] - mu , np.dot(Sigma_inv, x[i,:] - mu ) )
+
+    return d
+    
+
+
