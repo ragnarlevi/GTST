@@ -7,6 +7,7 @@ fast Random walk kernels: See http://www.cs.cmu.edu/~ukang/papers/fast_rwgk.pdf
 from networkx.classes.function import get_node_attributes
 import numpy as np
 from numpy.linalg import eigh, inv
+from numpy.random import exponential
 from sklearn.utils.extmath import randomized_svd
 from scipy.sparse.linalg import eigsh
 from scipy.sparse.linalg import inv as sparse_inv
@@ -137,17 +138,17 @@ class RandomWalk():
                     p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU_plus(all_A[i], all_A[j], r, p1, p2, q1, q2)
+                    K[i,j] = self.ARKU_plus(all_A[i].T, all_A[j].T, r, p1, p2, q1, q2)
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(all_A[i], all_A[j], r, p1, p2, self.q[i], self.q[j])
+                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, p1, p2, self.q[i], self.q[j])
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(all_A[i], all_A[j], r, self.p[i], self.p[j], q1, q2)
+                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, self.p[i], self.p[j], q1, q2)
                 else:
-                    K[i,j] = self.ARKU(all_A[i], all_A[j], r, self.p[i], self.p[j], self.q[i], self.q[j])
+                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, self.p[i], self.p[j], self.q[i], self.q[j])
 
                 if verbose:
                     pbar.update()
@@ -220,17 +221,17 @@ class RandomWalk():
                     p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i], all_A[j], Ls[i], Ls[j], p1, p2, q1, q2, r)
+                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], p1, p2, q1, q2, r)
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i], all_A[j], Ls[i], Ls[j], p1, p2, self.q[i], self.q[j], r)
+                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], p1, p2, self.q[i], self.q[j], r)
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i], all_A[j], Ls[i], Ls[j], self.p[i], self.p[j], q1, q2, r)
+                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], self.p[i], self.p[j], q1, q2, r)
                 else:
-                    K[i,j] = self.ARKL(all_A[i], all_A[j], Ls[i], Ls[j], self.p[i], self.p[j], self.q[i], self.q[j], r)
+                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], self.p[i], self.p[j], self.q[i], self.q[j], r)
 
                 if verbose:
                     pbar.update()
@@ -241,6 +242,121 @@ class RandomWalk():
 
         return K
 
+    def fit_exponential(self, r = None, normalize_adj = False, row_normalize_adj = False, verbose = True):
+        """
+        Perform an infnite exponential random walk. Does not work for labelled graphs
+
+        Parameters
+        ---------------------------------------
+        r - int, number of eigenvalues, if None full eigenvalue decomposition used which will be slow.
+        normalize_adj - bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
+        row_normalize_adj - bool, Should the adj matrixb be row normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
+        verbose - bool, print progress bar?
+        
+        Returns
+        --------------------------------
+        K - N n N kernel matrix 
+
+        """
+
+        if normalize_adj and row_normalize_adj:
+            raise ValueError("Can not have both row normalized and normalized adj") 
+
+        
+        all_A = [None] * self.N
+        K = np.zeros((self.N, self.N))
+
+        if verbose:
+            pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
+        #disable=(disp is False), total=(13 * len(_null_models) * len(mat_types))
+
+
+        for i in range(self.N):
+            for j in range(i,self.N):
+
+                if normalize_adj:
+                    if all_A[i] is None:
+                        all_A[i] = self._normalized_adj(self.X[i])
+                    if all_A[j] is None:
+                        all_A[j] = self._normalized_adj(self.X[j])
+                elif row_normalize_adj:
+                    if all_A[i] is None:
+                        all_A[i] = self._row_normalized_adj(self.X[i])
+                    if all_A[j] is None:
+                        all_A[j] = self._row_normalized_adj(self.X[j])
+                else:
+                    if all_A[i] is None:
+                        all_A[i] = self._get_adj_matrix(self.X[i])
+                    if all_A[j] is None:
+                        all_A[j] = self._get_adj_matrix(self.X[j])
+                
+
+                if (self.p is None) and (self.q is None):
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, p1, p2, q1, q2, r )
+                elif (self.p is None) and ~(self.q is None):
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, p1, p2, self.q[i], self.q[i], r )
+                elif ~(self.p is None) and (self.q is None):
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, self.p[i], self.p[j], q1, q2, r )
+                else:
+                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, self.p[i], self.p[j], self.q[i], self.q[i], r )
+
+                if verbose:
+                    pbar.update()
+
+        pbar.close()
+        K = K + K.T
+        np.fill_diagonal(K, np.diag(K) / 2)
+
+        return K
+
+    def rw_exponential(self, A1, A2, p1, p2, q1, q2, r):
+        """
+        Perform p-random walks. Symmetric matrix
+
+        Parameters
+        ---------------------------------------
+        A1 - np array representing weight/adj matrix
+        A2 - np array representing weight/adj matrix
+        p1, p2 - initial probabilities
+        q1, q2 - stopping probabilities
+        r - int, If passed then an approximation is used by eigen decomposition
+        
+        Returns
+        --------------------------------
+        float kernel value between W1,W2
+
+        """
+
+        if (r is not None):
+            if r < 1:
+                raise ValueError('r has to 1 or bigger')
+
+        if r is None:
+            p1 = np.expand_dims(p1, axis = 1)
+            p2 = np.expand_dims(p2, axis = 1)
+            q1 = np.expand_dims(q1, axis = 1)
+            q2 = np.expand_dims(q2, axis = 1)
+            w1, u1 = eigh(A1)
+            w2, u2 = eigh(A2)
+        else:
+            w1, u1 = eigsh(A1, k = r)
+            w2, u2 = eigsh(A2, k = r)
+
+        w = np.array(np.concatenate([w*w2 for w in w1]))
+
+        stop_part = np.kron(np.matmul(q1.T, u1), np.matmul(q2.T, u2))
+        start_part = np.kron(np.matmul(u1.T, p1), np.matmul(u2.T, p2))
+        return np.matmul(np.matmul(stop_part, np.diag(np.exp(w))), start_part)
+
+
 
     def fit_random_walk(self, mu_vec, k, r = None, normalize_adj = False, row_normalize_adj = False, verbose = True):
         """
@@ -250,14 +366,14 @@ class RandomWalk():
         ---------------------------------------
         k - int, Nr. random walks
         mu_vec - array of size p, containing RW weight/discount.
-        r - int, number of eigenvalues, if None full eigenvalue decomposition used
+        r - int, number of eigenvalues, if None full eigenvalue decomposition used which will be slow.
         normalize_adj - bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
         row_normalize_adj - bool, Should the adj matrixb be row normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
         verbose - bool, print progress bar?
         
         Returns
         --------------------------------
-        float kernel value between W1,W2
+        K - N n N kernel matrix 
 
         """
 
@@ -353,8 +469,8 @@ class RandomWalk():
             p2 = np.expand_dims(p2, axis = 1)
             q1 = np.expand_dims(q1, axis = 1)
             q2 = np.expand_dims(q2, axis = 1)
-            w1, u1 = eigh(W1.todense())
-            w2, u2 = eigh(W2.todense())
+            w1, u1 = eigh(W1)
+            w2, u2 = eigh(W2)
         else:
             w1, u1 = eigsh(W1, k = r)
             w2, u2 = eigsh(W2, k = r)
