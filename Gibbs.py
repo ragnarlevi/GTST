@@ -3,6 +3,7 @@ from matplotlib.pyplot import axis
 import lcurve
 import numpy as np
 from scipy.stats import invgamma
+# from sklearn.covariance import LedoitWolf
 
 def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1):
     """
@@ -37,7 +38,6 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
     for i in range(y.shape[0]):
         tmp_A[i, np.isnan(y[i,:])] = 0 
 
-
     neglik = 0
     for i in range(y.shape[0]):
 
@@ -56,52 +56,12 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         tmp_V[:,np.isnan(y[i,:])] = 0
         tmp_V[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
-        # U_C_t, D_C_t, V_C_t_trans = np.linalg.svd(state_cov_one_step[i])
-        # S_C_t = np.diag(np.sqrt(D_C_t))
-
-        # U_W, D_W, V_W_trans = np.linalg.svd(W)
-        # S_W = np.diag(np.sqrt(D_W))
-
-        # N_W = np.dot(S_W,V_W_trans.T)
-
-        # N_R_t = np.vstack((np.dot(S_C_t, U_C_t.T).dot(G.T), N_W))
-
-        # U_R_t, D_R_t, V_R_t_T = np.linalg.svd(N_R_t)
-        # U_R_t = V_R_t_T.T
-
-        # S_R_t_inv = np.reciprocal(D_R_t)
-        # S_R_t_inv[np.isinf(S_R_t_inv)] = 0
-        # S_R_t_inv[np.isnan(S_R_t_inv)] = 0
-
-        # V_inv = np.linalg.pinv(tmp_V)
-        # U_V_inv_t, D_V_inv_t, V_V_inv_t_trans = np.linalg.svd(V_inv)
-        # S_V = np.diag(np.sqrt(D_V_inv_t))
-        # N_V_inv = np.dot(S_V,V_V_inv_t_trans)
-
-        # N_C_inv_t = np.vstack((np.dot(N_V_inv, tmp_F).dot(U_R_t), S_R_t_inv))
-        # U_N_C_inv_t, D_N_C_inv_t, V_N_C_inv_t_trans = np.linalg.svd(N_C_inv_t)
-
-        # # C_inv_t = np.dot(U_R_t, N_C_inv_t.T).dot(N_C_inv_t).dot(U_R_t.T)
-
-        # S_C_t = np.reciprocal(D_N_C_inv_t)
-        # S_C_t[np.isinf(S_C_t)] = 0
-        # S_C_t[np.isnan(S_C_t)] = 0
-
-        # U_C_t = np.dot(U_R_t, V_N_C_inv_t_trans.T)
-
-        # N_C_t = np.dot(S_C_t, U_C_t.T)
-        # C_t = np.dot(N_C_t.T, U_C_t)
-
-
-        # R = np.dot(N_R_t.T, N_R_t)
-
-        # Kalman_gain = np.dot(C_t, tmp_F.T).dot(N_V_inv.T).dot(N_V_inv)
-
         R = np.dot(tmp_F, state_cov_one_step[i]).dot(tmp_F.T) + tmp_V
         R[np.isnan(y[i,:]),:] = 0 
         R[:,np.isnan(y[i,:])] = 0
         R[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
+        R = (1-0.2)*R + 0.2*2*np.identity(R.shape[0])
 
         if calc_cond:
             R_cond[i, 0] = np.linalg.cond(R)
@@ -111,6 +71,9 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
 
         if regularize:
             R = R + reg_param*np.identity(tmp_V.shape[0])
+
+        #R_cond[i, 0] = np.linalg.cond(R)
+        # R_cond[i, 1] = np.linalg.cond(R)
 
         if R.ndim == 1:
             R_inv[i] = 1/R
@@ -137,8 +100,6 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
 
 
 
-
-
     print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
     print(f'negative likelihood {neglik}')
     return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
@@ -158,7 +119,9 @@ def KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, G, B, W, 
 
     for i in reversed(range(1, state.shape[0])): 
 
+        
         R = np.dot(G, state_cov[i]).dot(G.T) + W
+        # R = (1-0.2)* R + 0.2*5*np.identity(R.shape[0])
 
         if regularize:
             R = R + reg_param*np.identity(W.shape[0])
