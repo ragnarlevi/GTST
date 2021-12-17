@@ -61,16 +61,21 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         R[:,np.isnan(y[i,:])] = 0
         R[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
-        R = (1-0.2)*R + 0.2*2*np.identity(R.shape[0])
+        R_cond[i, 0] = np.linalg.cond(R)  # condition number before
+        #mu = np.median(np.diag(R))
+        #print(mu)
+        mu = 2.0
+        R = (1-0.2)*R + 0.2*mu*np.identity(R.shape[0])
+        R_cond[i, 1] = np.linalg.cond(R)  # condition number after
 
-        if calc_cond:
-            R_cond[i, 0] = np.linalg.cond(R)
-            if R_cond[i,0] > 1000:
-                R = R + reg_param*np.identity(tmp_V.shape[0])
-                R_cond[i, 1] = np.linalg.cond(R)
+        # if calc_cond:
+        #     R_cond[i, 0] = np.linalg.cond(R)
+        #     if R_cond[i,0] > 1000:
+        #         R = R + reg_param*np.identity(tmp_V.shape[0])
+        #         R_cond[i, 1] = np.linalg.cond(R)
 
-        if regularize:
-            R = R + reg_param*np.identity(tmp_V.shape[0])
+        # if regularize:
+        #     R = R + reg_param*np.identity(tmp_V.shape[0])
 
         #R_cond[i, 0] = np.linalg.cond(R)
         # R_cond[i, 1] = np.linalg.cond(R)
@@ -98,8 +103,6 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         # print(f'det {d1} inverse {d2}')
         neglik += 0.5* d1 + 0.5 * d2
 
-
-
     print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
     print(f'negative likelihood {neglik}')
     return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
@@ -121,10 +124,8 @@ def KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, G, B, W, 
 
         
         R = np.dot(G, state_cov[i]).dot(G.T) + W
-        # R = (1-0.2)* R + 0.2*5*np.identity(R.shape[0])
-
-        if regularize:
-            R = R + reg_param*np.identity(W.shape[0])
+        # mu = np.mean(np.diag(R))
+        # R = (1-0.2)* R + 0.2*mu*np.identity(R.shape[0])
 
         if R.ndim == 1:
             J = np.dot(state_cov[i], G.T).dot(1/R)
@@ -164,9 +165,6 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize_F = 
     for i in reversed(range(1, state.shape[0])): 
 
         R = np.dot(G, state_cov[i]).dot(G.T) + W
-
-        if regularize_S:
-            R = R + reg_params['reg_s']*np.identity(W.shape[0])
 
         if R.ndim == 1:
             J = np.dot(state_cov[i], G.T).dot(1/R)
