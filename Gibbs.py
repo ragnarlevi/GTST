@@ -61,12 +61,12 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         R[:,np.isnan(y[i,:])] = 0
         R[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
-        R_cond[i, 0] = np.linalg.cond(R)  # condition number before
+        # R_cond[i, 0] = np.linalg.cond(R)  # condition number before
         #mu = np.median(np.diag(R))
         #print(mu)
         mu = 2.0
         R = (1-0.2)*R + 0.2*mu*np.identity(R.shape[0])
-        R_cond[i, 1] = np.linalg.cond(R)  # condition number after
+        # R_cond[i, 1] = np.linalg.cond(R)  # condition number after
 
         # if calc_cond:
         #     R_cond[i, 0] = np.linalg.cond(R)
@@ -291,8 +291,8 @@ def lc_sector(N, y, group_membership, init_params, calc_cond = False, regularize
         # sample beta_g_i
         for j in range(y.shape[1]):
             var = 1.0 / ((np.sum(smooth_state_new[:,1 + group_membership[j]]  ** 2) / v[i-1,j]) + (1.0 / beta_var))
-            tmp1 = y[:,j]**smooth_state_new[:,1 + group_membership[j]] 
-            tmp2 = A_vec[i-1, j]**smooth_state_new[:,1 + group_membership[j]] 
+            tmp1 = y[:,j]*smooth_state_new[:,1 + group_membership[j]] 
+            tmp2 = A_vec[i-1, j]*smooth_state_new[:,1 + group_membership[j]] 
             tmp3 = beta_vec[i-1, j]*smooth_state_new[:,0]*smooth_state_new[:,1 + group_membership[j]] 
 
             avg = ((beta_mean/beta_var) + (np.nansum(tmp1 - tmp2 -tmp3))/v[i-1,j]) * var
