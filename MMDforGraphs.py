@@ -425,6 +425,225 @@ class DegreeGraphs():
         scale = self.kwargs.get('scale', 1)
         return dict( ( (i, np.random.normal(loc = loc[i], scale = scale, size = (1,))) for i in range(len(G)) ) )
 
+    def edges(self, G):
+        """
+        concatenate edge labels of node and set it as the node label
+        """
+
+        return dict(( (i, ''.join(map(str,sorted([ info[2] for info in G.edges(i, data = 'sign')]))) ) for i in range(len(G))))
+
+
+def scale_free(n, exponent):
+    """
+    Parameters:
+    -------------------
+    n - number of nodes
+    exponent - power law exponent
+    
+    """
+    while True:  
+        s=[]
+        while len(s)<n:
+            nextval = int(nx.utils.powerlaw_sequence(1, exponent)[0]) #100 nodes
+            if nextval!=0:
+                s.append(nextval)
+        if sum(s)%2 == 0:
+            break
+    G = nx.configuration_model(s)
+    G = nx.Graph(G) # remove parallel edges
+    G.remove_edges_from(nx.selfloop_edges(G))
+
+    return G
+
+
+class SignedGraph(DegreeGraphs):
+    """
+    Generate a powerlaw or erdos_renyi graph with signed edges
+    """
+
+    def __init__(self,  n, nnode, l = None,  a = None, **kwargs):
+        """
+        Parameters:
+        ---------------------
+        n - number of samples
+        nnode - number of nodes
+
+        **kwargs
+            balance_target - ratio of balanced triangles to unbalanced ones.
+            exponent - power law exponent
+            powerlaw - boolean
+            k - degree if graph generation is not scale free
+        
+        """
+        super().__init__( n = n, nnode = nnode, l = l ,  a = a, **kwargs )
+
+        self.balance_target = kwargs.get('balance_target',1.0)
+        self.exponent = kwargs.get('exponent',1.0)
+        self.powerlaw = kwargs.get('powerlaw',False)
+        self.k = kwargs.get('k',5)
+
+    def Generate(self):
+
+        self.Gs = []
+        for _ in range(self.n):
+            
+            G = self.generate_single_Graph()
+
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            self.Gs.append(G)
+
+
+    def generate_single_Graph(self):
+        
+        nr_triangles = 0
+        while nr_triangles <= 0:
+            
+            if self.powerlaw:
+                G = scale_free(self.nnode, self.exponent)
+            else:
+                G = nx.erdos_renyi_graph(self.nnode, self.k / (self.nnode - 1))
+                
+            nr_triangles = len([c for c in nx.cycle_basis(G) if len(c)==3])
+
+        # Label all edges with -, so balance ratio = 1
+        nx.set_edge_attributes(G, {(n1, n2): np.random.choice([-1,1]) for n1, n2 in G.edges()}, "sign")
+
+        cnt_balanced, cnt_unbalanced = self.cnt_balance(G)
+
+
+        if self.balance_target + 0.05 > cnt_balanced /(cnt_balanced + cnt_unbalanced) > self.balance_target - 0.05:
+            pass
+        elif cnt_balanced /(cnt_balanced + cnt_unbalanced) > self.balance_target:
+            G = self.balance_down(G, self.balance_target, cnt_balanced, cnt_unbalanced)
+        else:
+            G = self.balance_up(G, self.balance_target, cnt_balanced, cnt_unbalanced)
+
+        return G
+
+    def cnt_balance(self,G):
+        # Loop thorugh triangles and set as unbalanced until under certain threshold
+        triangles = [c for c in nx.cycle_basis(G) if len(c)==3]
+        cnt_unbalanced = 0
+        cnt_balanced = 0
+        for cycle in triangles:
+            
+            # This cycle is balanced
+            if G.edges[cycle[0],cycle[1]]['sign']*G.edges[cycle[1],cycle[2]]['sign']*G.edges[cycle[0],cycle[2]]['sign'] == 1.0:
+                cnt_balanced += 1
+            else:
+                cnt_unbalanced +=1
+
+
+        return cnt_balanced, cnt_unbalanced
+
+
+    def balance_up(self, G, balance_target, cnt_balanced0, cnt_unbalanced0):
+
+        # Loop thorugh triangles and set as unbalanced until under certain threshold
+        triangles = [c for c in nx.cycle_basis(G) if len(c)==3]
+        
+        balance_ratio = cnt_balanced0/(cnt_unbalanced0 + cnt_balanced0)
+        cnt_balanced = cnt_balanced0
+        cnt_unbalanced =cnt_unbalanced0
+
+        itr = 0
+        while (balance_ratio + 0.05 <= balance_target) and itr < 1000:
+            itr += 1
+            
+            for node in np.random.permutation(G.nodes()):
+
+                # find all cycles rooted at this node
+                triangles = [c for c in nx.cycle_basis(G, root = node) if len(c)==3]
+
+                if len(triangles) <= 0:
+                    continue
+
+                # randomly pick one triangle
+                tri_pick = np.random.choice(len(triangles))
+                cycle = triangles[tri_pick]
+
+                # is this triangle unbalanced?
+                if G.edges[cycle[0],cycle[1]]['sign']*G.edges[cycle[1],cycle[2]]['sign']*G.edges[cycle[0],cycle[2]]['sign'] == -1.0:
+
+                    perm = np.random.permutation([0,1,2])
+                
+                    if G.edges[cycle[perm[0]],cycle[perm[1]]]['sign'] == -1.0:
+                        nx.set_edge_attributes(G, {(cycle[perm[0]], cycle[perm[1]]): 1.0}, "sign")
+                    elif G.edges[cycle[perm[2]],cycle[perm[1]]]['sign'] == -1.0:
+                        nx.set_edge_attributes(G, {(cycle[perm[2]], cycle[perm[1]]): 1.0}, "sign")
+                    else:
+                        nx.set_edge_attributes(G, {(cycle[perm[0]], cycle[perm[2]]): 1.0}, "sign")
+
+                    cnt_balanced, cnt_unbalanced = self.cnt_balance(G)
+                    balance_ratio = cnt_balanced/(cnt_unbalanced + cnt_balanced)
+                    break
+
+                else:
+                    continue
+        
+        return G
+
+    def balance_down(self, G, balance_target, cnt_balanced0, cnt_unbalanced0):
+
+        # Loop thorugh triangles and set as unbalanced until under certain threshold
+        triangles = [c for c in nx.cycle_basis(G) if len(c)==3]
+        
+        balance_ratio = cnt_balanced0/(cnt_unbalanced0 + cnt_balanced0)
+        cnt_balanced = cnt_balanced0
+        cnt_unbalanced =cnt_unbalanced0
+
+        itr = 0
+        while (balance_ratio - 0.05 >= balance_target) and itr < 1000:
+            itr += 1
+            
+            for node in np.random.permutation(G.nodes()):
+
+                # find all cycles rooted at this node
+                triangles = [c for c in nx.cycle_basis(G, root = node) if len(c)==3]
+
+                if len(triangles) <= 0:
+                    continue
+
+                # randomly pick one triangle
+                tri_pick = np.random.choice(len(triangles))
+                cycle = triangles[tri_pick]
+
+                # is this triangle unbalanced?
+                if G.edges[cycle[0],cycle[1]]['sign']*G.edges[cycle[1],cycle[2]]['sign']*G.edges[cycle[0],cycle[2]]['sign'] == 1.0:
+
+                    perm = np.random.permutation([0,1,2])
+                
+                    if G.edges[cycle[perm[0]],cycle[perm[1]]]['sign'] == 1.0:
+                        nx.set_edge_attributes(G, {(cycle[perm[0]], cycle[perm[1]]): -1.0}, "sign")
+                    elif G.edges[cycle[perm[2]],cycle[perm[1]]]['sign'] == 1.0:
+                        nx.set_edge_attributes(G, {(cycle[perm[2]], cycle[perm[1]]): -1.0}, "sign")
+                    else:
+                        nx.set_edge_attributes(G, {(cycle[perm[0]], cycle[perm[2]]): -1.0}, "sign")
+
+                    cnt_balanced, cnt_unbalanced = self.cnt_balance(G)
+                    balance_ratio = cnt_balanced/(cnt_unbalanced + cnt_balanced)
+                    break
+
+                else:
+                    continue
+        
+        return G
+
+
 
 class CliqueGraph(DegreeGraphs):
     """
@@ -655,7 +874,7 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label'):
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
@@ -696,7 +915,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
         bg1.Generate()
         bg2.Generate()
         Gs = bg1.Gs + bg2.Gs
-        graph_list = gk.graph_from_networkx(Gs, node_labels_tag = node_labels_tag)
+        graph_list = gk.graph_from_networkx(Gs, node_labels_tag = node_labels_tag, edge_labels_tag = edge_labels_tag)
 
         # # Calculate basic  graph statistics hypothesis testing
         # if graphStatistics:

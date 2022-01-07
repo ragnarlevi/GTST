@@ -202,6 +202,8 @@ def construct_covariance(x, sector_dict, step = 30, remove_market = True, remove
     # dictionary that will store covariances, and nodes at each snap shot, for each sector
     correlation_dict = dict()
     covariance_dict = dict()
+    #correlation_m_dict = dict()
+    #covariance_m_dict = dict()
     nodes_dict = dict()
     stock_array_dict = dict()
     stock_array_no_market_dict = dict()

@@ -3,6 +3,7 @@ from matplotlib.pyplot import axis
 import lcurve
 import numpy as np
 from scipy.stats import invgamma
+# from sklearn.covariance import LedoitWolf
 
 def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1):
     """
@@ -37,7 +38,6 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
     for i in range(y.shape[0]):
         tmp_A[i, np.isnan(y[i,:])] = 0 
 
-
     neglik = 0
     for i in range(y.shape[0]):
 
@@ -61,21 +61,30 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         R[:,np.isnan(y[i,:])] = 0
         R[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
+        # R_cond[i, 0] = np.linalg.cond(R)  # condition number before
+        #mu = np.median(np.diag(R))
+        #print(mu)
+        mu = 2.0
+        R = (1-0.2)*R + 0.2*mu*np.identity(R.shape[0])
+        # R_cond[i, 1] = np.linalg.cond(R)  # condition number after
 
-        if calc_cond:
-            R_cond[i, 0] = np.linalg.cond(R)
-            if R_cond[i,0] > 1000:
-                R = R + reg_param*np.identity(tmp_V.shape[0])
-                R_cond[i, 1] = np.linalg.cond(R)
+        # if calc_cond:
+        #     R_cond[i, 0] = np.linalg.cond(R)
+        #     if R_cond[i,0] > 1000:
+        #         R = R + reg_param*np.identity(tmp_V.shape[0])
+        #         R_cond[i, 1] = np.linalg.cond(R)
 
-        if regularize:
-            R = R + reg_param*np.identity(tmp_V.shape[0])
+        # if regularize:
+        #     R = R + reg_param*np.identity(tmp_V.shape[0])
+
+        #R_cond[i, 0] = np.linalg.cond(R)
+        # R_cond[i, 1] = np.linalg.cond(R)
 
         if R.ndim == 1:
             R_inv[i] = 1/R
             Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(1/R)
         else:
-            R_inv[i] = np.linalg.inv(R)
+            R_inv[i] = np.linalg.pinv(R)
             Kalman_gain = np.dot(state_cov_one_step[i], tmp_F.T).dot(R_inv[i])
 
         state[i+1] = state_one_step[i] + np.dot(Kalman_gain, tmp_y - tmp_A[i] - np.dot(tmp_F, state_one_step[i]))
@@ -83,10 +92,19 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         y_est[i] = np.dot(F, state[i+1]) + tmp_A[i]
 
         e = y[i] - np.dot(F, state_one_step[i]) - tmp_A[i]
-        neglik += 0.5* np.log(np.linalg.det(R)) + 0.5 * np.dot(e, R_inv[i]).dot(e)
 
+
+        u, w, vt = np.linalg.svd(R)
+        w = w[w>0]
+
+
+        d1 = np.sum(np.log(w))
+        d2 = np.dot(e, R_inv[i]).dot(e)
+        # print(f'det {d1} inverse {d2}')
+        neglik += 0.5* d1 + 0.5 * d2
 
     print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
+    print(f'negative likelihood {neglik}')
     return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
 
 
@@ -104,10 +122,10 @@ def KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, G, B, W, 
 
     for i in reversed(range(1, state.shape[0])): 
 
+        
         R = np.dot(G, state_cov[i]).dot(G.T) + W
-
-        if regularize:
-            R = R + reg_param*np.identity(W.shape[0])
+        # mu = np.mean(np.diag(R))
+        # R = (1-0.2)* R + 0.2*mu*np.identity(R.shape[0])
 
         if R.ndim == 1:
             J = np.dot(state_cov[i], G.T).dot(1/R)
@@ -148,9 +166,6 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize_F = 
 
         R = np.dot(G, state_cov[i]).dot(G.T) + W
 
-        if regularize_S:
-            R = R + reg_params['reg_s']*np.identity(W.shape[0])
-
         if R.ndim == 1:
             J = np.dot(state_cov[i], G.T).dot(1/R)
         else:
@@ -164,11 +179,16 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize_F = 
     return smooth_state_draws, R_cond
 
 
-def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
+def lc_sector(N, y, group_membership, init_params, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
     """
     Calculate Kalman Smoother
     y_t = Fx_t + A
     x_t = Gx_{t-1} + B 
+
+    :param N: Number of samples
+    :param y: np.array of data n times p
+    :param group_membership: a array indicating the group stock i belongs to. The grouping should have the form  0,1,2,3,..,k-1. where k is the number of groups.
+    :param init_params: dict with the prior parameters and initial guess 
     """
 
     n_stock = y.shape[1]
@@ -177,29 +197,32 @@ def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, r
 
     print(f'T {T}, n_stock {n_stock}, n_groups {n_groups}')
 
-    beta_mean = 1.0
-    beta_var = 1.0 
+    # Priors
+    beta_mean = init_params['beta_mean']
+    beta_var = init_params['beta_var']
 
-    alpha_mean = np.array([70.0] * n_stock)
-    alpha_var = np.array([10.0] * n_stock) 
+    alpha_mean = init_params['alpha_mean']
+    alpha_var = init_params['alpha_var']
 
-    eta_mean = np.array([0.0] * (1 + n_groups))
-    eta_var = np.array([2.0] * (1 + n_groups))
+    eta_mean = init_params['eta_mean']
+    eta_var = init_params['eta_var']
 
-    v_alpha = 10.0 
-    v_beta = 0.1
+    v_alpha = init_params['v_alpha']
+    v_beta = init_params['v_beta']
 
-    w_alpha = 10.0
-    w_beta = 0.1
+    w_alpha = init_params['w_alpha']
+    w_beta = init_params['w_beta']
 
-    beta_init = np.array([0.1] * n_stock + [0.1] * n_stock )
-    alpha_init = np.nanmean(y, axis = 0)
-    eta_init = 0.0 * np.ones(1 + n_groups) 
-    w_init = 0.001 * np.ones(1 + n_groups) 
-    v_init = 0.001*np.ones(n_stock) 
+    # initial gibbs
+    beta_init = init_params['beta_init']
+    alpha_init = init_params['alpha_init']
+    eta_init = init_params['eta_init']
+    w_init = init_params['w_init']
+    v_init = init_params['v_init']
 
-    init_x = np.array([0.0] * (1+n_groups))
-    init_c = np.identity((1 + n_groups)) * 10
+    # init kalman
+    init_x = init_params['init_x']
+    init_c = init_params['init_c']
 
 
     B_vec = np.zeros((N+1,1 + n_groups))
@@ -268,8 +291,8 @@ def lc_sector(N, y, group_membership, calc_cond = False, regularize_S = False, r
         # sample beta_g_i
         for j in range(y.shape[1]):
             var = 1.0 / ((np.sum(smooth_state_new[:,1 + group_membership[j]]  ** 2) / v[i-1,j]) + (1.0 / beta_var))
-            tmp1 = y[:,j]**smooth_state_new[:,1 + group_membership[j]] 
-            tmp2 = A_vec[i-1, j]**smooth_state_new[:,1 + group_membership[j]] 
+            tmp1 = y[:,j]*smooth_state_new[:,1 + group_membership[j]] 
+            tmp2 = A_vec[i-1, j]*smooth_state_new[:,1 + group_membership[j]] 
             tmp3 = beta_vec[i-1, j]*smooth_state_new[:,0]*smooth_state_new[:,1 + group_membership[j]] 
 
             avg = ((beta_mean/beta_var) + (np.nansum(tmp1 - tmp2 -tmp3))/v[i-1,j]) * var
