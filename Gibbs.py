@@ -1,6 +1,5 @@
 
 from matplotlib.pyplot import axis
-import lcurve
 import numpy as np
 from scipy.stats import invgamma
 # from sklearn.covariance import LedoitWolf
@@ -62,10 +61,10 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         R[np.isnan(y[i,:]),np.isnan(y[i,:])] = 1
 
         # R_cond[i, 0] = np.linalg.cond(R)  # condition number before
-        #mu = np.median(np.diag(R))
-        #print(mu)
-        mu = 2.0
-        R = (1-0.2)*R + 0.2*mu*np.identity(R.shape[0])
+        # mu = np.median(np.diag(R))
+        # print(mu)
+        # mu = 2.0
+        # R = (1-0.2)*R + 0.2*mu*np.identity(R.shape[0])
         # R_cond[i, 1] = np.linalg.cond(R)  # condition number after
 
         # if calc_cond:
@@ -339,6 +338,136 @@ def lc_sector(N, y, group_membership, init_params, calc_cond = False, regularize
 
     return w, v, beta_vec, A_vec, B_vec, states_store, R_conds
 
+
+def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
+    """
+    Calculate Kalman Smoother
+    y_t = a + beta x_t + v
+    x_t = x_{t-1} + eta + W
+
+    :param N: Number of Gibbs iterations
+    :param y: np.array of data n times p
+    :param init_params: dict with the prior parameters and initial guess 
+    """
+
+    n_stock = y.shape[1]
+    T = y.shape[0]
+    print(n_stock)
+
+    # Priors
+    #beta_mean = init_params['beta_mean']
+    #beta_var = init_params['beta_var']
+
+    alpha_mean = init_params['alpha_mean']
+    alpha_var = init_params['alpha_var']
+
+    eta_mean = init_params['eta_mean']
+    eta_var = init_params['eta_var']
+
+    v_alpha = init_params['v_alpha']
+    v_beta = init_params['v_beta']
+
+    w_alpha = init_params['w_alpha']
+    w_beta = init_params['w_beta']
+
+    # initial gibbs
+    # beta_init = init_params['beta_init']
+    alpha_init = init_params['alpha_init']
+    eta_init = init_params['eta_init']
+    w_init = init_params['w_init']
+    v_init = init_params['v_init']
+
+    # init kalman
+    init_x = init_params['init_x']
+    init_c = init_params['init_c']
+
+
+    B_vec = np.zeros((N+1,1 ))
+    B_vec[0] = eta_init
+
+    R_conds = np.zeros((N,y.shape[0],2))
+
+    w = np.zeros((N+1,1 ))
+    w[0] = w_init
+
+    # F_vec = np.zeros((N+1,F.shape[0], F.shape[1]))
+    beta_vec = np.zeros((N+1,n_stock))
+    # beta_vec[0] = beta_init
+
+    A_vec = np.zeros((N+1,n_stock))
+    A_vec[0] = alpha_init
+
+    v = np.zeros((N+1, n_stock))
+    v[0] = v_init
+
+    states_store = np.zeros((N, T, 1 ))
+
+    G = np.identity(1 )
+    # F = np.zeros((y.shape[1], (nr_groups + 1)))
+
+    # index to help count
+    index = np.array(range(n_stock))
+
+    # constraints
+    beta_vec[0, :n_stock] = 1 #beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+
+    for i in range(1,N+1):
+        print( f'{i} of {N} ')
+
+        F = np.zeros((n_stock,  1))
+        F[:,0] = beta_vec[i-1]
+
+        smooth_state, R_cond = FFBS(y, G, B_vec[i-1], np.diag(w[i-1]), F, A_vec[i-1],  np.diag(v[i-1]), init_x, init_c, calc_cond, regularize_S = regularize_S, regularize_F = regularize_F, reg_params = reg_params)
+        R_conds[i-1] = R_cond
+
+        # Constraint
+        smooth_state_new =   smooth_state[1:]  - np.mean(smooth_state[1:] , axis = 0)
+        # print(smooth_state_new.shape)
+        states_store[i-1] = smooth_state_new
+
+        # sample beta_i
+        # for j in range(y.shape[1]):
+        #     var = 1.0 / ((np.sum(smooth_state_new[:,0] ** 2) / v[i-1,j]) + (1.0 / beta_var))
+        #     tmp1 = y[:,j]*smooth_state_new[:,0]
+        #     tmp2 = A_vec[i-1, j]*smooth_state_new[:,0] 
+
+        #     avg = ((beta_mean/beta_var) + (np.nansum(tmp1 - tmp2 ))/v[i-1,j]) * var
+        #     beta_vec[i,j] = np.random.normal(avg, np.sqrt(var))
+
+        beta_vec[i,0] = 1.0
+        # constraints
+        # beta_vec[i, :n_stock] = beta_vec[i, :n_stock]/np.sum(beta_vec[i, :n_stock])
+
+        # sample alpha
+        for j in range(n_stock):
+            var = 1.0 / ((y.shape[0] / v[i-1,j]) + (1 / alpha_var[j]))
+            avg = np.nansum(y[:, j] - beta_vec[i,j]*smooth_state_new[:, 0]   )/v[i-1,j]
+            avg += alpha_mean[j]/alpha_var[j]
+            avg *= var
+            A_vec[i,j] = np.random.normal(avg, np.sqrt(var))
+
+        # sample variance of observation
+        for j in range(n_stock):
+            alpha = (y.shape[0]/2.0) + v_alpha
+            # beta = np.nansum((y[:,j] - A_vec[i,j] - beta_vec[i,j]*smooth_state_new[1:, 0] - beta_vec[i,y.shape[1] + group_membership[j]]*smooth_state_new[1:, group_membership[j] + 1] ) ** 2) + v_beta
+            beta = 0.5 * np.nansum((y[:,j] - A_vec[i,j] - beta_vec[i,j]*smooth_state_new[:, 0] ) ** 2) + v_beta
+            # v[i,j] = 1 / np.random.gamma(shape = alpha, scale = beta)
+            v[i,j] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
+
+
+        # state equation  
+        var = 1.0 / ((y.shape[0] / w[i-1,0]) + (1.0 / eta_var[0]))
+        avg = np.nansum(smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]) / w[i-1,0]
+        avg += (eta_mean[0]/eta_var[0])
+        avg *= var
+        B_vec[i,0] = np.random.normal(avg, np.sqrt(var))
+
+        alpha_w_tmp = y.shape[0]/2.0 + w_alpha
+        beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,0] - smooth_state_new[:(smooth_state_new.shape[0]-1),0] - B_vec[i, 0]) ** 2) + w_beta
+        w[i,0] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
+
+
+    return w, v, beta_vec, A_vec, B_vec, states_store, R_conds
 
 
 def group_membering(data, group_column):
