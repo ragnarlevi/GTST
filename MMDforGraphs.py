@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 import grakel as gk
 import warnings
+from scipy.stats import norm
 
 
 import pandas as pd
@@ -29,6 +30,81 @@ def MMD_u(K: np.array, n: int, m: int):
     Kxy = K[:n, n:]
     # important to write 1.0 and not 1 to make sure the outcome is a float!
     return 1.0 / (n* (n - 1.0)) * (Kx.sum() - np.diag(Kx).sum()) + 1.0 / (m * (m - 1.0)) * (Ky.sum() - np.diag(Ky).sum()) - 2.0 / (n * m) * Kxy.sum()
+
+
+
+def factorial_k(m, k):
+    """
+    Calculate (m)_k := m(m-1)*...* (m-k+1)
+    
+    """
+    
+    base = m
+    for i in range(1,k):
+        m *= base - i
+    return m
+
+
+def power_ratio(K, mmd_stat, threshold, m):
+    """
+    The function calculates the power ratio of a specific kernel
+
+    Parameters
+    --------------------
+    K: numpy array, The ernel matrix
+    mmd_stat: float, the sample mmd value. Note this is the squared unbiased mmd value
+    threshold: float, the test thershold for a given type I error (alpha value)
+    m: int, size of samples
+
+    Returns
+    --------------------
+    ratio: float, the power ratio, the bigger the better
+    power: float, The power of the test
+    
+
+
+    Variance is found in Unbiased estimators for the variance of MMD estimators Danica J. Sutherland https://arxiv.org/pdf/1906.02104.pdf
+    """
+
+    Kxx = K[:n, :n]
+    Kxy = K[:n, n:]
+    Kyy = K[n:, n:]
+
+    Ktxx = Kxx.copy()
+    Ktxy = Kxy.copy()
+    Ktyy = Kyy.copy()
+    np.fill_diagonal(Ktxx, 0)
+    np.fill_diagonal(Ktxy, 0)
+    np.fill_diagonal(Ktyy, 0)
+
+
+    e = np.ones(n)
+    # Calculate variance
+    V = (
+         4/factorial_k(m, 4) * (np.inner(np.matmul(Ktxx,e),np.matmul(Ktxx,e))  + np.inner(np.matmul(Ktyy,e),np.matmul(Ktyy,e)) )
+        - (4*(m**2 - m - 1)) / (m**3 * (m-1)**2) * (np.inner(np.matmul(Kxy,e),np.matmul(Kxy,e))  + np.inner(np.matmul(Kxy.T,e),np.matmul(Kxy.T,e)) )
+        - 8 / ((m**2) * (m**2 - 3*m + 2)) * (np.dot(e, Ktxx).dot(Kxy).dot(e) + np.dot(e, Ktyy).dot(Kxy).dot(e))
+        + 8 / (m**2 * factorial_k(m, 3)) * ((np.dot(e, Ktxx).dot(e) + np.dot(e, Ktyy).dot(e))*np.dot(e,Kxy).dot(e))
+        - (2*(2*m-3))/(factorial_k(m,2)*factorial_k(m,4)) * (np.dot(e, Ktxx).dot(e)**2 + np.dot(e, Ktyy).dot(e)**2)
+        - (4*(2*m-3))/(m**3 * (m-1)**3) * np.dot(e,Kxy).dot(e)**2
+        - 2/(m *(m**3 - 6*m**2 +11*m -6)) *(np.linalg.norm(Ktxx, ord = 'fro')**2 + np.linalg.norm(Ktyy, ord = 'fro')**2)
+        + (4*(m-2))/(m**2 * (m-1)**3) * np.linalg.norm(Kxy, ord='fro')**2
+    )
+
+
+    ratio = (mmd_stat / np.sqrt(V)) - (threshold/(m*np.sqrt(V)))
+    power = norm.cdf(ratio)
+
+    return ratio, power
+
+
+
+
+
+    
+
+
+
 
 
 class BoostrapMethods():
@@ -87,7 +163,7 @@ class BoostrapMethods():
     def Bootstrap(self, K, function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
         """
         :param K: Kernel matrix that we want to permutate
-        :param function_arguments: List of dictionaries with inputs of for its respective function in list_of_functions,  excluding K. If no input set as None.
+        :param function_arguments: List of dictionaries with inputs for its respective function in list_of_functions,  excluding K. If no input set as None.
         :param B: Number of Bootstraps
         :param method: Which permutation method should be applied?
         :param check_symmetry: Should the scheme check if the matrix is symmetirc, each time? Adds time complexity
@@ -920,7 +996,4 @@ if __name__ == '__main__':
     m = 5
 
     average_degree = 6
-    print('what is up')
-
-
     bg1 = BinomialGraphs(n, nr_nodes_1,average_degree, l = None)
