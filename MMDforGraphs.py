@@ -11,6 +11,7 @@ import pandas as pd
 
 
 from numba import njit
+from scipy.sparse.sputils import validateaxis
 
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n: int, m: int):
@@ -159,7 +160,7 @@ class BoostrapMethods():
         return K_i
 
 
-    def Bootstrap(self,K,function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
+    def Bootstrap(self, K, function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
         """
         :param K: Kernel matrix that we want to permutate
         :param function_arguments: List of dictionaries with inputs for its respective function in list_of_functions,  excluding K. If no input set as None.
@@ -210,12 +211,10 @@ class BoostrapMethods():
                 if self.issymmetric(K_i):
                     warnings.warn("Not a Symmetric matrix", Warning)
 
-            # apply each statistic, and keep the bootstraped/permutated value
+            # apply each test defined in list_if_functions, and keep the bootstraped/permutated value
             for i in range(len(self.list_of_functions)):
                 eval_string = self.list_of_functions[i].__name__ + "(K =K_i, " + inputs[i] + ")"
                 boot_statistic[self.list_of_functions[i].__name__][boot] = eval(eval_string)
-
-                
 
         # calculate p-value
         for key in sample_statistic.keys():
@@ -790,11 +789,9 @@ class SBMGraphs():
         :return: list of networkx graphs
 
         self.params should include:
-            sizes (list of ints) – Sizes of blocks
-            p (list of list of floats) – Element (r,s) gives the density of edges going from the nodes of group r to nodes of group s. Must match the number of groups
+            sizes: (list of ints) Sizes of blocks
+            p: (list of list of floats) Element (r,s) gives the density of edges going from the nodes of group r to nodes of group s. Must match the number of groups
         """
-
-
 
         self.Gs = []
         for _ in range(self.n):
@@ -823,13 +820,6 @@ class SBMGraphs():
                 attribute_dict = attributes(G)
                 nx.set_node_attributes(G, attribute_dict, 'attr')
             self.Gs.append(G)
-
-
-        
-
-        
-
-
 
 
 def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
@@ -874,10 +864,12 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None):
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
+    Parameters
+    --------------------------------
     :param N: Number of samples
     :param kernel: Dictionary with the kernel arguments
     :param normalize: Should the kernel be normalized
@@ -888,7 +880,10 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
     :param kernel_hypothesis: The class that handes bootstrapping
     :param kernel_library: which package or which own kernel: Grakel, deepkernel (own function), 
     :param node_labels_tag: Node label tak for Grakel kernels, usually label for labeled graphs and attr if attributed. Should be in concordance with the label/attribute generation mechanism in the generation scheme of bg1 and bg2.
+    :param label_list, label list for random walk kernel
 
+    Returns
+    -------------------------------
     :return Kmax: List that stores the maximum kernel value for each sample iteration
     :return p_values: Dictionary that stores the p-value of each MMD tset according to the kernel_hypothesis bootstrap result
     :return mmd_samples: Dictionary that stores the sample MMD value function for each function in the MMD_function list
@@ -917,19 +912,31 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
         Gs = bg1.Gs + bg2.Gs
         graph_list = gk.graph_from_networkx(Gs, node_labels_tag = node_labels_tag, edge_labels_tag = edge_labels_tag)
 
-        # # Calculate basic  graph statistics hypothesis testing
-        # if graphStatistics:
-        #     hypothesis_graph_statistic = BootstrapGraphStatistic(bg1.Gs, bg2.Gs, Graph_Statistics_functions)
-        #     hypothesis_graph_statistic.Bootstrap(B = B)
-        #     # match the corresponding p-value for this sample
-        #     for key in test_statistic_p_val.keys():
-        #         test_statistic_p_val[key][sample] = hypothesis_graph_statistic.p_values[key]
+        # calculate label_list
+        if (kernel_library == 'randomwalk') and (label_list is None) and (kernel['calc_type'] == 'ARKL'):
+            label_list = []
+            for G in Gs:
+                label_list.append(np.unique(list(nx.get_node_attributes(G, 'label').values())))
+            label_list = np.unique(np.concatenate(label_list))       
+
         
         # Kernel hypothesis testing
         # Fit a kernel, Note the Grakel uses graph_list while myKernels use Gs
         if kernel_library == "Grakel":
             init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
             K = init_kernel.fit_transform(graph_list)
+        elif kernel_library == "randomwalk":
+            import myKernels.RandomWalk as rw
+            init_kernel = rw.RandomWalk(Gs, c = kernel['c'])
+            K = init_kernel.fit(calc_type = kernel['calc_type'], 
+                                r = kernel['r'], 
+                                k = kernel['k'],
+                                mu_vec = kernel['mu_vec'],
+                                normalize_adj = kernel.get('normalize_adj',False), 
+                                row_normalize_adj = kernel.get('row_normalize_adj',False),
+                                label_list = label_list,
+                                verbose = False
+                                )
         elif kernel_library == "deepkernel":
             import myKernels.DeepKernel as dk
             init_kernel = dk.DK(params = kernel)
@@ -975,11 +982,11 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
         kernel_hypothesis.Bootstrap(K, function_arguments, B = B)
         for i in range(len(MMD_functions)):
             key = MMD_functions[i].__name__
-            #print(f'key {kernel_hypothesis.p_values[key]}' )
+            # print(f'key {kernel_hypothesis.p_values[key]}' )
             p_values[key][sample] = kernel_hypothesis.p_values[key]
             mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
 
-    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples)#), test_statistic_p_val = test_statistic_p_val)
+    return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples)
 
 
 if __name__ == '__main__':
