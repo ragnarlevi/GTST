@@ -43,7 +43,7 @@ class ADAM():
 
         return self._prox(theta + self.eta * new_grad, lasso_penalty * self.eta, positiveConstraint)
 
-    def update_no_penalty(self, theta, grad):
+    def update_no_penalty(self, theta, grad, P, lasso_penalty):
         """
         Ascending
         """
@@ -63,7 +63,12 @@ class ADAM():
         #local_eta = 1/(self.t + 1.0)
         #return self._prox(theta + local_eta * new_grad, lasso_penalty * local_eta, positiveConstraint)
 
-        return theta + self.eta * new_grad
+        return self.soft_threshold(theta + self.eta * new_grad, self.eta*lasso_penalty * P)
+
+    def soft_threshold(self, A, B):
+
+
+        return np.multiply(np.sign(A), np.maximum(A-B, np.zeros(A.shape)))
 
     
     def _prox(self, x, lam, positiveConstraint):

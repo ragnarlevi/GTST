@@ -66,9 +66,9 @@ def power_ratio(K, mmd_stat, threshold, m):
     Variance is found in Unbiased estimators for the variance of MMD estimators Danica J. Sutherland https://arxiv.org/pdf/1906.02104.pdf
     """
 
-    Kxx = K[:n, :n]
-    Kxy = K[:n, n:]
-    Kyy = K[n:, n:]
+    Kxx = K[:m, :m]
+    Kxy = K[:m, m:]
+    Kyy = K[m:, m:]
 
     Ktxx = Kxx.copy()
     Ktxy = Kxy.copy()
@@ -78,24 +78,74 @@ def power_ratio(K, mmd_stat, threshold, m):
     np.fill_diagonal(Ktyy, 0)
 
 
-    e = np.ones(n)
+
+    e = np.ones(m)
     # Calculate variance
     V = (
-         4/factorial_k(m, 4) * (np.inner(np.matmul(Ktxx,e),np.matmul(Ktxx,e))  + np.inner(np.matmul(Ktyy,e),np.matmul(Ktyy,e)) )
-        - (4*(m**2 - m - 1)) / (m**3 * (m-1)**2) * (np.inner(np.matmul(Kxy,e),np.matmul(Kxy,e))  + np.inner(np.matmul(Kxy.T,e),np.matmul(Kxy.T,e)) )
-        - 8 / ((m**2) * (m**2 - 3*m + 2)) * (np.dot(e, Ktxx).dot(Kxy).dot(e) + np.dot(e, Ktyy).dot(Kxy).dot(e))
-        + 8 / (m**2 * factorial_k(m, 3)) * ((np.dot(e, Ktxx).dot(e) + np.dot(e, Ktyy).dot(e))*np.dot(e,Kxy).dot(e))
-        - (2*(2*m-3))/(factorial_k(m,2)*factorial_k(m,4)) * (np.dot(e, Ktxx).dot(e)**2 + np.dot(e, Ktyy).dot(e)**2)
-        - (4*(2*m-3))/(m**3 * (m-1)**3) * np.dot(e,Kxy).dot(e)**2
-        - 2/(m *(m**3 - 6*m**2 +11*m -6)) *(np.linalg.norm(Ktxx, ord = 'fro')**2 + np.linalg.norm(Ktyy, ord = 'fro')**2)
-        + (4*(m-2))/(m**2 * (m-1)**3) * np.linalg.norm(Kxy, ord='fro')**2
+         (4/factorial_k(m, 4)) * (np.inner(np.matmul(Ktxx,e),np.matmul(Ktxx,e))  + np.inner(np.matmul(Ktyy,e),np.matmul(Ktyy,e)) )
+        + ((4*(m**2 - m - 1)) / (m**3 * (m-1)**2)) * (np.inner(np.matmul(Kxy,e),np.matmul(Kxy,e))  + np.inner(np.matmul(Kxy.T,e),np.matmul(Kxy.T,e)) )
+        - (8 / ((m**2) * (m**2 - 3*m + 2))) * (np.dot(e, Ktxx).dot(Kxy).dot(e) + np.dot(e, Ktyy).dot(Kxy.T).dot(e))
+        + (8 / (m**2 * factorial_k(m, 3))) * ((np.dot(e, Ktxx).dot(e) + np.dot(e, Ktyy).dot(e))*np.dot(e,Kxy).dot(e))
+        - ((2*(2*m-3))/(factorial_k(m,2)*factorial_k(m,4))) * (np.dot(e, Ktxx).dot(e)**2 + np.dot(e, Ktyy).dot(e)**2)
+        - ((4*(2*m-3))/(m**3 * (m-1)**3)) * np.dot(e,Kxy).dot(e)**2
+        - (2/(m *(m**3 - 6*m**2 +11*m -6))) *(np.linalg.norm(Ktxx, ord = 'fro')**2 + np.linalg.norm(Ktyy, ord = 'fro')**2)
+        + ((4*(m-2))/(m**2 * (m-1)**3)) * np.linalg.norm(Kxy, ord='fro')**2
     )
 
+    
+    # K_XX = K[:m, :m]
+    # K_XY = K[:m, m:]
+    # K_YY = K[m:, m:]
+
+
+
+    # diag_X = np.diag(K_XX)
+    # diag_Y = np.diag(K_YY)
+
+    # sum_diag_X = diag_X.sum()
+    # sum_diag_Y = diag_Y.sum()
+
+    # sum_diag2_X = diag_X.dot(diag_X)
+    # sum_diag2_Y = diag_Y.dot(diag_Y)
+
+    # Kt_XX_sums = K_XX.sum(axis=1) - diag_X
+    # Kt_YY_sums = K_YY.sum(axis=1) - diag_Y
+    # K_XY_sums_0 = K_XY.sum(axis=0)
+    # K_XY_sums_1 = K_XY.sum(axis=1)
+
+    # Kt_XX_sum = Kt_XX_sums.sum()
+    # Kt_YY_sum = Kt_YY_sums.sum()
+    # K_XY_sum = K_XY_sums_0.sum()
+
+    # Kt_XX_2_sum = (K_XX ** 2).sum() - sum_diag2_X
+    # Kt_YY_2_sum = (K_YY ** 2).sum() - sum_diag2_Y
+    # K_XY_2_sum  = (K_XY ** 2).sum()
+
+
+    # mmd2 = (Kt_XX_sum / (m * (m-1))
+    #         + Kt_YY_sum / (m * (m-1))
+    #         - 2 * K_XY_sum / (m * m))
+
+    # V = (
+    #       2 / (m**2 * (m-1)**2) * (
+    #           2 * Kt_XX_sums.dot(Kt_XX_sums) - Kt_XX_2_sum
+    #         + 2 * Kt_YY_sums.dot(Kt_YY_sums) - Kt_YY_2_sum)
+    #     - (4*m-6) / (m**3 * (m-1)**3) * (Kt_XX_sum**2 + Kt_YY_sum**2)
+    #     + 4*(m-2) / (m**3 * (m-1)**2) * (
+    #           K_XY_sums_1.dot(K_XY_sums_1)
+    #         + K_XY_sums_0.dot(K_XY_sums_0))
+    #     - 4 * (m-3) / (m**3 * (m-1)**2) * K_XY_2_sum
+    #     - (8*m - 12) / (m**5 * (m-1)) * K_XY_sum**2
+    #     + 8 / (m**3 * (m-1)) * (
+    #           1/m * (Kt_XX_sum + Kt_YY_sum) * K_XY_sum
+    #         - Kt_XX_sums.dot(K_XY_sums_1)
+    #         - Kt_YY_sums.dot(K_XY_sums_0))
+    # )
 
     ratio = (mmd_stat / np.sqrt(V)) - (threshold/(m*np.sqrt(V)))
     power = norm.cdf(ratio)
 
-    return ratio, power
+    return ratio, power, V
 
 
 
@@ -864,7 +914,7 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None):
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
@@ -881,6 +931,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
     :param kernel_library: which package or which own kernel: Grakel, deepkernel (own function), 
     :param node_labels_tag: Node label tak for Grakel kernels, usually label for labeled graphs and attr if attributed. Should be in concordance with the label/attribute generation mechanism in the generation scheme of bg1 and bg2.
     :param label_list, label list for random walk kernel
+    edge_labels - edge label list for random walk kernel
 
     Returns
     -------------------------------
@@ -935,6 +986,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
                                 normalize_adj = kernel.get('normalize_adj',False), 
                                 row_normalize_adj = kernel.get('row_normalize_adj',False),
                                 label_list = label_list,
+                                edge_labels=edge_labels,
                                 verbose = False
                                 )
         elif kernel_library == "deepkernel":

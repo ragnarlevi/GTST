@@ -7,6 +7,7 @@ import numpy as np
 from  sklearn.covariance import graphical_lasso
 import tqdm
 import gradient_descent as gd
+import tqdm
 
 
 def gaussian_likelihood(S, Theta):
@@ -268,3 +269,78 @@ class tlasso():
         return ((self.nu-2.0)/self.nu) * Theta_t
 
 
+class my_glasso():
+
+    def __init__(self, x, alpha, mu_init, Theta_init, mu_zero) -> None:
+        """
+        Parameters
+        ----------------------
+        x: data array
+        emp_cov: Empirical covariance matrix
+        alpha: regularization parameter
+        nu: student degree of freedom
+        mu_init: initialization of mean
+        theta_init: initialization of biased precision
+        mu_zero: bool - is the mean assumed to be zero?
+        """
+
+        self.N = x.shape[0]
+        self.alpha = alpha
+        self.mu_init = mu_init
+        self.Theta_init = Theta_init
+        self.mu_zero = mu_zero
+        self.x = x
+        self.p = x.shape[1]
+
+
+    def fit(self, step, max_itr, verbose = True):
+        nr_itr = 0
+        has_not_converged = True
+        Theta0 = self.Theta_init.copy()
+        mu0 = self.mu_init
+        tau = np.zeros(self.N)
+        tol = np.inf
+
+        P = np.ones(Theta0.shape)
+        np.fill_diagonal(P,0)
+
+        if verbose:
+            pbar = tqdm.tqdm(disable=(verbose is False), total=max_itr)
+
+        while has_not_converged and nr_itr < max_itr:
+            
+            grad = -np.linalg.pinv(Theta0) + np.einsum('ij,ik->jk', self.x, self.x)/self.N
+            Theta = self._prox(Theta0 - step*grad, step*self.alpha*P)
+            Theta0 = Theta.copy()
+
+            nr_itr += 1
+
+
+            if verbose:
+                    pbar.update()
+
+        if verbose:
+            pbar.close()
+
+        return Theta
+
+    
+    
+    def _prox(self, x, lam):
+            """
+            Soft thresholding operator.
+            
+            Parameters
+            ----------
+            x : float
+                Variable.
+            lam : float
+                Lasso penalty.
+        
+            Returns
+            -------
+            y : float
+                Thresholded value of x. 
+            """
+
+            return np.multiply(np.sign(x), np.maximum(np.abs(x) - lam, np.zeros(x.shape)))

@@ -38,6 +38,62 @@ class RandomWalk():
         self.c = c
 
         self.N = len(X)
+
+
+    def fit(self, calc_type, r, edge_labels = None, label_list = None, k = None, mu_vec = None, normalize_adj = False , row_normalize_adj = False, label_name = 'label', verbose = True):
+        """
+        A wrapper for caclulating a kernel
+
+        Parameters
+        -------------------------------------
+        calc_type: str,
+            ARKU
+            ARKU_plus
+            ARKL
+            exponential
+            p-rw
+
+        r: int, number of eigenvalues used in approximation
+        edge_labels - array with the label vocabulary
+        label_list: array with labels
+        k - int, Nr. random walks
+        mu_vec - array of size p, containing RW weight/discount.
+        normalize_adj: bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
+        row_normalize_adj: bool, Should the adj matrixb be row normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
+        label_name: str, what is the name of labels
+        verbose: bool, print progress bar?
+
+
+        Returns
+        --------------------------------
+        K: np.array, N x N, kernel matrix, N number of graphs
+        
+        """
+
+
+        if calc_type == "ARKU":
+            K = self.fit_ARKU(r, verbose)
+        elif calc_type == "ARKU_plus":
+            K = self.fit_ARKU_plus(r, normalize_adj = normalize_adj, verbose = verbose)
+        elif calc_type == "ARKL":
+            if label_list is None:
+                raise ValueError("label list should be a list (not None)")
+            K = self.fit_ARKL(r, label_list, normalize_adj = normalize_adj, row_normalize_adj = row_normalize_adj, verbose = verbose, label_name = label_name)
+        elif calc_type == "exponential":
+            K = self.fit_exponential(r, normalize_adj = normalize_adj, row_normalize_adj = row_normalize_adj, verbose = verbose)
+        elif calc_type == 'p-rw':
+            if k is None:
+                raise ValueError("k must be int")
+            if mu_vec is None:
+                mu_vec = mu_vec = np.power(self.c ,range(k+1)) / np.array([np.math.factorial(i) for i in np.arange(k+1)])
+            K = self.fit_random_walk(mu_vec, k, r, normalize_adj, row_normalize_adj, verbose)
+        elif calc_type == 'ARKU_edge':
+            K = self.fit_ARKU_edge(r, edge_labels, verbose)
+        else:
+            raise ValueError("calc type should be ARKU, ARKU_plus, ARKL, exponential, p-rw or ARKU_edge")
+
+        return K
+
     
 
     def fit_ARKU(self, r, verbose = True):
@@ -50,9 +106,9 @@ class RandomWalk():
         verbose - bool, print progress bar?
         """
 
-
-
-        W_row_normalize = [None] * self.N
+        U_list = [None] * self.N  # left SVD matrix of each adj matrix
+        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
+        Vt_list = [None] * self.N  # right transposed SVD matrix of each adj matrix
         K = np.zeros((self.N, self.N))
 
         if verbose:
@@ -64,39 +120,147 @@ class RandomWalk():
             for j in range(i,self.N):
                 
                 # Row normalize the adjacency matrix
-                if W_row_normalize[i] is None:
-                    W_row_normalize[i] = self._row_normalized_adj(self.X[i])
-                if W_row_normalize[j] is None:
-                    W_row_normalize[j] = self._row_normalized_adj(self.X[j])
+                if U_list[i] is None:
+                    W_row_normalize = self._row_normalized_adj(self.X[i])
+                    U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(W_row_normalize.T, n_components= r)
+
+                if U_list[j] is None:
+                    W_row_normalize = self._row_normalized_adj(self.X[j])
+                    U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(W_row_normalize.T, n_components= r)
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(W_row_normalize[i].T, W_row_normalize[j].T, r, p1, p2, q1, q2)
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(W_row_normalize[i].T, W_row_normalize[j].T, r, p1, p2, self.q[i], self.q[j])
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(W_row_normalize[i].T, W_row_normalize[j].T, r, self.p[i], self.p[j], q1, q2)
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 else:
-                    K[i,j] = self.ARKU(W_row_normalize[i].T, W_row_normalize[j].T, r, self.p[i], self.p[j], self.q[i], self.q[j])
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+                K[i,j] = self.ARKU(U_list[i], Lamda_list[i], Vt_list[i], U_list[j], Lamda_list[j], Vt_list[j], r, p1, p2, q1, q2)
 
                 if verbose:
                     pbar.update()
 
+        if verbose:
+            pbar.close()
 
-        pbar.close()
-        K = K + K.T
-        np.fill_diagonal(K, np.diag(K) / 2)
+        K = np.triu(K) + np.triu(K, 1).T
 
 
         return K
 
+    def fit_ARKU_edge(self, r, edge_labels, verbose = True ):
+        """
+        Approximate random walk kernel for edge labelled graph and asymmetric W where W is the (weighted) adjacency matrix.
+        
+        Parameters
+        ------------------
+        r - int, number of eigenvalues used in approximation
+        edge_labels - array with the label vocabulary
+        verbose - bool, print progress bar?
+
+        Returns
+        -------------------
+        K - Kernel matrix
+        """
+
+        if r < 1:
+            raise ValueError('r has to 1 or bigger')
+
+        nr_edge_labels = len(edge_labels)
+
+        U_list = [[None] * nr_edge_labels] * self.N  # left SVD matrix of each adj matrix
+        Lamda_list = [[None] * nr_edge_labels] * self.N  # eigenvalues of each adj matrix
+        K = np.zeros((self.N, self.N))
+
+        if verbose:
+            pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
+        #disable=(disp is False), total=(13 * len(_null_models) * len(mat_types))
+
+
+        for i in range(self.N):
+            for j in range(i,self.N):
+                
+                if Lamda_list[i][0] is None:
+                    all_A = self._get_label_adj(self.X[i].copy(), edge_labels)
+                    Lamda_list[i], U_list[i] = self._eigen_decomp(all_A, r)
+                if Lamda_list[j][0] is None:
+                    all_A = self._get_label_adj(self.X[j].copy(), edge_labels)
+                    Lamda_list[j], U_list[j] = self._eigen_decomp(all_A, r)
+
+
+                if (self.p is None) and (self.q is None):
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                elif (self.p is None) and ~(self.q is None):
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                elif ~(self.p is None) and (self.q is None):
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                else:
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+
+                K[i,j] = self.ARKU_edge(U_list[i], Lamda_list[i], p1, q1, U_list[j], Lamda_list[j], p2, q2 )
+
+                if verbose:
+                    pbar.update()
+
+        if verbose:
+            pbar.close()
+
+        K = np.triu(K) + np.triu(K, 1).T
+
+
+        return K
+
+    def ARKU_edge(self, u1, w1, p1, q1, u2, w2, p2, q2 ):
+        """
+        Fast Random walk kernel for symmetric (weight) matrices
+
+        Parameters
+        ----------------
+        u1, u2 - 2d array, eigenvector matrix of Adjacency matrix of G1, G2
+        w1, w2 - 1d array, eigenvalues of Adjacency matrix of G1, G2
+        p1, p2 - initial probabilities
+        q1, q2 - stopping probabilities
+        """
+
+        nr_labels = len(u1)
+
+        # Create the label eigenvalue (block) diagonal matrix
+        diag_inverse = [] 
+        for i in range(nr_labels):
+            diag_inverse.append(np.diag(np.kron(np.diag(np.reciprocal(w1[i])), np.diag(np.reciprocal(w2[i])))))
+        diag_inverse =  np.concatenate(diag_inverse)
+        Lamda = np.diag(np.reciprocal(diag_inverse - self.c ))
+
+        L = []
+        for i in range(nr_labels):
+            L.append(np.kron(np.matmul(q1.T, u1[i]), np.matmul(q2.T, u2[i])))
+        L = np.concatenate(L)
+
+        R = [] 
+        for i in range(nr_labels):
+            R.append(np.kron(np.matmul(u1[i].T, p1), np.matmul(u2[i].T, p2)))
+        R = np.concatenate(R)
+
+        return np.inner(q1,p1)*np.inner(q2,p2) + self.c*np.dot(L, Lamda).dot(R)
 
     def fit_ARKU_plus(self, r, normalize_adj = False, verbose = True):
         """
@@ -110,6 +274,8 @@ class RandomWalk():
 
         """
         all_A = [None] * self.N
+        U_list = [None] * self.N  # eigenvector matrix of each adj matrix
+        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
 
         K = np.zeros((self.N, self.N))
 
@@ -124,39 +290,46 @@ class RandomWalk():
                 if normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._normalized_adj(self.X[i])
+                        Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
                         all_A[j] = self._normalized_adj(self.X[j])
+                        Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
                 else:
                     if all_A[i] is None:
                         all_A[i] = self._get_adj_matrix(self.X[i])
+                        Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
                         all_A[j] = self._get_adj_matrix(self.X[j])
+                        Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU_plus(all_A[i].T, all_A[j].T, r, p1, p2, q1, q2)
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, p1, p2, self.q[i], self.q[j])
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, self.p[i], self.p[j], q1, q2)
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 else:
-                    K[i,j] = self.ARKU(all_A[i].T, all_A[j].T, r, self.p[i], self.p[j], self.q[i], self.q[j])
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+                K[i,j] = self.ARKU_plus(U_list[i], Lamda_list[i], U_list[j], Lamda_list[j], r, p1, p2, q1, q2)
 
                 if verbose:
                     pbar.update()
 
 
-        pbar.close()
-        K = K + K.T
-        np.fill_diagonal(K, np.diag(K) / 2)
+        if verbose:
+            pbar.close()
+
+        K = np.triu(K) + np.triu(K, 1).T
         
         return K
 
@@ -170,7 +343,7 @@ class RandomWalk():
         r - int, number of eigenvalues
         label_list - array with labels
         normalize_adj - bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
-        row_normalize_adj - bool, Should the adj matrixb be row normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
+        row_normalize_adj - bool, Should the adj matrix be row normalized? AD^{-1/2} where A is adj matrix and D is degree matrix.
         verbose - bool, print progress bar?
         label_name - str, what is the name of labels
 
@@ -185,11 +358,13 @@ class RandomWalk():
 
         
         all_A = [None] * self.N
+        U_list = [None] * self.N  # left SVD matrix of each adj matrix
+        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
+        Vt_list = [None] * self.N  # Right transposed SVD matrix of each adj matrix
         K = np.zeros((self.N, self.N))
 
         if verbose:
             pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
-        #disable=(disp is False), total=(13 * len(_null_models) * len(mat_types))
 
         # get label matrix/vector of all graphs
         Ls = [None] * self.N
@@ -199,46 +374,49 @@ class RandomWalk():
         for i in range(self.N):
             for j in range(i,self.N):
 
-                if normalize_adj:
-                    if all_A[i] is None:
-                        all_A[i] = self._normalized_adj(self.X[i])
-                    if all_A[j] is None:
-                        all_A[j] = self._normalized_adj(self.X[j])
-                elif row_normalize_adj:
+
+                if row_normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._row_normalized_adj(self.X[i])
+                        U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
                     if all_A[j] is None:
                         all_A[j] = self._row_normalized_adj(self.X[j])
+                        U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
                 else:
                     if all_A[i] is None:
                         all_A[i] = self._get_adj_matrix(self.X[i])
+                        U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
                     if all_A[j] is None:
                         all_A[j] = self._get_adj_matrix(self.X[j])
+                        U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], p1, p2, q1, q2, r)
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], p1, p2, self.q[i], self.q[j], r)
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], self.p[i], self.p[j], q1, q2, r)
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 else:
-                    K[i,j] = self.ARKL(all_A[i].T, all_A[j].T, Ls[i], Ls[j], self.p[i], self.p[j], self.q[i], self.q[j], r)
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+                K[i,j] = self.ARKL(U_list[i], Lamda_list[i], Vt_list[i], U_list[j], Lamda_list[j], Vt_list[j], r, Ls[i], Ls[j], p1, p2, q1, q2)
 
                 if verbose:
                     pbar.update()
 
-        pbar.close()
-        K = K + K.T
-        np.fill_diagonal(K, np.diag(K) / 2)
+        if verbose:
+            pbar.close()
+            
+        K = np.triu(K) + np.triu(K, 1).T
 
         return K
 
@@ -264,67 +442,104 @@ class RandomWalk():
 
         
         all_A = [None] * self.N
+        U_list = [None] * self.N  # eigenvector matrix of each adj matrix
+        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
         K = np.zeros((self.N, self.N))
 
         if verbose:
             pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
-        #disable=(disp is False), total=(13 * len(_null_models) * len(mat_types))
 
-
+        # normalize type, eigenvalue decomposition 
         for i in range(self.N):
             for j in range(i,self.N):
-
+                
                 if normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._normalized_adj(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._normalized_adj(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
                 elif row_normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._row_normalized_adj(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._row_normalized_adj(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
                 else:
                     if all_A[i] is None:
                         all_A[i] = self._get_adj_matrix(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._get_adj_matrix(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
+
+
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, p1, p2, q1, q2, r )
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, p1, p2, self.q[i], self.q[i], r )
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, self.p[i], self.p[j], q1, q2, r )
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 else:
-                    K[i,j] = self.rw_exponential(all_A[i].T, all_A[j].T, self.p[i], self.p[j], self.q[i], self.q[i], r )
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+                if r is None:
+                    p1 = np.expand_dims(p1, axis = 1)
+                    p2 = np.expand_dims(p2, axis = 1)
+                    q1 = np.expand_dims(q1, axis = 1)
+                    q2 = np.expand_dims(q2, axis = 1)
+
+
+                K[i,j] = self.rw_exponential(U_list[i], Lamda_list[i], U_list[j], Lamda_list[j], p1, p2, q1, q2, r)
 
                 if verbose:
                     pbar.update()
 
-        pbar.close()
-        K = K + K.T
-        np.fill_diagonal(K, np.diag(K) / 2)
+        if verbose:
+            pbar.close()
+
+        K = np.triu(K) + np.triu(K, 1).T
 
         return K
 
-    def rw_exponential(self, A1, A2, p1, p2, q1, q2, r):
+    def rw_exponential(self, u1, w1, u2, w2, p1, p2, q1, q2, r):
         """
-        Perform p-random walks. Symmetric matrix
+        Perform exponential random walk. Adjacency matrix has to be symmetric.
 
         Parameters
         ---------------------------------------
-        A1 - np array representing weight/adj matrix
-        A2 - np array representing weight/adj matrix
+        u1, u2 - 2d array, eigenvector matrix of Adjacency matrix of G1, G2
+        w1, w2 - 1d array, eigenvalues of Adjacency matrix of G1, G2
         p1, p2 - initial probabilities
         q1, q2 - stopping probabilities
         r - int, If passed then an approximation is used by eigen decomposition
@@ -339,18 +554,7 @@ class RandomWalk():
             if r < 1:
                 raise ValueError('r has to 1 or bigger')
 
-        if r is None:
-            p1 = np.expand_dims(p1, axis = 1)
-            p2 = np.expand_dims(p2, axis = 1)
-            q1 = np.expand_dims(q1, axis = 1)
-            q2 = np.expand_dims(q2, axis = 1)
-            w1, u1 = eigh(A1)
-            w2, u2 = eigh(A2)
-        else:
-            w1, u1 = eigsh(A1, k = r)
-            w2, u2 = eigsh(A2, k = r)
-
-        w = np.array(np.concatenate([w*w2 for w in w1]))
+        w = np.array(np.concatenate([w*w2 for w in w1]))  # kron product
 
         stop_part = np.kron(np.matmul(q1.T, u1), np.matmul(q2.T, u2))
         start_part = np.kron(np.matmul(u1.T, p1), np.matmul(u2.T, p2))
@@ -366,7 +570,7 @@ class RandomWalk():
         ---------------------------------------
         k - int, Nr. random walks
         mu_vec - array of size p, containing RW weight/discount.
-        r - int, number of eigenvalues, if None full eigenvalue decomposition used which will be slow.
+        r - int, number of eigenvalues, if None full eigenvalue decomposition used which might be slow.
         normalize_adj - bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
         row_normalize_adj - bool, Should the adj matrixb be row normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
         verbose - bool, print progress bar?
@@ -382,75 +586,111 @@ class RandomWalk():
 
         
         all_A = [None] * self.N
+        U_list = [None] * self.N  # eigenvector matrix of each adj matrix
+        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
         K = np.zeros((self.N, self.N))
 
         if verbose:
             pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
-        #disable=(disp is False), total=(13 * len(_null_models) * len(mat_types))
 
-
+        # normalize type, eigenvalue decomposition 
         for i in range(self.N):
             for j in range(i,self.N):
 
                 if normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._normalized_adj(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._normalized_adj(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
                 elif row_normalize_adj:
                     if all_A[i] is None:
                         all_A[i] = self._row_normalized_adj(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._row_normalized_adj(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
                 else:
                     if all_A[i] is None:
                         all_A[i] = self._get_adj_matrix(self.X[i])
+                        if r is None:
+                            Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
+                        else:
+                            Lamda_list[i], U_list[i] = eigsh(all_A[i].T)
                     if all_A[j] is None:
                         all_A[j] = self._get_adj_matrix(self.X[j])
+                        if r is None:
+                            Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
+                        else:
+                            Lamda_list[j], U_list[j] = eigsh(all_A[j].T)
+
+
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.p_rw_symmetric(all_A[i], all_A[j], k, mu_vec, p1, p2, q1, q2, r )
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.p_rw_symmetric(all_A[i], all_A[j], k, mu_vec, p1, p2, self.q[i], self.q[i], r )
+                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                    K[i,j] = self.p_rw_symmetric(all_A[i], all_A[j], k, mu_vec, self.p[i], self.p[j], q1, q2, r )
+                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
                 else:
-                    K[i,j] = self.p_rw_symmetric(all_A[i], all_A[j], k, mu_vec, self.p[i], self.p[j], self.q[i], self.q[i], r )
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
+                    q1 = self.q[i]
+                    q2 = self.q[j]
+
+                if r is None:
+                    p1 = np.expand_dims(p1, axis = 1)
+                    p2 = np.expand_dims(p2, axis = 1)
+                    q1 = np.expand_dims(q1, axis = 1)
+                    q2 = np.expand_dims(q2, axis = 1)
+
+
+                K[i,j] = self.p_rw_symmetric(U_list[i], Lamda_list[i], U_list[j], Lamda_list[j], k, mu_vec, p1, p2, q1, q2, r)
 
                 if verbose:
                     pbar.update()
 
-        pbar.close()
-        K = K + K.T
-        np.fill_diagonal(K, np.diag(K) / 2)
+        if verbose:
+            pbar.close()
+
+        K = np.triu(K) + np.triu(K, 1).T
 
         return K
 
 
-    def p_rw_symmetric(self, W1, W2, k, mu_vec, p1, p2, q1, q2, r = None):
+    def p_rw_symmetric(self, u1, w1, u2, w2, k, mu_vec, p1, p2, q1, q2, r = None):
         """
         Perform p-random walks. Symmetric matrix
 
         Parameters
         ---------------------------------------
-        W1 - np array representing weight/adj matrix
-        W2 - np array representing weight/adj matrix
+        u1, u2 - 2d array, eigenvector matrix of Adjacency matrix of G1, G2
+        w1, w2 - 1d array, eigenvalues of Adjacency matrix of G1, G2
         k - int, Nr. random walks
         mu_vec - array of size p, containing RW weight/discount.
         p1, p2 - initial probabilities
         q1, q2 - stoppoing probabilities
         r - int, If passed then an approximation is used by eigen decomposition
 
-        
         Returns
         --------------------------------
         float kernel value between W1,W2
@@ -464,16 +704,6 @@ class RandomWalk():
         if k < 1:
             raise ValueError('k has to 1 or bigger')
 
-        if r is None:
-            p1 = np.expand_dims(p1, axis = 1)
-            p2 = np.expand_dims(p2, axis = 1)
-            q1 = np.expand_dims(q1, axis = 1)
-            q2 = np.expand_dims(q2, axis = 1)
-            w1, u1 = eigh(W1)
-            w2, u2 = eigh(W2)
-        else:
-            w1, u1 = eigsh(W1, k = r)
-            w2, u2 = eigsh(W2, k = r)
 
         w = np.array(np.concatenate([w*w2 for w in w1]))
 
@@ -488,24 +718,24 @@ class RandomWalk():
 
 
 
-    def ARKU(self, W1, W2, r, p1, p2, q1, q2):
-
+    def ARKU(self, u1, w1, v1t, u2, w2, v2t, r, p1, p2, q1, q2):
         """
         Calculate Kernel value between G1 and G2
 
         Parameters
         ----------------
-        G1, G2 - np array representing the Adjacency matrix. Can be weighted and/or directed
+        u1, u2 - 2d array, Left SVD matrix of each adjacency matrix of G1, G2
+        w1, w2 - 1d array, Eigenvalues of each adjacency matrix of G1, G2
+        v1t, v2t - 2d array, Right transposed SVD matrix of each adjacency matrix of G1, G2
         r - int how many eigenvalues?
         p1, p2 - initial probabilities
-        q1, q2 - stoppoing probabilities
+        q1, q2 - stopping probabilities
         """
 
         if r < 1:
             raise ValueError('r has to 1 or bigger')
 
-        u1, w1, v1t = randomized_svd(W1, n_components= r)
-        u2, w2, v2t = randomized_svd(W2, n_components= r)
+
         diag_inverse =  np.kron(np.diag(np.reciprocal(w1)), np.diag(np.reciprocal(w2)))
         Lamda = inv(diag_inverse - self.c * np.matmul(np.kron(v1t, v2t), np.kron(u1, u2)))
         L = np.kron(np.matmul(q1.T, u1), np.matmul(q2.T, u2))
@@ -514,13 +744,14 @@ class RandomWalk():
         return np.inner(q1,p1)*np.inner(q2,p2) + self.c*np.dot(L, Lamda).dot(R)
 
 
-    def ARKU_plus(self, A1, A2, r, p1, p2, q1, q2):
+    def ARKU_plus(self, u1, w1, u2, w2, r, p1, p2, q1, q2):
         """
         Fast Random walk kernel for symmetric (weight) matrices
 
         Parameters
         ----------------
-        A1, A2 - np array representing the Adjacency matrix
+        u1, u2 - 2d array, eigenvector matrix of Adjacency matrix of G1, G2
+        w1, w2 - 1d array, eigenvalues of Adjacency matrix of G1, G2
         r - int how many eigenvalues?
         p1, p2 - initial probabilities
         q1, q2 - stoppoing probabilities
@@ -529,44 +760,32 @@ class RandomWalk():
         if r < 1:
             raise ValueError('r has to 1 or bigger')
  
-        w1, u1 = eigsh(A1, k = r)
-        w2, u2 = eigsh(A2, k = r)
 
-        # w1_diag = scipy.sparse.dia_matrix((np.reciprocal(w1), 0), shape = (len(w1), len(w1)))
-        # w2_diag = scipy.sparse.dia_matrix((np.reciprocal(w2), 0), shape = (len(w2), len(w2)))
-        # diag_inverse = sparse_kron(w1_diag, w2_diag)
-        # Lamda = diag_inverse - self.c * scipy.sparse.identity(diag_inverse.shape[0])
-        # Lamda = sparse_inv(Lamda)
         diag_inverse =  np.kron(np.diag(np.reciprocal(w1)), np.diag(np.reciprocal(w2)))
-        diag_inverse = diag_inverse - self.c * np.identity(diag_inverse.shape[0])
-        Lamda = np.diag(np.reciprocal(np.diag(diag_inverse)))
+        Lamda = inv(diag_inverse - self.c * np.identity(diag_inverse.shape[0]))
         L = np.kron(np.matmul(q1.T, u1), np.matmul(q2.T, u2))
-        R = np.kron(np.matmul(u1.T, p1), np.matmul(u1.T, p2))
+        R = np.kron(np.matmul(u1.T, p1), np.matmul(u2.T, p2))
 
         return np.inner(q1,p1)*np.inner(q2,p2) + self.c*np.dot(L, Lamda).dot(R)
 
-    def ARKL(self, W1, W2, L1, L2, p1, p2, q1, q2, r):
+    def ARKL(self, u1, w1, v1t, u2, w2, v2t, r, L1, L2, p1, p2, q1, q2):
         """
-
         Fit an approximation to node labeled graphs
 
-        
         Parameters
         -------------------------
-        W1, W2 - np array representing the Adjacency matrix
-        L1, L2 - list containing vectors. Each vector corresponds to a label and a element nr i is 1 if node i has the label 0 otherwise
+        u1, u2 - 2d array, Left SVD matrix of each adjacency matrix of G1, G2
+        w1, w2 - 1d array, Eigenvalues of each adjacency matrix of G1, G2
+        v1t, v2t - 2d array, Right transposed SVD matrix of each adjacency matrix of G1, G2
         r - int how many eigenvalues?
+        L1, L2 - list containing vectors. Each vector corresponds to a label and a element nr i is 1 if node i has the label 0 otherwise
         p1, p2 - initial probabilities
         q1, q2 - stoppoing probabilities
-
-        
         """
 
         if r < 1:
             raise ValueError('r has to 1 or bigger')
 
-        u1, w1, v1t = randomized_svd(W1, n_components= r)
-        u2, w2, v2t = randomized_svd(W2, n_components= r)
         diag_inverse =  np.kron(np.diag(np.reciprocal(w1)), np.diag(np.reciprocal(w2)))
         Lamda = inv(diag_inverse - self.c * np.kron(np.matmul(np.matmul(v1t, np.diag(np.sum(L1, axis=0))), u1), np.matmul(np.matmul(v2t, np.diag(np.sum(L2, axis=0))), u2)))
         L = np.sum([np.kron(np.matmul(np.matmul(q1.T, np.diag(L1[i])), u1), np.matmul(np.matmul(q2.T, np.diag(L2[i])), u2)) for i in range(len(L1))], axis=0)
@@ -582,15 +801,34 @@ class RandomWalk():
         --------------------------
         G - networkx graph
 
+        Returns
+        ---------------
+        sparse csr matrix
+
         """
 
-        A = nx.linalg.adjacency_matrix(G, dtype = float)
+        # A = nx.linalg.adjacency_matrix(G, dtype = float)
+        A = scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
         if type(self.X[0]) == nx.classes.digraph.DiGraph:
             D_inv = scipy.sparse.dia_matrix(([1/float(d[1]) for d in G.out_degree()], 0), shape = (A.shape[0], A.shape[0]))
         else:
             D_inv = scipy.sparse.dia_matrix(([1/float(d[1]) for d in G.degree()], 0), shape = (A.shape[0], A.shape[0]))
 
         return A.dot(D_inv)
+
+
+    def _edge_weights(self, G, edge_labels):
+        """
+        Create a weight matrix for labeled edges
+
+        Parameters
+        --------------------------
+        G - networkx graph
+        """
+        pass
+
+
+
 
 
     def _normalized_adj(self, G):
@@ -603,7 +841,7 @@ class RandomWalk():
 
         """
 
-        A = nx.linalg.adjacency_matrix(G, dtype = float)
+        A = scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
         D_sq_inv = scipy.sparse.dia_matrix(([1/ np.sqrt(float(d[1])) for d in G.degree()], 0), shape = (A.shape[0], A.shape[0]))
 
         return D_sq_inv.dot(A).dot(D_sq_inv)
@@ -618,7 +856,7 @@ class RandomWalk():
 
         """
 
-        return nx.linalg.adjacency_matrix(G, dtype = np.float64)
+        return scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
 
     def _get_node_label_vectors(self, G, label_list, label_name = 'label'):
         """
@@ -640,10 +878,7 @@ class RandomWalk():
         
         """
 
-
         L = [] 
-
-
 
         for idx, label in enumerate(label_list):
 
@@ -652,6 +887,57 @@ class RandomWalk():
             L.append(np.array(get_nodes_with_label, dtype = np.float64))
 
         return L
+
+
+    def _get_label_adj(self, G, edge_labels, edge_labels_tag = 'sign'):
+        """
+
+        Filter the adjacency matrix according to each label in edge_labels, w if edges have same label, 0 otherwise
+
+        Parameter
+        -------------------------
+        G - networkx graph
+        edge_labels - array with the label vocabulary
+        edge_labels_tag - name of the edge label
+
+
+        Returns
+        --------------
+        A - list of sparse matrices representing filtered adjacency matrices according to the labels in edge_labels
+        
+        """
+
+        edge_attrs = nx.get_edge_attributes(G, edge_labels_tag)
+
+        A = [None] * len(edge_labels)  # Store filtered adjacency matrices 
+
+        edges = [k for k, v in edge_attrs.items() if v == 1]
+        edges
+        for idx, label in enumerate(edge_labels):
+            G_tmp = G.copy()
+            for k, v in edge_attrs.items():
+                if v == label:
+                    G_tmp.remove_edge(k[0], k[1])
+
+            A[idx] = scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G_tmp), dtype=np.float64)
+        
+        return A
+
+    def _eigen_decomp(self, A, r):
+        """
+        Perform r eigenvalue decomposition on each matrix in A
+        
+        """
+
+        nr_A = len(A)
+
+        U = [None] * nr_A
+        w = [None] * nr_A
+
+        for i in range(nr_A):
+            w[i], U[i] = eigsh(A[i].T, k = r)
+
+        return w, U
 
 
 

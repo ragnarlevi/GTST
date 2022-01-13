@@ -74,13 +74,15 @@ parser.add_argument('-dagh', '--DAGHeight', type=int,metavar='', help='Maximum (
 # WWL only
 parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
 
+# RW only
+parser.add_argument('-rwApprox', '--rwApprox', type=int, metavar='', help='Number of eigenvalues, rw approximation?')
+parser.add_argument('-row_norm', '--row_norm', type=int, metavar='', help='row normalize?')
+parser.add_argument('-adj_norm', '--adj_norm', type=int, metavar='', help='Normalize adjacency matrix?')
+
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
 
-
 args = parser.parse_args()
-
-
 
 if __name__ == "__main__":
     # Erdos Renyi graphs
@@ -107,7 +109,7 @@ if __name__ == "__main__":
 
     # number of cores
     d = args.division
-
+    print(d)
     kernel_name = args.kernel
     # add parameters parsed, may be none
     kernel_specific_params = dict()
@@ -134,6 +136,12 @@ if __name__ == "__main__":
     kernel_specific_params['dagh'] = args.DAGHeight
     kernel_specific_params['sinkhorn'] = bool(args.sinkhorn)
 
+    # rw approximation
+    kernel_specific_params['r'] = args.rwApprox
+    kernel_specific_params['normalize_adj'] = args.adj_norm
+    kernel_specific_params['row_normalize_adj'] = args.row_norm
+
+
     
     # functions used for kernel testing
     MMD_functions = [mg.MMD_b, mg.MMD_u]
@@ -148,6 +156,9 @@ if __name__ == "__main__":
 
     # Probability of type 1 error
     alphas = np.linspace(0.01, 0.99, 99)
+
+
+
 
 
     now = datetime.now()
@@ -171,12 +182,23 @@ if __name__ == "__main__":
         # vertex histogram
         kernel = [{"name": "vertex_histogram"}]
     elif kernel_name == 'rw':
-        kernel = [{"name": "RW", 
-                    "with_labels": kernel_specific_params.get('with_labels', True), 
-                    "lamda":kernel_specific_params['discount'] , 
-                    "kernel_type":kernel_specific_params['type'],
-                    "method_type":'fast',
-                    'p':kernel_specific_params.get('tmax', None)}]
+        # if we are performing k-step random walk, we need the discount factor
+        if kernel_specific_params.get('tmax', None) is not None:
+            nr_rw_steps = kernel_specific_params.get('tmax')
+            mu_vec = np.power(kernel_specific_params['discount'], range(nr_rw_steps+1)) / np.array([np.math.factorial(i) for i in np.arange(nr_rw_steps+1)])
+        else:
+            mu_vec = None
+
+
+        kernel = {"calc_type": kernel_specific_params['type'], 
+                 "c":kernel_specific_params['discount'] , 
+                    "r":kernel_specific_params['r'],
+                    'k':kernel_specific_params.get('tmax', None),
+                    "mu_vec":mu_vec,
+                    "with_labels":kernel_specific_params.get('with_labels', False),
+                    "normalize_adj": kernel_specific_params['normalize_adj'],
+                    "row_normalize_adj": kernel_specific_params['row_normalize_adj'],
+                    }
     elif kernel_name == 'odd':
         kernel = [{"name":'odd_sth', 'h':kernel_specific_params['dagh']}]
     elif kernel_name == 'dk':
@@ -212,9 +234,11 @@ if __name__ == "__main__":
 
 
     if kernel_name == 'dk':
-        kernel_library="deepkernel"
+        kernel_library = "deepkernel"
     elif kernel_name == 'wwl':
         kernel_library = 'wwl'
+    elif kernel_name == 'rw':
+        kernel_library = 'randomwalk'
     else:
         kernel_library = "Grakel"
 
@@ -236,6 +260,7 @@ if __name__ == "__main__":
                     for i in range(len(MMD_functions)):
                         key = MMD_functions[i].__name__
                         mmd_samples[key][cnt:(cnt+part)] = v[key]
+
 
             cnt += part
 
@@ -267,7 +292,6 @@ if __name__ == "__main__":
             if key == 'MMD_b':
                 tmp = np.sqrt(mmd_samples[key]) < np.sqrt(2.0*Kmax/float(n1))*(1.0 + np.sqrt(2.0*np.log(1/alpha)))
                 power_mmd[key + "_distfree"] = 1.0 - float(np.sum(tmp))/float(N)
-
 
 
         # Store the run information in a dataframe,

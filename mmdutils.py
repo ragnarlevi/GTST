@@ -25,18 +25,20 @@ def readfoldertopanda(path):
 
     return pd.concat(df)
 
-def plot_corr(A, ax=None, dw=0.125, cbar_length=0.8):
+def plot_corr(A, ax=None, dw=0.125, cbar_length=0.8, max_w = None):
 
     # Normalize colormap
     min_w = np.min(np.triu(A))
-    max_w = np.max(np.triu(A))
+    if max_w is None:
+        max_w = np.max(np.triu(A))
+
     disc_min_w = dw * np.floor(min_w / dw)
     disc_max_w = dw * np.ceil(max_w / dw)
     bounds = np.linspace(
         disc_min_w, disc_max_w, np.round((disc_max_w - disc_min_w) / dw).astype(int) + 1
     )
     norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
-    cmap = sns.diverging_palette(220, 10, as_cmap=True)
+    cmap = sns.color_palette("rocket_r", as_cmap=True) #sns.diverging_palette(220, 10, as_cmap=True)
 
     # Draw heatmap
     ax = sns.heatmap(
@@ -238,9 +240,9 @@ def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", colo
             h, l = ax.get_legend_handles_labels()
 
             leg = ax.legend(handles=h, labels=label, 
-                    handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 14)
+                    handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 30)
 
-            leg.set_title(param_vary_name, prop={'size':20})
+            leg.set_title(param_vary_name, prop={'size':40}, )
 
         ax.set_xlabel('alpha', fontsize = 20)
         ax.set_ylabel('Power', fontsize = 20)
