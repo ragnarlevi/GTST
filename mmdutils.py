@@ -67,7 +67,7 @@ def plot_corr(A, ax=None, dw=0.125, cbar_length=0.8, max_w = None):
 
 
 
-def PlotROCGeneral(df, power_measure, comparison, n1 , nr_nodes_1, n2 = None, nr_nodes_2 = None , figsize = (20,10), graph_statistic_list = None, graph_kernel_list = None):
+def PlotROCGeneral(df, power_measure, comparison, n1 , nr_nodes_1, n2 = None, nr_nodes_2 = None , figsize = (20,10), graph_statistic_list = None, graph_kernel_list = None, title = True, legend_title = None):
     """
     Plot ROC curves
 
@@ -178,7 +178,7 @@ def PlotROCGeneral(df, power_measure, comparison, n1 , nr_nodes_1, n2 = None, nr
     plt.show()
 
 
-def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", color_name = "viridis", set_legend = True):
+def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", color_name = "viridis", set_legend = True, disp_title = True, legend_title = None):
 
         _, ax = plt.subplots(figsize = (20,12))
 
@@ -240,13 +240,18 @@ def plotVaryingBGDEG(df, param_vary_name, params_fixed, mmd_stat = "MMD_b", colo
             h, l = ax.get_legend_handles_labels()
 
             leg = ax.legend(handles=h, labels=label, 
-                    handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.4), fontsize = 30)
+                    handler_map = {tuple: matplotlib.legend_handler.HandlerTuple(None)}, bbox_to_anchor=(1, 0.6), fontsize = 30)
 
-            leg.set_title(param_vary_name, prop={'size':40}, )
+            if legend_title is None:
+                leg.set_title(param_vary_name, prop={'size':40})
+            else:
+                leg.set_title(legend_title, prop={'size':40})
 
-        ax.set_xlabel('alpha', fontsize = 20)
+        ax.set_xlabel('Type I error', fontsize = 20)
         ax.set_ylabel('Power', fontsize = 20)
-        ax.set_title(str(params_fixed), fontsize = 20)
+
+        if disp_title:
+            ax.set_title(str(params_fixed), fontsize = 20)
 
 
         plt.show()

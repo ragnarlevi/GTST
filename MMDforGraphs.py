@@ -13,6 +13,8 @@ import pandas as pd
 from numba import njit
 from scipy.sparse.sputils import validateaxis
 
+import MONK
+
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n: int, m: int):
 
@@ -30,6 +32,14 @@ def MMD_u(K: np.array, n: int, m: int):
     Kxy = K[:n, n:]
     # important to write 1.0 and not 1 to make sure the outcome is a float!
     return 1.0 / (n* (n - 1.0)) * (Kx.sum() - np.diag(Kx).sum()) + 1.0 / (m * (m - 1.0)) * (Ky.sum() - np.diag(Ky).sum()) - 2.0 / (n * m) * Kxy.sum()
+
+def MONK_EST(K, Q, y1, y2):
+    """
+    Wrapper for MONK
+    """
+
+    mmd =  MONK.MMD_MOM(Q = Q, kernel_type = 'matrix', kernel=K)
+    return mmd.estimate(y1, y2)
 
 
 
@@ -249,7 +259,7 @@ class BoostrapMethods():
             else:
                 eval_string = key + "(K =self.K, " + inputs[i] + ")"
 
-            sample_statistic[key] = eval(eval_string)
+            sample_statistic[key] =  self.list_of_functions[i](K, **self.function_arguments[i]) #eval(eval_string)
             boot_statistic[key] = np.zeros(B)
 
 
@@ -264,7 +274,7 @@ class BoostrapMethods():
             # apply each test defined in list_if_functions, and keep the bootstraped/permutated value
             for i in range(len(self.list_of_functions)):
                 eval_string = self.list_of_functions[i].__name__ + "(K =K_i, " + inputs[i] + ")"
-                boot_statistic[self.list_of_functions[i].__name__][boot] = eval(eval_string)
+                boot_statistic[self.list_of_functions[i].__name__][boot] = self.list_of_functions[i](K_i, **self.function_arguments[i])#eval(eval_string)
 
         # calculate p-value
         for key in sample_statistic.keys():
@@ -503,6 +513,59 @@ def scale_free(n, exponent):
     G.remove_edges_from(nx.selfloop_edges(G))
 
     return G
+
+
+class ScaleFreeGraph(DegreeGraphs):
+    """
+    Generate a powerlaw graph
+    """
+
+    def __init__(self,  n, nnode, exponent, l = None,  a = None, **kwargs):
+        """
+        Parameters:
+        ---------------------
+        n - number of samples
+        nnode - number of nodes
+
+
+        balance_target - ratio of balanced triangles to unbalanced ones.
+        exponent - power law exponent
+
+        
+        """
+        super().__init__( n = n, nnode = nnode, l = l ,  a = a, **kwargs )
+
+        self.exponent = exponent
+
+
+    def Generate(self):
+
+        self.Gs = []
+
+        for _ in range(self.n):
+            
+            G = scale_free(self.nnode, self.exponent)
+
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+
+            self.Gs.append(G)
+
+
+
 
 
 class SignedGraph(DegreeGraphs):
@@ -831,7 +894,14 @@ class SBMGraphs():
         """
 
         block_mean = self.params['block_mean']
-        return {v[0]:np.array([np.random.normal(block_mean[v[1]['block']])]) for v in G.nodes(data=True) } 
+        return {v[0]:np.array([np.random.normal(block_mean[v[1]['block']])]) for v in G.nodes(data=True) }
+
+    def blockmean2(self, G):
+
+        label_pmf = self.params['label_pmf']
+        # Mean of each node
+        return {v[0]:np.array([np.random.normal(np.random.choice(self.params['block_mean'],p = label_pmf[v[1]["block"],:] ))]) for v in G.nodes(data=True)}
+
 
 
     def Generate(self):
@@ -914,7 +984,7 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None):
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None, rw_attributes = False):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
@@ -932,6 +1002,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
     :param node_labels_tag: Node label tak for Grakel kernels, usually label for labeled graphs and attr if attributed. Should be in concordance with the label/attribute generation mechanism in the generation scheme of bg1 and bg2.
     :param label_list, label list for random walk kernel
     edge_labels - edge label list for random walk kernel
+    rw_attributes - Only used for random walk kernel and attributed graphs (one attribute)
 
     Returns
     -------------------------------
@@ -970,6 +1041,12 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
                 label_list.append(np.unique(list(nx.get_node_attributes(G, 'label').values())))
             label_list = np.unique(np.concatenate(label_list))       
 
+        # if we are using attributes and random walk
+        if rw_attributes and (kernel_library == 'randomwalk'):
+            p = [np.array([i[1][0] for i in G.nodes('attr') ]) for G in Gs ]
+        else:
+            p = None
+
         
         # Kernel hypothesis testing
         # Fit a kernel, Note the Grakel uses graph_list while myKernels use Gs
@@ -978,7 +1055,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
             K = init_kernel.fit_transform(graph_list)
         elif kernel_library == "randomwalk":
             import myKernels.RandomWalk as rw
-            init_kernel = rw.RandomWalk(Gs, c = kernel['c'])
+            init_kernel = rw.RandomWalk(Gs, c = kernel['c'], p = p)
             K = init_kernel.fit(calc_type = kernel['calc_type'], 
                                 r = kernel['r'], 
                                 k = kernel['k'],

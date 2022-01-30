@@ -2,6 +2,7 @@
 from matplotlib.pyplot import axis
 import numpy as np
 from scipy.stats import invgamma
+import tqdm
 # from sklearn.covariance import LedoitWolf
 
 def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regularize = False, reg_param = 0.1):
@@ -102,8 +103,8 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, calc_cond = False, regular
         # print(f'det {d1} inverse {d2}')
         neglik += 0.5* d1 + 0.5 * d2
 
-    print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
-    print(f'negative likelihood {neglik}')
+    # print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
+    # print(f'negative likelihood {neglik}')
     return state, state_cov, state_one_step, state_cov_one_step, y_est, R_cond, R_inv, neglik
 
 
@@ -339,7 +340,7 @@ def lc_sector(N, y, group_membership, init_params, calc_cond = False, regularize
     return w, v, beta_vec, A_vec, B_vec, states_store, R_conds
 
 
-def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1} ):
+def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regularize_F = False, reg_params = {'reg_f':0.1, 'reg_s':0.1}, verbose = True):
     """
     Calculate Kalman Smoother
     y_t = a + beta x_t + v
@@ -352,11 +353,11 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
 
     n_stock = y.shape[1]
     T = y.shape[0]
-    print(n_stock)
+    #print(n_stock)
 
     # Priors
-    #beta_mean = init_params['beta_mean']
-    #beta_var = init_params['beta_var']
+    beta_mean = init_params['beta_mean']
+    beta_var = init_params['beta_var']
 
     alpha_mean = init_params['alpha_mean']
     alpha_var = init_params['alpha_var']
@@ -371,7 +372,7 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
     w_beta = init_params['w_beta']
 
     # initial gibbs
-    # beta_init = init_params['beta_init']
+    beta_init = init_params['beta_init']
     alpha_init = init_params['alpha_init']
     eta_init = init_params['eta_init']
     w_init = init_params['w_init']
@@ -392,7 +393,7 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
 
     # F_vec = np.zeros((N+1,F.shape[0], F.shape[1]))
     beta_vec = np.zeros((N+1,n_stock))
-    # beta_vec[0] = beta_init
+    beta_vec[0] = beta_init
 
     A_vec = np.zeros((N+1,n_stock))
     A_vec[0] = alpha_init
@@ -409,10 +410,13 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
     index = np.array(range(n_stock))
 
     # constraints
-    beta_vec[0, :n_stock] = 1 #beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+    beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+
+    if verbose:
+            pbar = tqdm.tqdm(disable=(verbose is False), total= N)
 
     for i in range(1,N+1):
-        print( f'{i} of {N} ')
+        #print( f'{i} of {N} ')
 
         F = np.zeros((n_stock,  1))
         F[:,0] = beta_vec[i-1]
@@ -421,22 +425,22 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
         R_conds[i-1] = R_cond
 
         # Constraint
-        smooth_state_new =   smooth_state[1:]  - np.mean(smooth_state[1:] , axis = 0)
+        smooth_state_new = smooth_state[1:] - np.mean(smooth_state[1:] , axis = 0)
         # print(smooth_state_new.shape)
         states_store[i-1] = smooth_state_new
 
-        # sample beta_i
-        # for j in range(y.shape[1]):
-        #     var = 1.0 / ((np.sum(smooth_state_new[:,0] ** 2) / v[i-1,j]) + (1.0 / beta_var))
-        #     tmp1 = y[:,j]*smooth_state_new[:,0]
-        #     tmp2 = A_vec[i-1, j]*smooth_state_new[:,0] 
+        #sample beta_i
+        for j in range(y.shape[1]):
+            var = 1.0 / ((np.sum(smooth_state_new[:,0] ** 2) / v[i-1,j]) + (1.0 / beta_var))
+            tmp1 = y[:,j]*smooth_state_new[:,0]
+            tmp2 = A_vec[i-1, j]*smooth_state_new[:,0] 
 
-        #     avg = ((beta_mean/beta_var) + (np.nansum(tmp1 - tmp2 ))/v[i-1,j]) * var
-        #     beta_vec[i,j] = np.random.normal(avg, np.sqrt(var))
+            avg = ((beta_mean/beta_var) + (np.nansum(tmp1 - tmp2 ))/v[i-1,j]) * var
+            beta_vec[i,j] = np.random.normal(avg, np.sqrt(var))
 
-        beta_vec[i,0] = 1.0
+        #beta_vec[i,0] = 1.0
         # constraints
-        # beta_vec[i, :n_stock] = beta_vec[i, :n_stock]/np.sum(beta_vec[i, :n_stock])
+        beta_vec[i, :n_stock] = beta_vec[i, :n_stock]/np.sum(beta_vec[i, :n_stock])
 
         # sample alpha
         for j in range(n_stock):
@@ -465,6 +469,13 @@ def lc_single(N, y, init_params, calc_cond = False, regularize_S = False, regula
         alpha_w_tmp = y.shape[0]/2.0 + w_alpha
         beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,0] - smooth_state_new[:(smooth_state_new.shape[0]-1),0] - B_vec[i, 0]) ** 2) + w_beta
         w[i,0] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
+
+        if verbose:
+                    pbar.update()
+
+    if verbose:
+        pbar.close()
+
 
 
     return w, v, beta_vec, A_vec, B_vec, states_store, R_conds

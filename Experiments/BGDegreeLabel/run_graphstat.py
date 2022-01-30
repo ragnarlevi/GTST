@@ -87,7 +87,7 @@ if __name__ == "__main__":
     bg2 = mg.BinomialGraphs(n2, nnode2, k2, l = 'degreelabels', fullyConnected = True)
 
     # Probability of type 1 error
-    alphas = np.linspace(0.01, 0.99, 99)
+    alphas = np.linspace(0.001, 0.99, 999)
 
 
     now = datetime.now()

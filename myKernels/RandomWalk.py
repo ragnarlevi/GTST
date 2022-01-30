@@ -136,9 +136,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -206,9 +210,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -311,9 +319,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -399,9 +411,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -504,9 +520,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -648,9 +668,13 @@ class RandomWalk():
                 elif (self.p is None) and ~(self.q is None):
                     p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = self.q[i]
+                    q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
                     q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
                     q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = self.p[i]
+                    p2 = self.p[j] 
                 else:
                     p1 = self.p[i]
                     p2 = self.p[j] 
@@ -760,7 +784,6 @@ class RandomWalk():
         if r < 1:
             raise ValueError('r has to 1 or bigger')
  
-
         diag_inverse =  np.kron(np.diag(np.reciprocal(w1)), np.diag(np.reciprocal(w2)))
         Lamda = inv(diag_inverse - self.c * np.identity(diag_inverse.shape[0]))
         L = np.kron(np.matmul(q1.T, u1), np.matmul(q2.T, u2))
@@ -785,6 +808,7 @@ class RandomWalk():
 
         if r < 1:
             raise ValueError('r has to 1 or bigger')
+
 
         diag_inverse =  np.kron(np.diag(np.reciprocal(w1)), np.diag(np.reciprocal(w2)))
         Lamda = inv(diag_inverse - self.c * np.kron(np.matmul(np.matmul(v1t, np.diag(np.sum(L1, axis=0))), u1), np.matmul(np.matmul(v2t, np.diag(np.sum(L2, axis=0))), u2)))

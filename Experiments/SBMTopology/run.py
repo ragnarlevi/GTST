@@ -146,17 +146,17 @@ if __name__ == "__main__":
     kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
     # Initialize Graph generator class
-    probs_1 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
+    probs_1 = np.array([[0.08, 0.01, 0.01], [0.01, 0.09, 0.01], [0.01, 0.01, 0.095]])
     sizes_1 = [50, 30, 35]
     bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, l = 'degreelabels', fullyConnected=True)
 
-    probs_diff= np.array([[0.2, 0.1, 0.0], [0.1, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    probs_diff = np.array([[0.1, 0.02, 0.0], [0.02, 0.0, 0.0], [0.0, 0.0, 0.0]])
     probs_2 = (1-diff) * probs_1 + diff * probs_diff
     sizes_2 = [50, 30, 35]
     bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, l = 'degreelabels', fullyConnected=True)
 
     # Probability of type 1 error
-    alphas = np.linspace(0.01, 0.99, 99)
+    alphas = np.linspace(0.001, 0.99, 999)
     
     now = datetime.now()
     time = pd.Timestamp(now)
@@ -181,7 +181,8 @@ if __name__ == "__main__":
     elif kernel_name == 'rw':
         # if we are performing k-step random walk, we need the discount factor
         if kernel_specific_params.get('tmax', None) is not None:
-            mu_vec = np.power(kernel_specific_params['discount'], range(6+1)) / np.array([np.math.factorial(i) for i in np.arange(6+1)])
+            rw_step = kernel_specific_params.get('tmax', None)
+            mu_vec = np.power(kernel_specific_params['discount'], range(rw_step+1)) / np.array([np.math.factorial(i) for i in np.arange(rw_step+1)])
         else:
             mu_vec = None
         kernel = {"calc_type": kernel_specific_params['type'], 

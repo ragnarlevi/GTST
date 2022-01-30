@@ -53,12 +53,16 @@ parser.add_argument('-mean21', '--mean21', type=float,metavar='', help='The mean
 parser.add_argument('-mean22', '--mean22', type=float,metavar='', help='The mean of the nodes in block 2 in sample 2')
 parser.add_argument('-mean23', '--mean23', type=float,metavar='', help='The mean of the nodes in block 3 in sample 2')
 
+parser.add_argument('-noise1', '--noise1', type=float,metavar='', help='How much heteroskedasticity of block labels 1')
+parser.add_argument('-noise2', '--noise2', type=float,metavar='', help='How much heteroskedasticity of block labels 2')
+
 # parallelization specifics
 parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
 
 # Kernel specifics
 parser.add_argument('-kernel', '--kernel', type=str,metavar='', help='Kernel')
 parser.add_argument('-norm', '--normalize', type=int,metavar='', help='Should kernel be normalized')
+
 
 # Shared parameters
 parser.add_argument('-nitr', '--NumberIterations', type=int,metavar='', help='WL nr iterations, wl, wloa, wwl, dk, hashkernel ')
@@ -80,6 +84,11 @@ parser.add_argument('-mu', '--mu', type=float, metavar='', help='parameter of ga
 # Propagation only
 parser.add_argument('-w', '--binwidth', type=float,metavar='', help='Bin width.')
 parser.add_argument('-M', '--Distance', type=str,metavar='', help='The preserved distance metric (on local sensitive hashing):')
+
+# RW only
+parser.add_argument('-rwApprox', '--rwApprox', type=int, metavar='', help='Number of eigenvalues, rw approximation?')
+parser.add_argument('-row_norm', '--row_norm', type=int, metavar='', help='row normalize?')
+parser.add_argument('-adj_norm', '--adj_norm', type=int, metavar='', help='Normalize adjacency matrix?')
 
 # Gik
 parser.add_argument('-distances', '--distances', type=int,metavar='', help='node neigbourhood depth')
@@ -160,6 +169,12 @@ if __name__ == "__main__":
     kernel_specific_params['discount'] = args.discount   
 
 
+    # rw approximation
+    kernel_specific_params['r'] = args.rwApprox
+    kernel_specific_params['normalize_adj'] = args.adj_norm
+    kernel_specific_params['row_normalize_adj'] = args.row_norm
+
+
     
     # functions used for kernel testing
     MMD_functions = [mg.MMD_b, mg.MMD_u]
@@ -168,17 +183,28 @@ if __name__ == "__main__":
     # only gets compiled once (at first call)
     kernel_hypothesis = mg.BoostrapMethods(MMD_functions)
 
+
+    noise1 = args.noise1
+    block_label_probability1 = 1.0 - noise1
+    noise1 = noise1/2.0
+
+    noise2 = args.noise2
+    block_label_probability2 = 1.0 - noise2
+    noise2 = noise2/2.0
+
     # Initialize Graph generator class
-    probs_1 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
-    sizes_1 = np.int32(np.array([3/7, 2/7, 2/7])*nnode1)
-    bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, a = 'blockmean', l = 'degreelabels', params= {'block_mean':[mean11, mean12, mean13]}, fullyConnected=True)
+    probs_1 = np.array([[0.1, 0.01, 0.01], [0.01, 0.08, 0.01], [0.01, 0.01, 0.09]])
+    sizes_1 = np.int32(np.array([50, 40, 40]))
+    label_pmf_1 = np.array([[block_label_probability1, noise1, noise1], [noise1, block_label_probability1, noise1], [noise1, noise1, block_label_probability1]])
+    bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, a = 'blockmean2', l = 'degreelabels', params= {'block_mean':np.array([mean11, mean12, mean13]), 'label_pmf':label_pmf_1}, fullyConnected=True)
     
-    probs_2 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
-    sizes_2 = np.int32(np.array([3/7, 2/7, 2/7])*nnode2)
-    bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, a = 'blockmean', l = 'degreelabels', params= {'block_mean':[mean21, mean22, mean23]}, fullyConnected=True)
+    probs_2 = np.array([[0.1, 0.01, 0.01], [0.01, 0.08, 0.01], [0.01, 0.01, 0.09]])
+    sizes_2 = np.int32(np.array([50, 40, 40]))
+    label_pmf_2 = np.array([[block_label_probability2, noise2, noise2], [noise2, block_label_probability2, noise2], [noise2, noise2, block_label_probability2]])
+    bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, a = 'blockmean2', l = 'degreelabels', params= {'block_mean':np.array([mean21, mean22, mean23]), 'label_pmf':label_pmf_2}, fullyConnected=True)
 
     # Probability of type 1 error
-    alphas = np.linspace(0.01, 0.99, 99)
+    alphas = np.linspace(0.001, 0.99, 999)
 
 
     now = datetime.now()
@@ -204,6 +230,8 @@ if __name__ == "__main__":
                                                                     'label_name':'label',
                                                                     'wl_iterations':kernel_specific_params['nitr'],
                                                                     'normalize':normalize}
+    elif kernel_name == 'sp':
+        kernel =  [{"name": "SP", 'as_attributes':True}]
     elif kernel_name == 'gik':
         kernel = {'local':True, 'label_name':'label', 'attr_name':'attr', 
         'wl_itr':kernel_specific_params['nitr'], 
@@ -212,7 +240,24 @@ if __name__ == "__main__":
         'normalize':normalize}
     elif kernel_name == 'prop':
         kernel = [{"name": "propagation", "t_max": kernel_specific_params['tmax'], "w":kernel_specific_params['w'], "M":kernel_specific_params['M'], 'with_attributes':True}]
-
+    elif kernel_name == 'rw':
+        # if we are performing k-step random walk, we need the discount factor
+        if kernel_specific_params.get('tmax', None) is not None:
+            nr_rw_steps = kernel_specific_params.get('tmax')
+            mu_vec = np.power(kernel_specific_params['discount'], range(nr_rw_steps+1)) / np.array([np.math.factorial(i) for i in np.arange(nr_rw_steps+1)])
+        else:
+            mu_vec = None
+        
+        kernel = {"calc_type": kernel_specific_params['type'], 
+                 "c":kernel_specific_params['discount'] , 
+                    "r":kernel_specific_params['r'],
+                    'k':kernel_specific_params.get('tmax', None),
+                    "mu_vec":mu_vec,
+                    "with_labels":kernel_specific_params.get('with_labels', False),
+                    "normalize_adj": kernel_specific_params['normalize_adj'],
+                    "row_normalize_adj": kernel_specific_params['row_normalize_adj'],
+                    }
+        
     else:
         raise ValueError(f'No kernel names {kernel_name}')
     
@@ -249,11 +294,13 @@ if __name__ == "__main__":
         kernel_library = 'hash'
     elif kernel_name == 'gik':
         kernel_library = 'gik'
+    elif kernel_name == 'rw':
+        kernel_library = 'randomwalk'
     else:
         kernel_library = "Grakel"
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis, kernel_library, node_labels_tag='attr') for n in [part] * d]
+        results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis, kernel_library, node_labels_tag='attr', rw_attributes = True) for n in [part] * d]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0
@@ -312,8 +359,6 @@ if __name__ == "__main__":
                         'probs_2':str(probs_2),
                         'sizes_1':str(sizes_1),
                         'sizes_2':str(sizes_2),
-                        'nr_nodes_1': nnode1,
-                        'nr_nodes_2': nnode2,
                         'mean11':mean11,
                         'mean12':mean12,
                         'mean13':mean13,
@@ -321,6 +366,8 @@ if __name__ == "__main__":
                         'mean22':mean22,
                         'mean23':mean23,
                         'm3_diff':mean13-mean23,
+                        'noise1':noise1,
+                        'noise2':noise2,
                         'n':n1,
                         'm':n2,
                         'timestap':time,

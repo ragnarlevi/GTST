@@ -42,7 +42,8 @@ parser.add_argument('-N', '--NrSampleIterations',metavar='', type=int, help='Giv
 # Graph generation specifics
 parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of graphs in sample 1')
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 2')
-parser.add_argument('-noise', '--noise', type=float,metavar='', help='How much heteroskedasticity of block labels')
+parser.add_argument('-noise1', '--noise1', type=float,metavar='', help='How much heteroskedasticity of block labels 1')
+parser.add_argument('-noise2', '--noise2', type=float,metavar='', help='How much heteroskedasticity of block labels 2')
 
 # parallelization specifics
 parser.add_argument('-d', '--division', type=int,metavar='', help='How many processes')
@@ -139,10 +140,13 @@ if __name__ == "__main__":
 
     
     
-    noise = args.noise
+    noise1 = args.noise1
+    block_label_probability1 = 1.0 - noise1
+    noise1 = noise1/2.0
 
-    block_label_probability = 1.0 - noise
-    noise = noise/2.0
+    noise2 = args.noise2
+    block_label_probability2 = 1.0 - noise2
+    noise2 = noise2/2.0
 
 
 
@@ -155,17 +159,17 @@ if __name__ == "__main__":
 
     # Initialize Graph generator class
     probs_1 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
-    label_pmf_1 = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    label_pmf_1 = np.array([[block_label_probability1, noise1, noise1], [noise1, block_label_probability1, noise1], [noise1, noise1, block_label_probability1]])
     sizes_1 = [30, 20, 25]
     bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, l = 'BlockLabelling', params= {'label_pmf':label_pmf_1}, fullyConnected=True)
 
     probs_2 = np.array([[0.15, 0.05, 0.02], [0.05, 0.25, 0.07], [0.02, 0.07, 0.2]])
-    label_pmf_2 = np.array([[block_label_probability, noise, noise], [noise, block_label_probability, noise], [noise, noise, block_label_probability]])
+    label_pmf_2 = np.array([[block_label_probability2, noise2, noise2], [noise2, block_label_probability2, noise2], [noise2, noise2, block_label_probability2]])
     sizes_2 = [30, 20, 25]
     bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, l = 'BlockLabelling', params= {'label_pmf':label_pmf_2}, fullyConnected=True)
 
     # Probability of type 1 error
-    alphas = np.linspace(0.01, 0.99, 99)
+    alphas = np.linspace(0.001, 0.99, 999)
 
 
     
@@ -192,7 +196,8 @@ if __name__ == "__main__":
     elif kernel_name == 'rw':
         # if we are performing k-step random walk, we need the discount factor
         if kernel_specific_params.get('tmax', None) is not None:
-            mu_vec = np.power(kernel_specific_params['discount'], range(6+1)) / np.array([np.math.factorial(i) for i in np.arange(6+1)])
+            rw_step = kernel_specific_params.get('tmax', None)
+            mu_vec = np.power(kernel_specific_params['discount'], range(rw_step+1)) / np.array([np.math.factorial(i) for i in np.arange(rw_step+1)])
         else:
             mu_vec = None
 
@@ -318,7 +323,8 @@ if __name__ == "__main__":
         # Store the run information in a dataframe,
         tmp = pd.DataFrame({'kernel': str(kernel), 
                         'alpha':alpha,
-                        'noise':noise,
+                        'noise1':noise1,
+                        'noise2':noise2,
                         'normalize':normalize,
                         'probs_1':str(probs_1),
                         'sizes_1':str(sizes_1),
