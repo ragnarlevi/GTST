@@ -21,7 +21,7 @@ from scipy.sparse import kron
 class RandomWalk():
 
 
-    def __init__(self, X, c, p = None, q = None) -> None:
+    def __init__(self, X, c, normalize = False, p = None, q = None) -> None:
         """
         Parameters
         ---------------
@@ -29,6 +29,7 @@ class RandomWalk():
         p: list of size size N containing initial probabilities for each graph. If None then a uniform probabilites are used.
         p: list of size size N containing stopping probabilities for each graph. If None then a uniform probabilites are used.
         c: scalar
+        normalize: Should the kernel be normalized
         
         """
 
@@ -36,6 +37,7 @@ class RandomWalk():
         self.p = p
         self.q = q
         self.c = c
+        self.normalize = normalize
 
         self.N = len(X)
 
@@ -159,6 +161,9 @@ class RandomWalk():
 
         K = np.triu(K) + np.triu(K, 1).T
 
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
+
 
         return K
 
@@ -233,6 +238,9 @@ class RandomWalk():
             pbar.close()
 
         K = np.triu(K) + np.triu(K, 1).T
+
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
 
 
         return K
@@ -342,6 +350,9 @@ class RandomWalk():
             pbar.close()
 
         K = np.triu(K) + np.triu(K, 1).T
+
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
         
         return K
 
@@ -433,6 +444,9 @@ class RandomWalk():
             pbar.close()
             
         K = np.triu(K) + np.triu(K, 1).T
+
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
 
         return K
 
@@ -549,6 +563,9 @@ class RandomWalk():
             pbar.close()
 
         K = np.triu(K) + np.triu(K, 1).T
+
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
 
         return K
 
@@ -697,6 +714,9 @@ class RandomWalk():
             pbar.close()
 
         K = np.triu(K) + np.triu(K, 1).T
+
+        if self.normalize:
+            K = self.normalize_gram_matrix(K)
 
         return K
 
@@ -962,6 +982,13 @@ class RandomWalk():
             w[i], U[i] = eigsh(A[i].T, k = r)
 
         return w, U
+
+
+    @staticmethod
+    def normalize_gram_matrix(x):
+        k = np.reciprocal(np.sqrt(np.diag(x)))
+        k = np.resize(k, (len(k), 1))
+        return np.multiply(x, np.outer(k,k))
 
 
 
