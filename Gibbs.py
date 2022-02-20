@@ -30,13 +30,18 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, regularize = False, cov_st
 
     y_est = np.zeros(y.shape)
     error = np.zeros(y.shape)
-
-    tmp_A = A.copy()
     
     R_cond = np.zeros((y.shape[0], 2, ))
 
     neglik = 0
     for i in range(y.shape[0]):
+
+        if A.shape[0] == y.shape[0]:
+            tmp_A = A[i]
+        elif A.shape[0] == 1:
+            tmp_A = A
+        else: 
+            raise ValueError("A must be a single vector or an array of vector with size the same as number of observations")
 
         state_one_step[i] = np.dot(G, state[i]) + B
         state_cov_one_step[i] = W + np.dot(G, state_cov[i]).dot(G.T)
@@ -92,64 +97,6 @@ def KalmanFilter(y, G, B, W, F, A, V, init_x, init_c, regularize = False, cov_st
 
     # print(f'{np.max(R_cond[:, 0])} vs {np.max(R_cond[:, 1])}')
     # print(f'negative likelihood {neglik}')
-    return state, state_cov, state_one_step, state_cov_one_step, R_vec, R_inv, y_est, error, neglik, R_cond
-
-
-def KalmanFilterSingle(y, G, B, W, F, A, V, init_x, init_c, regularize = False):
-    """
-    Calculate Kalman Filter when y is univariate
-    y = Fx + A
-    x = Gx + B 
-    """
-    state = np.zeros((y.shape[0]+1, 1))
-    state_cov = np.zeros((y.shape[0]+1, 1))
-
-    state[0] = init_x
-    state_cov[0] = init_c
-
-    state_one_step = np.zeros((y.shape[0], 1))
-    state_cov_one_step = np.zeros((y.shape[0], 1))
-
-
-    R_vec = np.zeros(y.shape[0])
-
-
-    R_inv = np.zeros((y.shape[0], 1))
-
-    y_est = np.zeros(y.shape)
-    error = np.zeros(y.shape)
-
-    tmp_A = A
-
-    neglik = 0
-    for i in range(y.shape[0]):
-
-        state_one_step[i] = G*state[i] + B
-        state_cov_one_step[i] = W + G*state_cov[i]*G
-
-        #state_cov_one_step[i] = np.array([[np.min((state_cov_one_step[i], [[5]]))]])
-
-        if np.isnan(y[i]):
-            state[i+1] = state_one_step[i]
-            state_cov[i+1] = state_cov_one_step[i]
-            y_est[i] = F*state_one_step[i] + tmp_A
-            R_vec[i] = F*state_cov_one_step[i]*F.T + V
-            continue
-
-        R = F*state_cov_one_step[i]*F + V
-
-        R_vec[i] = R
-
-        R_inv[i] = 1/R
-        Kalman_gain = (state_cov_one_step[i]*F)/R
-
-
-        state[i+1] = state_one_step[i] + Kalman_gain*(y[i] - tmp_A - F*state_one_step[i])
-        state_cov[i+1] = state_cov_one_step[i] -  Kalman_gain*F*state_cov_one_step[i]
-        y_est[i] = F*state_one_step[i] + tmp_A
-
-        error[i] = y[i] - y_est[i]
-
     return state, state_cov, state_one_step, state_cov_one_step, R_vec, R_inv, y_est, error, neglik, R_cond
 
 
@@ -248,15 +195,19 @@ def FFBS(y, G, B, W, F, A, V, init_x, init_c, cov_step_ceiling = None):
 
 
 
-def local_level(N, y, init_params, verbose = True, cov_step_ceiling = None):
+def local_level(N, y, init_params, shock = None, verbose = True, cov_step_ceiling = None):
     """
     Calculate Kalman Smoother
     y_t = a + beta x_t + v
     x_t = x_{t-1} + eta + W
 
+    Parameters
+    ------------------------------------
     :param N: Number of Gibbs iterations
-    :param y: np.array of data n times p
+    :param y: np.array of data n times p:
+    :param shock: tuple, index when the shift occurred and the index of the previous observed value . if None no shocks
     :param init_params: dict with the prior parameters and initial guess 
+
     """
 
     n_stock = 1
@@ -301,8 +252,11 @@ def local_level(N, y, init_params, verbose = True, cov_step_ceiling = None):
     beta_vec = np.ones((N+1,n_stock))
     #beta_vec[0] = beta_init
 
-    A_vec = np.zeros((N+1,n_stock))
-    A_vec[0] = alpha_init
+    if shock is None:
+        A_vec = np.zeros((N+1,1))
+    else:
+        A_vec = np.zeros((N+1,1))
+        A_vec[0] = alpha_init
 
     v = np.zeros((N+1, n_stock))
     v[0] = v_init
@@ -324,8 +278,15 @@ def local_level(N, y, init_params, verbose = True, cov_step_ceiling = None):
 
         F = np.zeros((n_stock,  1))
         F[:,0] = beta_vec[i-1]
+
+        if shock is not None:
+            a = np.zeros(T)
+            a[shock[0]:] = A_vec[i-1]
+            # print(a)
+        else:
+            a = np.zeros(T)
         
-        smooth_state, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G, B_vec[i-1], np.diag(w[i-1]), F, A_vec[i-1],  np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
+        smooth_state, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G, B_vec[i-1], np.diag(w[i-1]), F, a,  np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
 
         # Constraint
         smooth_state_new = smooth_state[1:]# - np.mean(smooth_state[1:] , axis = 0)
@@ -334,17 +295,19 @@ def local_level(N, y, init_params, verbose = True, cov_step_ceiling = None):
 
 
         # sample alpha
-        var = 1.0 / ((T_obs / v[i-1,0]) + (1 / alpha_var[0]))
-        avg = np.nansum(y[:, 0] - beta_vec[i,0]*smooth_state_new[:, 0]   )/v[i-1,0]
+        nr_after_shock = np.sum(~np.isnan(y[shock[1]:,0]))
+        var = 1.0 / ((nr_after_shock / v[i-1,0]) + (1 / alpha_var[0]))
+        avg = np.nansum(y[shock[1]:, 0] - beta_vec[i,0]*smooth_state_new[shock[1]:, 0]   )/v[i-1,0]
         avg += alpha_mean[0]/alpha_var[0]
-
         avg *= var
         A_vec[i,0] = np.random.normal(avg, np.sqrt(var))
 
         # sample variance of observation
+        a_post = np.zeros(T)
+        a_post[shock[0]:] = A_vec[i,0]
 
         alpha = (T_obs/2.0) + v_alpha
-        beta = 0.5 * np.nansum((y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
+        beta = 0.5 * np.nansum((y[:,0] - a_post - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
         v[i,0] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
 
 
@@ -1499,3 +1462,59 @@ def local_level_freq(params, y):
 
 
 #     return w, v, beta_vec, A_vec, B_vec, states_store, R_conds
+
+
+
+# def KalmanFilterSingle(y, G, B, W, F, A, V, init_x, init_c, regularize = False):
+#     """
+#     Calculate Kalman Filter when y is univariate
+#     y = Fx + A
+#     x = Gx + B 
+#     """
+#     state = np.zeros((y.shape[0]+1, 1))
+#     state_cov = np.zeros((y.shape[0]+1, 1))
+
+#     state[0] = init_x
+#     state_cov[0] = init_c
+
+#     state_one_step = np.zeros((y.shape[0], 1))
+#     state_cov_one_step = np.zeros((y.shape[0], 1))
+
+#     R_vec = np.zeros(y.shape[0])
+#     R_inv = np.zeros((y.shape[0], 1))
+
+#     y_est = np.zeros(y.shape)
+#     error = np.zeros(y.shape)
+
+#     neglik = 0
+#     for i in range(y.shape[0]):
+
+
+
+#         state_one_step[i] = G*state[i] + B
+#         state_cov_one_step[i] = W + G*state_cov[i]*G
+
+#         #state_cov_one_step[i] = np.array([[np.min((state_cov_one_step[i], [[5]]))]])
+
+#         if np.isnan(y[i]):
+#             state[i+1] = state_one_step[i]
+#             state_cov[i+1] = state_cov_one_step[i]
+#             y_est[i] = F*state_one_step[i] + tmp_A
+#             R_vec[i] = F*state_cov_one_step[i]*F.T + V
+#             continue
+
+#         R = F*state_cov_one_step[i]*F + V
+
+#         R_vec[i] = R
+
+#         R_inv[i] = 1/R
+#         Kalman_gain = (state_cov_one_step[i]*F)/R
+
+#         state[i+1] = state_one_step[i] + Kalman_gain*(y[i] - tmp_A - F*state_one_step[i])
+#         state_cov[i+1] = state_cov_one_step[i] -  Kalman_gain*F*state_cov_one_step[i]
+#         y_est[i] = F*state_one_step[i] + tmp_A
+
+#         error[i] = y[i] - y_est[i]
+
+#     return state, state_cov, state_one_step, state_cov_one_step, R_vec, R_inv, y_est, error, neglik, R_cond
+

@@ -468,5 +468,3 @@ def mahalanobis_distance(x, mu, Sigma_inv):
 
     return d
     
-
-

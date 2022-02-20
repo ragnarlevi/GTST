@@ -18,6 +18,9 @@ import MONK
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n: int, m: int):
 
+    if (n + m) != K.shape[0]:
+        raise ValueError("n + m have to equal the size of K")
+
     Kx = K[:n, :n]
     Ky = K[n:, n:]
     Kxy = K[:n, n:]
@@ -27,6 +30,8 @@ def MMD_b(K: np.array, n: int, m: int):
 
 # Unbiased empirical maximum mean discrepancy
 def MMD_u(K: np.array, n: int, m: int):
+    if (n + m) != K.shape[0]:
+        raise ValueError("n + m have to equal the size of K")
     Kx = K[:n, :n]
     Ky = K[n:, n:]
     Kxy = K[:n, n:]
@@ -64,7 +69,7 @@ def power_ratio(K, mmd_stat, threshold, m):
     K: numpy array, The ernel matrix
     mmd_stat: float, the sample mmd value. Note this is the squared unbiased mmd value
     threshold: float, the test thershold for a given type I error (alpha value)
-    m: int, size of samples
+    m: int, size of sample 1
 
     Returns
     --------------------
@@ -80,88 +85,47 @@ def power_ratio(K, mmd_stat, threshold, m):
     Kxy = K[:m, m:]
     Kyy = K[m:, m:]
 
-    Ktxx = Kxx.copy()
-    Ktxy = Kxy.copy()
-    Ktyy = Kyy.copy()
-    np.fill_diagonal(Ktxx, 0)
-    np.fill_diagonal(Ktxy, 0)
-    np.fill_diagonal(Ktyy, 0)
+    if Kxx.shape[0] != Kyy.shape[0]:
+        raise ValueError("sample 1 and sample 2 should have the same size")
+
+    H = Kxx + Kyy - Kxy - Kxy.T
+
+    part1 = np.inner(np.sum(H,axis=1), np.sum(H,axis=1))
+    part2 = np.sum(H)
+
+    V = (4/m**3) * part1 - (4/m**4) * (part2**2)
+
+    if V <= 0:
+        raise ValueError(f"V = {V}")
+
+    # Ktxx = Kxx.copy()
+    # Ktxy = Kxy.copy()
+    # Ktyy = Kyy.copy()
+    # np.fill_diagonal(Ktxx, 0)
+    # np.fill_diagonal(Ktxy, 0)
+    # np.fill_diagonal(Ktyy, 0)
 
 
 
-    e = np.ones(m)
-    # Calculate variance
-    V = (
-         (4/factorial_k(m, 4)) * (np.inner(np.matmul(Ktxx,e),np.matmul(Ktxx,e))  + np.inner(np.matmul(Ktyy,e),np.matmul(Ktyy,e)) )
-        + ((4*(m**2 - m - 1)) / (m**3 * (m-1)**2)) * (np.inner(np.matmul(Kxy,e),np.matmul(Kxy,e))  + np.inner(np.matmul(Kxy.T,e),np.matmul(Kxy.T,e)) )
-        - (8 / ((m**2) * (m**2 - 3*m + 2))) * (np.dot(e, Ktxx).dot(Kxy).dot(e) + np.dot(e, Ktyy).dot(Kxy.T).dot(e))
-        + (8 / (m**2 * factorial_k(m, 3))) * ((np.dot(e, Ktxx).dot(e) + np.dot(e, Ktyy).dot(e))*np.dot(e,Kxy).dot(e))
-        - ((2*(2*m-3))/(factorial_k(m,2)*factorial_k(m,4))) * (np.dot(e, Ktxx).dot(e)**2 + np.dot(e, Ktyy).dot(e)**2)
-        - ((4*(2*m-3))/(m**3 * (m-1)**3)) * np.dot(e,Kxy).dot(e)**2
-        - (2/(m *(m**3 - 6*m**2 +11*m -6))) *(np.linalg.norm(Ktxx, ord = 'fro')**2 + np.linalg.norm(Ktyy, ord = 'fro')**2)
-        + ((4*(m-2))/(m**2 * (m-1)**3)) * np.linalg.norm(Kxy, ord='fro')**2
-    )
+    # e = np.ones(m)
+    # # Calculate variance
+    # V = (
+    #      (4/factorial_k(m, 4)) * (np.inner(np.matmul(Ktxx,e),np.matmul(Ktxx,e))  + np.inner(np.matmul(Ktyy,e),np.matmul(Ktyy,e)) )
+    #     + ((4*(m**2 - m - 1)) / (m**3 * (m-1)**2)) * (np.inner(np.matmul(Kxy,e),np.matmul(Kxy,e))  + np.inner(np.matmul(Kxy.T,e),np.matmul(Kxy.T,e)) )
+    #     - (8 / ((m**2) * (m**2 - 3*m + 2))) * (np.dot(e, Ktxx).dot(Kxy).dot(e) + np.dot(e, Ktyy).dot(Kxy.T).dot(e))
+    #     + (8 / (m**2 * factorial_k(m, 3))) * ((np.dot(e, Ktxx).dot(e) + np.dot(e, Ktyy).dot(e))*np.dot(e,Kxy).dot(e))
+    #     - ((2*(2*m-3))/(factorial_k(m,2)*factorial_k(m,4))) * (np.dot(e, Ktxx).dot(e)**2 + np.dot(e, Ktyy).dot(e)**2)
+    #     - ((4*(2*m-3))/(m**3 * (m-1)**3)) * np.dot(e,Kxy).dot(e)**2
+    #     - (2/(m *(m**3 - 6*m**2 +11*m -6))) *(np.linalg.norm(Ktxx, ord = 'fro')**2 + np.linalg.norm(Ktyy, ord = 'fro')**2)
+    #     + ((4*(m-2))/(m**2 * (m-1)**3)) * np.linalg.norm(Kxy, ord='fro')**2
+    # )
 
     
-    # K_XX = K[:m, :m]
-    # K_XY = K[:m, m:]
-    # K_YY = K[m:, m:]
-
-
-
-    # diag_X = np.diag(K_XX)
-    # diag_Y = np.diag(K_YY)
-
-    # sum_diag_X = diag_X.sum()
-    # sum_diag_Y = diag_Y.sum()
-
-    # sum_diag2_X = diag_X.dot(diag_X)
-    # sum_diag2_Y = diag_Y.dot(diag_Y)
-
-    # Kt_XX_sums = K_XX.sum(axis=1) - diag_X
-    # Kt_YY_sums = K_YY.sum(axis=1) - diag_Y
-    # K_XY_sums_0 = K_XY.sum(axis=0)
-    # K_XY_sums_1 = K_XY.sum(axis=1)
-
-    # Kt_XX_sum = Kt_XX_sums.sum()
-    # Kt_YY_sum = Kt_YY_sums.sum()
-    # K_XY_sum = K_XY_sums_0.sum()
-
-    # Kt_XX_2_sum = (K_XX ** 2).sum() - sum_diag2_X
-    # Kt_YY_2_sum = (K_YY ** 2).sum() - sum_diag2_Y
-    # K_XY_2_sum  = (K_XY ** 2).sum()
-
-
-    # mmd2 = (Kt_XX_sum / (m * (m-1))
-    #         + Kt_YY_sum / (m * (m-1))
-    #         - 2 * K_XY_sum / (m * m))
-
-    # V = (
-    #       2 / (m**2 * (m-1)**2) * (
-    #           2 * Kt_XX_sums.dot(Kt_XX_sums) - Kt_XX_2_sum
-    #         + 2 * Kt_YY_sums.dot(Kt_YY_sums) - Kt_YY_2_sum)
-    #     - (4*m-6) / (m**3 * (m-1)**3) * (Kt_XX_sum**2 + Kt_YY_sum**2)
-    #     + 4*(m-2) / (m**3 * (m-1)**2) * (
-    #           K_XY_sums_1.dot(K_XY_sums_1)
-    #         + K_XY_sums_0.dot(K_XY_sums_0))
-    #     - 4 * (m-3) / (m**3 * (m-1)**2) * K_XY_2_sum
-    #     - (8*m - 12) / (m**5 * (m-1)) * K_XY_sum**2
-    #     + 8 / (m**3 * (m-1)) * (
-    #           1/m * (Kt_XX_sum + Kt_YY_sum) * K_XY_sum
-    #         - Kt_XX_sums.dot(K_XY_sums_1)
-    #         - Kt_YY_sums.dot(K_XY_sums_0))
-    # )
 
     ratio = (mmd_stat / np.sqrt(V)) - (threshold/(m*np.sqrt(V)))
     power = norm.cdf(ratio)
 
     return ratio, power, V
-
-
-
-
-
-    
 
 
 
@@ -176,7 +140,11 @@ class BoostrapMethods():
 
     def __init__(self, list_of_functions:list) -> None:
         """
+
+        Parameters
+        ---------------------------
         :param list_of_functions: List of functions that should be applied to the the permutated K matrix
+        boot_arg
         """
 
         self.list_of_functions = list_of_functions
@@ -219,18 +187,132 @@ class BoostrapMethods():
 
         return K_i
 
-
-    def Bootstrap(self, K, function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False) -> None:
+    @staticmethod
+    def NBB(K, n, m, l):
         """
+        Non over-lapping block boostrap
+
+
+        Parameters
+        -----------------------------
+        K - n+m times n+m np array, Kernel matrix
+        n - Nr in sample 1
+        m - Nr in sample 2
+        l - block length
+
+        Returns
+        -----------------------------
+        Permutated Kernel Matrix
+
+        """
+
+
+        b_1 = int(np.ceil(n/l))
+        b_2 = int(np.ceil(m/l))
+
+        #blocks_1 = np.random.permutation(np.array(range(b_1)))
+        #blocks_2 = np.random.permutation(np.array(range(b_2)))
+
+        index_1 = np.array(range(n))
+        index_2 = np.array(range(m))
+
+        perm_1 = [index_1[(l*block):(l*block+l)] for block in range(b_1) ]
+        perm_2 = [index_2[(l*block):(l*block+l )]+ n for block in range(b_2) ] 
+
+        blocks = perm_1 + perm_2
+        permutated_blocks = np.concatenate([blocks[i] for i in np.random.permutation(np.array(range(len(blocks))))])
+
+        return K[np.ix_(permutated_blocks, permutated_blocks)]
+
+    @staticmethod
+    def MBB(K, n, m, l):
+        """
+        Over-lapping block boostrap
+
+
+        Parameters
+        -----------------------------
+        K - n+m times n+m np array, Kernel matrix
+        n - Nr in sample 1
+        m - Nr in sample 2
+        l - block length
+
+        Returns
+        -----------------------------
+        Permutated Kernel Matrix
+
+        """
+
+        if (n <= l-1) | (m <= l-1):
+            raise ValueError("Number of samples must be larger than l-1")
+
+        # blocks_1 = np.random.permutation(np.array(range(b_1)))
+        # blocks_2 = np.random.permutation(np.array(range(b_2)))
+
+        index_1 = np.array(range(n))
+        index_2 = np.array(range(m))
+
+        perm_1 = [index_1[(i):(i+l)] for i in range(n-l+1) ]
+        perm_2 = [index_2[(i):(i+l)]+ n for i in range(m-l+1) ] ## add n to get correct index of sample 2
+
+        blocks = perm_1 + perm_2
+        permutated_blocks = np.concatenate([blocks[i] for i in np.random.permutation(np.array(range(len(blocks))))])
+
+        return K[np.ix_(permutated_blocks, permutated_blocks)], permutated_blocks
+
+
+
+    @staticmethod
+    def MMD_u_for_MBB(K, permutated_blocks, l, n, m):
+
+        n1 = (n-l+1)*l
+        m1 = (m-l+1)*l
+
+        if (n1 + m1) != K.shape[0]:
+            raise ValueError("Sizes weird")
+
+        Kxx = K[:n1, :n1]
+        Kyy = K[n1:, n1:]
+
+        K_xx_sum = np.sum([np.sum(Kxx[i, permutated_blocks[i] != permutated_blocks[:n1]]) for i in range(n1)])
+        K_yy_sum = np.sum([np.sum(Kyy[i, permutated_blocks[i + n1] != permutated_blocks[n1:]]) for i in range(m1)])
+
+        number_x_sum = np.sum([np.sum(permutated_blocks[i] != permutated_blocks[:n1]) for i in range(n1)])
+        number_y_sum = np.sum([np.sum(permutated_blocks[i + n1] != permutated_blocks[n1:]) for i in range(m1)])
+
+        Kxy_sum = np.sum(K[:n1, n1:])
+        
+        return (1.0 / number_x_sum) * K_xx_sum + (1.0 / number_y_sum) * K_yy_sum - 2.0 / (n1 * m1) * Kxy_sum
+
+    @staticmethod
+    def Kernel_to_MMB(K, l, n, m):
+        index_1 = np.array(range(n))
+        index_2 = np.array(range(m))
+        perm_1 = [index_1[(i):(i+l)] for i in range(n-l+1) ]
+        perm_2 = [index_2[(i):(i+l)]+ n for i in range(m-l+1) ] ## add n to get correct index of sample 2
+        idx = np.concatenate(perm_1 + perm_2)
+
+        return K[np.ix_(idx, idx)], idx
+
+
+
+
+    def Bootstrap(self, K, function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False, boot_arg:dict = None) -> None:
+        """
+
+        Parameters
+        --------------------
         :param K: Kernel matrix that we want to permutate
         :param function_arguments: List of dictionaries with inputs for its respective function in list_of_functions,  excluding K. If no input set as None.
         :param B: Number of Bootstraps
         :param method: Which permutation method should be applied?
         :param check_symmetry: Should the scheme check if the matrix is symmetirc, each time? Adds time complexity
+        boot_arg arguments to bootstrap method
         """
         self.K = K.copy()
         #print(self.K)
         self.function_arguments = function_arguments
+        self.boot_arg = boot_arg
         assert self.issymmetric(self.K), "K is not symmetric"
 
         # keep p-value result from each MMD function
@@ -244,8 +326,6 @@ class BoostrapMethods():
                 continue
             inputs[i] =  ", ".join("=".join((k,str(v))) for k,v in sorted(self.function_arguments[i].items()))
 
-        # Get the evaluation method
-        evaluation_method = getattr(self, method)
 
         # Calculate sample mmd statistic, and create a dictionary for bootstrapped statistics
         sample_statistic = dict()
@@ -253,28 +333,46 @@ class BoostrapMethods():
         for i in range(len(self.list_of_functions)):
             # the key is the name of the MMD (test statistic) function
             key = self.list_of_functions[i].__name__
-            # string that is used as an input to eval, the evaluation function
-            if self.function_arguments[i] is None:
-                eval_string = key + "(K =self.K" + ")"
+            if (method == 'MBB') and (key == 'MMD_u'):
+                K_MMB, idx = self.Kernel_to_MMB(K, **self.boot_arg)
+                sample_statistic[key] = self.MMD_u_for_MBB(K_MMB, idx, **self.boot_arg)
+            elif (method == 'MBB') and (key == 'MMD_b'):
+                K_MMB, idx = self.Kernel_to_MMB(K, **self.boot_arg)
+                n1 = (self.boot_arg['n'] - self.boot_arg['l'] + 1)*self.boot_arg['l']
+                m1 = (self.boot_arg['m'] - self.boot_arg['l'] + 1)*self.boot_arg['l']
+                sample_statistic[key] = MMD_b(K_MMB, n1, m1)
             else:
-                eval_string = key + "(K =self.K, " + inputs[i] + ")"
-
-            sample_statistic[key] =  self.list_of_functions[i](K, **self.function_arguments[i]) #eval(eval_string)
+                sample_statistic[key] =  self.list_of_functions[i](K, **self.function_arguments[i]) #eval(eval_string)
+            
             boot_statistic[key] = np.zeros(B)
 
 
+        # Get bootstrap evaluation method
+        evaluation_method = getattr(self, method)
 
         # Now Perform Bootstraping
         for boot in range(B):
-            K_i = evaluation_method(self.K)
+            if self.boot_arg is None:
+                K_i = evaluation_method(self.K)
+            elif method == 'MBB':
+                K_i, index = evaluation_method(K, **self.boot_arg)
+            else:
+                K_i = evaluation_method(K, **self.boot_arg)
             if check_symmetry:
                 if self.issymmetric(K_i):
                     warnings.warn("Not a Symmetric matrix", Warning)
 
             # apply each test defined in list_if_functions, and keep the bootstraped/permutated value
             for i in range(len(self.list_of_functions)):
-                eval_string = self.list_of_functions[i].__name__ + "(K =K_i, " + inputs[i] + ")"
-                boot_statistic[self.list_of_functions[i].__name__][boot] = self.list_of_functions[i](K_i, **self.function_arguments[i])#eval(eval_string)
+                if (self.list_of_functions[i].__name__ == 'MMD_u') and (method == 'MBB'):
+                    # NBB can not use the normal MMD_u function as it will not be unbiased due to overlaps
+                    boot_statistic[self.list_of_functions[i].__name__][boot] = self.MMD_u_for_MBB(K_i, index, boot_arg['l'], boot_arg['n'], boot_arg['m'])
+                elif (self.list_of_functions[i].__name__ == 'MMD_b') and (method == 'MBB'):
+                    n1 = (self.boot_arg['n'] - self.boot_arg['l'] + 1)*self.boot_arg['l']
+                    m1 = (self.boot_arg['m'] - self.boot_arg['l'] + 1)*self.boot_arg['l']
+                    boot_statistic[self.list_of_functions[i].__name__][boot] = MMD_b(K_i, n1, m1)
+                else:
+                    boot_statistic[self.list_of_functions[i].__name__][boot] = self.list_of_functions[i](K_i, **self.function_arguments[i])#eval(eval_string)
 
         # calculate p-value
         for key in sample_statistic.keys():
@@ -439,6 +537,27 @@ class DegreeGraphs():
 
         nodes_degree = dict(G.degree)
         return {key: str(value) for key, value in nodes_degree.items()}
+
+    def alldistinctlabels(self, G):
+        """
+        labelling Scheme. Nodes get unique labes
+
+        :param G: Networkx graph
+        :return: Dictionary
+        """
+
+        return dict( ( (i, str(i)) for i in range(len(G)) ) )
+
+    def degreelabelsScaled(self, G):
+        """
+        labelling Scheme. Nodes labelled with their degree
+
+        :param G: Networkx graph
+        :return: Dictionary
+        """
+
+        nodes_degree = dict(G.degree)
+        return {key: str(round(value/G.number_of_nodes(),2)) for key, value in nodes_degree.items()}
 
     def normattr(self, G):
         """

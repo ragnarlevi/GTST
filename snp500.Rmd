@@ -1,0 +1,1973 @@
+---
+title: "SnP 500"
+author: "Ragnar"
+date: "1/25/2022"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(PerformanceAnalytics)
+library(rugarch)
+library(tseries)
+library(tidyquant)
+library(quantreg)
+library(robustarima)
+library(RobStatTM)
+library(glasso)
+library(ald)
+library(gridExtra)
+library(reshape2)
+library(robustbase)
+library(RobStatTM)
+library(fitHeavyTail)
+library(spectralGraphTopology)
+library(fingraph)
+library(reticulate)
+library(Holidays)
+```
+
+
+# Load Data
+
+The snp500 returns and their info.
+
+```{r}
+snp500 <- read_csv("../MMDGraph/Yahoo/YAHOO_PRICE.csv")
+asset_profiles <- read_xlsx("../MMDGraph/Yahoo/YAHOO_PRICE_ESG.xlsx", sheet = "asset_profiles")
+
+head(snp500)
+head(asset_profiles)
+
+# Sort by sector
+
+asset_profiles <- asset_profiles %>% arrange(sector)
+
+```
+
+Calculate returns, volume percentage change and discard data
+
+```{r}
+# return
+snp500 <- snp500 %>%  group_by(ticker) %>% mutate(returns = adjclose/lag(adjclose) -1, volume_returns = volume/lag(volume) -1) %>% mutate(logreturns = log(1+returns), log_volume_returns = log(1 + volume_returns))
+# remove time from timestamp
+snp500$Date <- as.Date(ymd_hms(snp500$timestamp))
+# Remove holidays
+print(nrow(snp500))
+holiday_date <- holidays(as.character(2010:2022), type = allHolidays(), silent = TRUE)
+snp500 <- snp500[!(snp500$Date %in% holiday_date), ]
+print(nrow(snp500))
+
+
+# Selct data from 2016 and onwards
+
+snp500 <- snp500[snp500$Date >= as.Date("2014-09-01"),] # Date governed by ESG date
+
+head(snp500)
+```
+
+
+```{r}
+
+```
+
+
+Get ESG interpolated data
+
+```{r}
+source_python("../MMDGraph/read_pickle.py")
+
+ESG_data <- list()
+ESG_SMOOTH <- list()
+ESG_y_smooth <- list()
+
+for(stock_pkl in list.files("../MMDGraph/data/Gibbs/Estimate/")){
+  stock_name <- strsplit(stock_pkl, ".pkl")[[1]]
+  ESG_data[[stock_name]] <- read_pickle(paste0("../MMDGraph/data/Gibbs/Estimate/",stock_name, ".pkl"))
+  ESG_SMOOTH[[stock_name]] <- as.numeric(ESG_data[[stock_name]]$smooth)
+  ESG_y_smooth[[stock_name]] <- as.numeric(ESG_data[[stock_name]]$y_smooth)
+}
+
+Dates <- sapply(ESG_data$A$date, function(x){return(as.character(x))})
+
+ESG_SMOOTH <- bind_cols(ESG_SMOOTH)
+ESG_SMOOTH <- ESG_SMOOTH[2:nrow(ESG_SMOOTH),]  # Remove initial states x_0
+rownames(ESG_SMOOTH) <- Dates
+ESG_y_smooth <- bind_cols(ESG_y_smooth)
+rownames(ESG_y_smooth) <- Dates
+
+ESG_SMOOTH_pct <- ESG_SMOOTH %>% mutate_each(funs(c(NA,diff(log(.))))) %>% slice(2:n())
+rownames(ESG_SMOOTH_pct) <- Dates[2:nrow(ESG_SMOOTH)]
+ESG_y_smooth_pct <- ESG_y_smooth %>% mutate_each(funs(c(NA,diff(log(.))))) %>% slice(2:n())
+rownames(ESG_y_smooth_pct) <- Dates[2:nrow(ESG_y_smooth)]
+```
+
+
+Store which companies belong to which sector
+
+```{r}
+sector_classification <- list()
+for(sector in unique(asset_profiles$sector)){
+  
+  sector_classification[[sector]] <- c(asset_profiles$ticker[asset_profiles$sector == sector])
+  
+}
+```
+
+
+Pivot data to get each stock as a column for returns and log returns. Only pick stocks with no NA values
+
+```{r}
+returns <- snp500 %>% select('Date', 'returns', 'ticker') %>% spread(key = 'ticker', value = 'returns')
+returns <- column_to_rownames(returns, var = "Date")
+returns <- returns[2:nrow(returns), c(asset_profiles$ticker)]
+returns <- returns[,colSums(is.na(returns)) == 0]
+returns_xts <- xts(returns, order.by = as.Date(rownames(returns)))
+head(returns)
+```
+
+```{r}
+volume <- snp500 %>% select('Date', 'volume', 'ticker') %>% spread(key = 'ticker', value = 'volume')
+volume <- column_to_rownames(volume, var = "Date")
+volume <- volume[2:nrow(volume), c(asset_profiles$ticker)]
+volume <- volume[ , colSums(is.na(volume)) == 0]
+head(volume)
+```
+
+
+```{r}
+volume_returns <- snp500 %>% select('Date', 'volume_returns', 'ticker') %>% spread(key = 'ticker', value = 'volume_returns')
+volume_returns <- column_to_rownames(volume_returns, var = "Date")
+volume_returns <- volume_returns[2:nrow(volume_returns), c(asset_profiles$ticker)]
+volume_returns <- volume_returns[ , colSums(is.na(volume_returns)) == 0]
+head(volume_returns)
+```
+
+
+
+```{r}
+log_returns <- snp500 %>% select('Date', 'logreturns', 'ticker') %>% spread(key = 'ticker', value = 'logreturns')
+log_returns <- column_to_rownames(log_returns, var = "Date")
+log_returns <- log_returns[2:nrow(log_returns), c(asset_profiles$ticker)]
+log_returns <- log_returns[ , colSums(is.na(log_returns)) == 0]
+log_returns_xts <- xts(log_returns, order.by = as.Date(rownames(log_returns)))
+head(log_returns)
+```
+
+
+
+
+```{r}
+log_volume_returns <- snp500 %>% select('Date', 'logreturns', 'ticker') %>% spread(key = 'ticker', value = 'logreturns')
+log_volume_returns <- column_to_rownames(log_volume_returns, var = "Date")
+log_volume_returns <- log_volume_returns[, c(asset_profiles$ticker)]
+log_volume_returns <- log_volume_returns[ , colSums(is.na(log_volume_returns)) == 0]
+head(log_volume_returns)
+```
+
+
+
+
+
+
+
+Let's plot some
+
+```{r}
+
+plot_data_frames <- function(x, title = ""){
+  Dates <- as.Date(rownames(x))
+  x_melt <- x[, 1:10]
+  x_melt$Date <- Dates
+  x_melt <- melt(x_melt, id = "Date")
+  x_melt <- left_join(x_melt, asset_profiles[, c("ticker", "sector")], by = c("variable"="ticker"))
+  ggplot(x_melt) + geom_line(aes(x = Date, y = value, color = variable)) + 
+    facet_wrap(~ sector, ncol=3, scales = "free") + ggtitle(title)
+}  
+
+
+
+
+plot_data_frames(returns, "returns")
+plot_data_frames(log_returns, "log-returns")
+plot_data_frames(volume_returns, "volume pct")
+plot_data_frames(log_volume_returns, "log-volume pct")
+plot_data_frames(volume, "volume")
+plot_data_frames(ESG_SMOOTH, "ESG smoothed latent")
+plot_data_frames(ESG_y_smooth, "ESG Y SMOOTH")
+plot_data_frames(ESG_SMOOTH_pct, "ESG smoothed latent pct")
+plot_data_frames(ESG_y_smooth_pct, "ESG smoothed y pct")
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+# Volatility Test
+
+Let's look at the rolling volatility.
+
+```{r}
+# Compute the rolling 1 month estimate of annualized volatility
+chart.RollingPerformance(R = returns_xts$A, width = 22,
+     FUN = "sd.annualized", scale = 252, main = "One month rolling volatility")
+
+# Compute the rolling 3 months estimate of annualized volatility
+chart.RollingPerformance(R = returns_xts$A, width = 66,
+     FUN = "sd.annualized", scale = 252, main = "Three months rolling volatility")
+```
+
+Let's look at one stock, remove all NA's
+
+```{r}
+R <- na.omit(returns_xts$A)
+r <- na.omit(log_returns_xts$A)
+
+```
+
+
+
+
+Let's look at residuals obtained by subtracting the mean.
+
+```{r}
+# Compute the mean daily return
+m <- mean(R, na.rm = TRUE)
+
+# Define the series of prediction errors
+e <- R - m
+
+# Plot the absolute value of the prediction errors
+par(mfrow = c(2,1),mar = c(3, 2, 2, 2))
+plot(abs(e))
+
+# Plot the acf of the absolute prediction errors
+acf(abs(e))
+acf(e^2)
+```
+
+
+
+
+We fit a garch model:
+
+```{r}
+# Specify a standard GARCH model with constant mean
+garchspec <- ugarchspec(mean.model = list(armaOrder = c(0,0)),
+                 variance.model = list(model = "sGARCH"), 
+                 distribution.model = "norm")
+
+# Estimate the model
+garchfit <- ugarchfit(data = R, spec = garchspec)
+
+# Use the method sigma to retrieve the estimated volatilities 
+garchvol <- sigma(garchfit)
+
+# Plot the volatility for 2017
+plot(garchvol["2017"])
+```
+
+
+
+# Descriptive analysis
+
+Create a data frame to store various statistics.
+
+```{r}
+ts_statistics <- asset_profiles[, c("ticker", "sector")]
+```
+
+
+
+Let's Test for normality. Both for log-returns and the returns. We do this for the returns and log-returns
+
+```{r}
+
+log_returns_normality <- list()
+returns_normality <- list()
+
+for(stock in names(log_returns)){
+  log_returns_normality[[stock]] <- jarque.bera.test(log_returns[[stock]])$p.value
+  returns_normality[[stock]] <- jarque.bera.test(returns[[stock]])$p.value
+  
+}
+
+print(sum(unlist(log_returns_normality) > 0.025))
+print(sum(unlist(returns_normality) > 0.025))
+
+
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(log_returns_normality), key = "ticker", value = "log_return_norm_p_val"), by = "ticker")
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(returns_normality), key = "ticker", value = "return_norm_p_val"), by = "ticker")
+
+```
+
+Perhaps not surprisingly, all stocks show non-normal returns and log-returns. Let's, look at one stock as an example:
+
+```{r}
+chart.Histogram(log_returns$APD, methods = c("add.normal", "add.density"),
+          colorset=c("gray","red","blue"))
+```
+
+Clearly, leptokurtic. Next, we can test for serial correlation using the Ljung-Box. Both for the returns and the squared residuals.
+
+
+
+
+
+
+
+```{r}
+log_returns_serial <- list()
+log_returns_serial_sq <- list()
+returns_serial <- list()
+
+for(stock in names(log_returns)){
+  log_returns_serial[[stock]] <- Box.test(log_returns[[stock]], type = "Ljung-Box")$p.value
+  returns_serial[[stock]] <- Box.test(returns[[stock]], type = "Ljung-Box")$p.value
+  log_returns_serial_sq[[stock]] <- Box.test((returns[[stock]] - mean(returns[[stock]]))^2, type = "Ljung-Box")$p.value
+  
+}
+
+print(sum(unlist(log_returns_serial) < 0.05))
+print(sum(unlist(log_returns_serial_sq) < 0.05))
+print(sum(unlist(returns_serial) < 0.05))
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(log_returns_serial), key = "ticker", value = "log_return_serial_p_val"), by = "ticker")
+ts_statistics$log_return_serial_reject <- ts_statistics$log_return_serial_p_val < 0.05
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(returns_serial), key = "ticker", value = "return_serial_p_val"), by = "ticker")
+ts_statistics$return_serial_reject <- ts_statistics$return_serial_p_val < 0.05
+
+```
+
+Almost all squared residuals show GARCH effects whiile there are some log returns that do now show autocorrelation. There are some that are rejected. Let's see how many are rejected in each sector.
+
+```{r}
+plot((log_returns_xts$APD - mean(returns[[stock]]))^2)
+```
+
+
+
+```{r}
+
+ggplot() + geom_bar(aes(sector, fill = log_return_serial_reject), data = ts_statistics) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+```
+
+Financial sector has proportionaly more time series that show auto-correlation While the Consumer Cyclical sector has few. 
+
+
+
+
+Finally, Unit root test to test for stationarity.
+
+```{r}
+log_returns_ur <- list()
+returns_ur <- list()
+
+
+for(stock in names(log_returns)){
+  log_returns_ur[[stock]] <- adf.test(log_returns[[stock]], alternative = "stationary")$p.value
+  returns_ur[[stock]] <- adf.test(returns[[stock]], alternative = "stationary")$p.value
+  
+}
+
+print(sum(unlist(log_returns_ur) > 0.05))
+print(sum(unlist(returns_serial) > 0.05))
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(log_returns_ur), key = "ticker", value = "log_return_ur_p_val"), by = "ticker")
+ts_statistics$log_return_ur_reject <- ts_statistics$log_return_ur_p_val < 0.05
+
+ts_statistics <- right_join(ts_statistics, gather(data.frame(returns_ur), key = "ticker", value = "return_ur_p_val"), by = "ticker")
+ts_statistics$return_ur_reject <- ts_statistics$return_ur_p_val < 0.05
+```
+
+
+We see that the log returns are all stationary, which is perhaps not surprising as it is a differenced series.
+
+
+# Single Factor Regression
+
+
+Download SNp500 index to represent market
+```{r}
+market <- tq_get("^GSPC", from="2013-01-01")
+market <- market %>% mutate(returns = adjusted/lag(adjusted) -1) %>% mutate(logreturns = log(1+returns)) %>% rename(Date = date) %>% filter(Date >= min(rownames(log_returns)), Date <= max(rownames(log_returns)))
+market <- market[!(market$Date %in%holiday_date),]  # Remove holidays
+
+nrow(market) == nrow(log_returns)
+```
+
+
+
+Function used to estimate variance of ald distribution given location and quantile
+
+```{r}
+ald_sigma <- function(par, res, q){
+  "Function of the likelihood of an ald distribution as a function of the variance given location and quantile"
+  n <- length(res)
+  sum((res/par[1]) * (q-1*((res/par[1])<0))) + n*log(par[1])
+  
+}
+
+ald_regression <- function(par, y, x, q){
+  "Function of the likelihood of an ald regression as a function of the variance, location given the quantile"
+  n <- length(y)
+  
+  res <- y - par[3]-par[2]*x
+  sum((res/par[1]) * (q-1*((res/par[1])<0))) + n*log(par[1])
+  
+}
+
+```
+
+Perform median regression, and remove market affect via median regression. Consider no-scaling, scaling and robust scaling. Also order stocks according to sector industry
+
+
+```{r}
+
+order_tickers <- unlist(asset_profiles[asset_profiles$ticker %in% names(log_returns),] %>% arrange(sector, industry) %>% select(ticker))
+
+
+log_returns_median_regresion <- list()
+log_returns_ald_regresion <- list()
+log_returns_ald_scaled <- list()
+regression_data_info <-list()
+
+for(stock in order_tickers){
+  print(stock)
+  regression_data <- data.frame(market = scale(market$logreturns), y= scale(log_returns[[stock]]))
+  
+  # median regression
+  rqfit <- rq(y ~ market, data = regression_data)
+  log_returns_median_regresion[[stock]] <- rqfit$residuals
+  
+  
+  
+  
+  regression_data_info[[stock]] <- data.frame(ticker = stock, 
+                                         Box_p_val = Box.test(rqfit$residuals, type = "Ljung-Box")$p.value,
+                                         adf_p_val = adf.test(rqfit$residuals, alternative = "stationary")$p.value,
+                                         Box_sq_p_val = Box.test(rqfit$residuals^2, type = "Ljung-Box")$p.value) 
+  
+  # ald regression
+  
+  out_ald <- optim(par = c(0.03, 0.4, 0), fn = ald_regression, y = regression_data$y, x = regression_data$market, q = 0.5)
+  log_returns_ald_regresion[[stock]] <- regression_data$y - out_ald$par[3] - out_ald$par[2]*regression_data$market
+  
+  log_returns_ald_scaled[[stock]] <- rqfit$residuals/out_ald$par[1]
+  
+  
+}
+
+log_returns_median_regresion <- bind_cols(log_returns_median_regresion)[, order_tickers]
+rownames(log_returns_median_regresion) <- rownames(log_returns)
+log_returns_ald_regresion <- bind_cols(log_returns_ald_regresion)[, order_tickers]
+rownames(log_returns_ald_regresion) <- rownames(log_returns)
+log_returns_ald_scaled <- bind_cols(log_returns_ald_scaled)[, order_tickers]
+rownames(log_returns_ald_scaled) <- rownames(log_returns)
+
+regression_data_info <- bind_rows(regression_data_info)
+
+sum(regression_data_info$Box_p_val < 0.05)/length(regression_data_info$Box_p_val)
+sum(regression_data_info$Box_p_val_reject < 0.05)/length(regression_data_info$Box_p_val_reject)
+
+regression_data_info$Box_p_val_reject <- regression_data_info$Box_p_val < 0.05
+
+regression_data_info <- left_join(regression_data_info, asset_profiles, by = 'ticker')
+
+
+```
+
+Median regression and ald regression is the same, not surprisingly. All series are stationary. The proportion of residuals that show auto-correlation is around 20%. Let's plot and see if there is a pattern within sectors.
+
+
+```{r}
+ggplot() + geom_bar(aes(sector, fill = Box_p_val_reject), data = regression_data_info) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+<!-- Test robust regression with arima errors.  -->
+
+
+<!-- ```{r} -->
+<!-- regression_data <- data.frame(market = market$logreturns, y = log_returns$CE) -->
+<!-- out <- arima.rob(y ~ market , p=1, q=1, data = regression_data) -->
+
+
+<!-- log_returns_no_market_arima <- list() -->
+<!-- arima_regression_data_info <-list() -->
+
+
+<!-- cnt <- 1 -->
+<!-- for(stock in names(log_returns)){ -->
+<!--   print(stock) -->
+<!--   print(cnt / ncol(log_returns)) -->
+
+<!--   regression_data <- data.frame(market = market$logreturns, y = log_returns$CE) -->
+<!--   out <- arima.rob(y ~ market , p=1, q=2, data = regression_data) -->
+
+<!--   log_returns_no_market_arima[[stock]] <- out$innov -->
+
+<!--   arima_regression_data_info[[stock]] <- data.frame(ticker = stock,  -->
+<!--                                          Box_p_val = Box.test(na.omit(out$innov), type = "Ljung-Box")$p.value, -->
+<!--                                          adf_p_val = adf.test(na.omit(out$innov), alternative = "stationary")$p.value, -->
+<!--                                          Box_sq_p_val = Box.test(na.omit(out$innov)^2, type = "Ljung-Box")$p.value)  -->
+
+<!--   cnt <- cnt + 1 -->
+
+<!-- } -->
+
+<!-- log_returns_no_market_arima <- bind_cols(log_returns_no_market_arima) -->
+
+<!-- arima_regression_data_info <- bind_rows(arima_regression_data_info) -->
+
+<!-- sum(arima_regression_data_info$Box_p_val < 0.05)/length(arima_regression_data_info$Box_p_val) -->
+<!-- sum(arima_regression_data_info$Box_sq_p_val < 0.05)/length(arima_regression_data_info$Box_sq_p_val) -->
+
+<!-- ``` -->
+
+
+```{r}
+# arima_regression_data_info$Box_p_val_reject <- regression_data_info$Box_p_val < 0.05
+ 
+# regression_data_info <- left_join(regression_data_info, asset_profiles, by = 'ticker')
+```
+
+
+# Rolling window on residuals to create Graph
+
+```{r}
+tlasso <- function(x, nu, rho, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), maxitr = 300, tol = 1e-5, est_mu = FALSE){
+  
+  
+  p <- dim(x)[2]
+  
+  itr <- 1
+  e <- 1e90
+  while(itr <= maxitr && e > tol ){
+    
+    # E -step
+    tau <- (nu + p)/(nu + mahalanobis(x, mu0, S0, inverted = TRUE))
+    
+    # M -step
+    if(est_mu){
+      mu1 <- sapply(mu0, weighted.mean, w = w1)
+    }else{
+      mu1 <- rep(0, p)
+    }
+    
+    S_tau <- cov.wt(x, tau, center = FALSE, method = 'ML', cor = TRUE)$cor
+    S1 <- glasso(S_tau, rho)$wi
+    
+    e <- norm(S1-S0, type = "F")/norm(S0, type = "F")
+    
+    S0 <- S1
+    mu0 <- mu1
+    
+    itr <- itr + 1
+  }
+  
+  
+  
+  return(list(Si = S1, mu = mu1, e = e, itr = itr, S_tau = S_tau, tau = tau))
+  
+}
+
+
+t_ml <- function(x, nu, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), maxitr = 300, tol = 1e-5, est_mu = FALSE){
+  
+  
+  p <- dim(x)[2]
+  
+  itr <- 1
+  e <- 1e90
+  while(itr <= maxitr && e > tol ){
+    
+    # E -step
+    tau <- (nu + p)/(nu + mahalanobis(x, mu0, S0, inverted = TRUE))
+    
+    # M -step
+    if(est_mu){
+      mu1 <- sapply(mu0, weighted.mean, w = w1)
+    }else{
+      mu1 <- rep(0, p)
+    }
+    
+    S_tau <- cov.wt(x, tau, center = FALSE, method = 'ML', cor = TRUE)$cor
+    
+    e <- norm(S_tau-S0, type = "F")/norm(S0, type = "F")
+    
+    S0 <- S_tau
+    mu0 <- mu1
+    
+    itr <- itr + 1
+  }
+  
+  
+  
+  return(list(mu = mu1, e = e, itr = itr, S_tau = S_tau, tau = tau))
+  
+}
+
+
+EBIC <- function(wi, Csample, N, beta = 0.5){
+  
+  # wi precision
+  # Csample Sample covariance
+  # N number of samples
+  #
+  #
+        
+        p <- dim(wi)[1]
+        
+        out <- eigen(wi)
+        
+        
+        w <- out$values
+        U <- out$vectors
+        #U <- U[, w >10e-2]
+        # w <- w[w >10e-2]
+        
+        loglik <- 0.5*N*sum(log(w)) - 0.5*N*sum(diag(wi %*% Csample)) - 0.5*p*N*log(2*pi)
+        
+        # get upper triangle
+        ind <- which( upper.tri(wi,diag=FALSE) , arr.ind = TRUE )
+        M <- sum(abs(wi[ind]) > 1e-15) # count edges of upper triangle matrix
+        EBIC <- -2*loglik + M*log(N) + 4*beta*M*log(p)
+        BIC <- -2*loglik + M*log(N)
+        AIC <- -2*loglik + 2*M
+        
+        
+        return(list(EBIC = EBIC, loglik = loglik, BIC = BIC, AIC = AIC))
+
+}
+
+
+EBIC_spectral_heavy <- function(L, data, N, nu, beta = 0.5){
+  
+  
+  
+  p <- nrow(L)
+  const <- (p + nu)/N
+  
+  out <- eigen(L)
+  w <- out$values
+  w <- w[w >10e-15]
+  
+  log_sum <- sum(apply(data_log_retuns, 1, function(x){log(1 + x %*% corr_out %*% x)}))
+  
+  loglik <- const*log_sum -  - sum(log(w))
+  
+   # get upper triangle
+  ind <- which( upper.tri(L,diag=FALSE) , arr.ind = TRUE )
+  M <- sum(abs(L[ind]) > 1e-15) # count edges of upper triangle matrix
+  EBIC <- -2*loglik + M*log(N) + 4*beta*M*log(p)
+  BIC <- -2*loglik + M*log(N)
+  AIC <- -2*loglik + 2*M
+  
+    
+  return(list(EBIC = EBIC, loglik = loglik, BIC = BIC, AIC = AIC))
+}
+
+
+# EBIC_tlasso <- function(wi, Csample, N, nu, beta = 0.5){
+#   
+#   p <- dim(wi)[1]
+#   
+#   loglik <- N*log(gamma((nu+p)/2)) + N*log(det(wi)) - (p*N)*log(pi*nu) +log(gamma(nu/2)) -
+#   
+# }
+
+
+
+
+
+```
+
+
+# Individual Sectors, 
+
+Select only companies with ESG ratings.
+
+```{r}
+log_returns_median_regression_esg <- log_returns_median_regresion[, names(log_returns_median_regresion) %in% names(ESG_y_smooth)]
+log_returns_esg <- log_returns[, names(log_returns) %in% names(ESG_y_smooth)]
+```
+
+
+Let's test multiple methods, glasso on MCD, Rocke, Tyler, tlasso and Spectral Laplacian. Note that we do not use removed market effect in spectral laplacian.
+
+
+```{r}
+
+fit_glasso_models <- function(corr_out, rho, n_samples, id, sector, time, adaptive_lasso = TRUE){
+  
+  # Normal
+  if(adaptive_lasso){
+    rho_matrix <- rho*abs(solve(corr_out))^(-2.5)
+  }else{
+    rho_matrix <- rho*matrix(rep(1, nrow(corr_out)^2), nrow = nrow(corr_out))
+  }
+        
+    
+  neg_prec <- -glasso(corr_out, rho_matrix)$wi
+  # EBIC
+  EBIC_out <- EBIC(-neg_prec, corr_out, n_samples)
+  ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
+  ebic$rho <- rho
+  ebic$sector <- sector
+  ebic$time <- time
+  
+  diag(neg_prec) <- 0
+  rownames(neg_prec) <- rownames(corr_out)
+  colnames(neg_prec) <- colnames(corr_out) 
+  ind <- which( upper.tri(neg_prec,diag=TRUE) , arr.ind = TRUE )
+  melted_cormat <- data.frame( col = colnames(neg_prec)[ind[,2]] ,
+                                  row = rownames(neg_prec)[ind[,1]] ,
+                                  val = neg_prec[ ind ] )
+  ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
+
+  melted_cormat$sector <- sector
+  melted_cormat$rho <- rho
+  melted_cormat$time <- time
+  melted_cormat$id <- id
+
+  
+  return(list(neg_precision = neg_prec, information = ebic, melted_cormat = melted_cormat))  
+  
+}
+
+fit_tlasso_models <- function(data, mle, nu, rho, n_samples, id, sector, time, adaptive_lasso = TRUE){
+  
+  # Normal
+  if(adaptive_lasso){
+    rho_matrix <- rho*abs(mle)^(-2.5)
+  }else{
+    rho_matrix <- rho*matrix(rep(1, nrow(corr_out)^2), nrow = ncol(data))
+  }
+  
+  out_tlasso <- tlasso(data, nu, rho_matrix)
+
+  neg_prec <- -out_tlasso$Si
+        
+  # EBIC
+  EBIC_out <- EBIC(-neg_prec, out_tlasso$S_tau, n_samples)
+  ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
+  ebic$rho <- rho
+  ebic$sector <- sector
+  ebic$time <- time
+  
+  diag(neg_prec) <- 0
+  rownames(neg_prec) <- names(data)
+  colnames(neg_prec) <- names(data) 
+  ind <- which( upper.tri(neg_prec,diag=TRUE) , arr.ind = TRUE )
+  melted_cormat <- data.frame( col = colnames(neg_prec)[ind[,2]] ,
+                                  row = rownames(neg_prec)[ind[,1]] ,
+                                  val = neg_prec[ ind ] )
+  ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
+
+  melted_cormat$sector <- sector
+  melted_cormat$rho <- rho
+  melted_cormat$time <- time
+  melted_cormat$id <- id
+
+  
+  return(list(neg_precision = neg_prec, information = ebic, melted_cormat = melted_cormat))  
+  
+}
+
+fit_spectral_model <- function(data, nu, time, n_samples, sector, id){
+  
+  
+  out_spectral_heavy <- learn_regular_heavytail_graph(scale(data), 
+                                                    heavy_type = "student",
+                                                    nu = nu, verbose = FALSE)
+  
+  EBIC_out <- EBIC_spectral_heavy(out_spectral_heavy$laplacian, data, n_samples, nu, beta = 0.5)
+  ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
+  ebic$rho <- rho
+  ebic$sector <- sector
+  ebic$time <- time
+    
+  A_spectral_heavy <- out_spectral_heavy$adjacency
+  rownames(A_spectral_heavy) <- names(data) 
+  colnames(A_spectral_heavy) <- names(data) 
+ 
+     
+  ind <- which( upper.tri(A_spectral_heavy,diag=TRUE) , arr.ind = TRUE )
+  melted_cormat <- data.frame(col = colnames(A_spectral_heavy)[ind[,2]] ,
+                              row = rownames(A_spectral_heavy)[ind[,1]] ,
+                              val = A_spectral_heavy[ ind ] )
+  
+  ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
+
+  melted_cormat$sector <- sector
+  melted_cormat$rho <- rho
+  melted_cormat$time <- time
+  melted_cormat$id <- id
+  
+  return(list(A = A, information = ebic, melted_cormat = melted_cormat))  
+}
+
+
+
+fit_precisions <- function(data, data_no_market, window_size, sector_classification, dates, adaptive_lasso = TRUE, step_forward = 5){
+  
+  
+  information_criteria <- list()  # Store information criteria
+  networks_normal <- list()
+  networks_tyler <- list()
+  networks_tlasso <- list()
+  networks_spectral_heavy <- list()
+  melted_cormat <- list()
+  
+  rhos <- c(seq(0.001, 0.15, 0.004), 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 1.5, 2, 5, 8, 100)
+  
+  pb <- progress::progress_bar$new(format = "<:bar> :current/:total  eta: :eta",
+                                     total = length(sector_classification), clear = TRUE, width = 80)
+  
+  # Loop sector
+  for(sector in names(sector_classification)){
+    networks_normal[[sector]] <- list()
+    networks_tyler[[sector]] <- list()
+    networks_tlasso[[sector]] <- list()
+    networks_spectral_heavy[[sector]] <- list()
+    for(rho in rhos){
+      networks_normal[[sector]][[paste0(rho)]] <- list()
+      networks_tyler[[sector]][[paste0(rho)]] <- list()
+      networks_tlasso[[sector]][[paste0(rho)]] <- list()
+    }
+    
+    # Loop time
+    # 500 = large enough number so we will get all data
+    for(t in seq(from = 1, to = nrow(data)-window_size, by = step_forward)){
+      
+      time <- dates[window_size + t-1]
+    
+      data_no_market_t <- data_no_market[t:(window_size + t-1),names(data_no_market) %in% sector_classification[[sector]]]
+      data_t <- data[t:(window_size + t-1), names(data) %in% sector_classification[[sector]]]
+      nu_no_market <- fit_mvt(data_no_market,nu="MLE-diag-resample")$nu  # for heavy distributions
+      nu <- fit_mvt(data,nu="MLE-diag-resample")$nu
+      corr_out_normal <- cor(data_no_market_t)
+      out_tyler <- fit_Tyler(data_no_market_t)
+      corr_out_tyler <- cov2cor(out_tyler$cov)
+      
+      
+
+      # calculate mle, only used if adaptive_lasso
+      precision_mle_tlasso <- solve(t_ml(data_no_market_t, nu = nu)$S_tau)
+
+      
+      
+      for(rho in rhos){
+        
+        
+        # Normal
+        out_normal <- fit_glasso_models(corr_out_normal, rho, window_size, "normal", sector, time, adaptive_lasso)
+        information_criteria[[paste0(sector,t,rho,"normal")]] <- out_normal$information
+        melted_cormat[[paste0(sector,t,rho,"normal")]] <- out_normal$melted_cormat
+        networks_normal[[sector]][[paste0(rho)]][[paste0(time)]] <- out_normal$neg_precision
+        
+        # Tyler
+        out_tyler <- fit_glasso_models(corr_out_tyler, rho, window_size, "tyler", sector, time, adaptive_lasso)
+        information_criteria[[paste0(sector,t,rho,"tyler")]] <- out_tyler$information
+        melted_cormat[[paste0(sector,t,rho,"tyler")]] <- out_tyler$melted_cormat
+        networks_tyler[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tyler$neg_precision
+        
+        
+        # Tlasso
+        out_tlasso <- fit_tlasso_models(data_no_market_t,precision_mle_tlasso, nu_no_market, rho, window_size, "Tlasso", sector, time, adaptive_lasso)
+        information_criteria[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$information
+        melted_cormat[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$melted_cormat
+        networks_tlasso[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tlasso$neg_precision
+        
+        
+      }
+      
+      # Spectral Heavy
+      # out_spectral_heavy <- fit_spectral_model(data_t, nu, time, window_size, sector, "Heavy_Spectral")
+      # information_criteria[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$information
+      # melted_cormat[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$melted_cormat
+      # networks_spectral_heavy[[sector]][[paste0(time)]] <- out_spectral_heavy$A
+    
+    }
+  
+  pb$tick()
+  }
+  
+  information_criteria <- bind_rows(information_criteria)
+  melted_cormat <- bind_rows(melted_cormat)
+  
+  
+  
+  ret <- list(information_criteria = information_criteria,
+              melted_cormat = melted_cormat,
+              networks_spectral_heavy = networks_spectral_heavy,
+              networks_normal = networks_normal,
+              networks_tyler = networks_tyler,
+              networks_tlasso = networks_tlasso
+              )
+
+  return(ret)
+
+}
+
+```
+
+Fitting time:
+
+
+```{r}
+dates <- rownames(log_returns_esg)
+
+out_returns_adaptive <- fit_precisions(log_returns_esg, log_returns_median_regression_esg, 125, sector_classification, dates,  TRUE,  5)
+save.image()
+```
+
+Plot 
+
+```{r}
+ddd <- out_returns_adaptive$information_criteria
+ggplot(ddd[ddd$sector == "Technology"]) + geom_line(aes(x = rho, y = AIC,)) +
+  facet_wrap(~ time, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+```
+
+
+
+
+
+```{r}
+
+window_size <- 125
+
+G_melt_ind_normal <- list()
+G_ebic_normal <- list()
+G_melt_ind_mcd <- list()
+G_ebic_mcd <- list()
+G_melt_ind_rocke <- list()
+G_ebic_rocke <- list()
+G_melt_ind_tyler <- list()
+G_ebic_tyler <- list()
+G_melt_ind_tlasso <- list()
+G_ebic_tlasso <- list()
+G_melt_ind_mvt <- list()
+G_ebic_mvt <- list()
+G_melt_ind_spectral <- list()
+G_ebic_spectral <- list()
+G_melt_ind_spectral_heavy <- list()
+G_ebic_spectral_heavy <- list()
+
+for(sector in names(sector_classification)){
+  print(sector)
+  
+data_log_returns_median <- log_returns_median_regresion[(1+0):(window_size + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+data_log_retuns <- log_returns[(1+0):(window_size + 0), names(log_returns) %in% sector_classification[[sector]]]
+
+# Normal Correlation
+corr_out <- cor(data_log_returns_median)
+normal_prec <- -glasso(corr_out, 0.12)$wi
+G_ebic_normal[[sector]] <- EBIC(normal_prec, corr_out, window_size)
+G_ebic_normal[[sector]]$sector <- sector
+diag(normal_prec) <- 0
+rownames(normal_prec) <- rownames(corr_out) 
+colnames(normal_prec) <- colnames(corr_out) 
+G_melt_ind_normal[[sector]] <- melt(normal_prec)
+G_melt_ind_normal[[sector]]$sector <- sector
+
+# MCD correlation
+# corr_mcd <- covMcd(data_log_returns_median, cor = TRUE)$cor
+# mcd_prec <- -glasso(corr_mcd, 0.12)$wi
+# rownames(mcd_prec) <- rownames(corr_mcd)
+# colnames(mcd_prec) <- colnames(corr_mcd)
+# G_melt_ind_mcd[[sector]] <- melt(mcd_prec)
+# G_melt_ind_mcd[[sector]]$sector <- sector
+# 
+# # Rocke
+# corr_rocke <- covRob(data_log_returns_median, cor = TRUE)$cor
+# rocke_prec <- -glasso(corr_rocke, 0.12)$wi
+# rownames(rocke_prec) <- rownames(corr_rocke)
+# colnames(rocke_prec) <- colnames(corr_rocke)
+# G_melt_ind_rocke[[sector]] <- melt(rocke_prec)
+# G_melt_ind_rocke[[sector]]$sector <- sector
+
+
+# Tlasso
+out_tlasso <- -tlasso(data_log_returns_median, fit_mvt(data_log_retuns,nu="MLE-diag-resample")$nu, 0.12)$Si
+diag(out_tlasso) <- 0
+rownames(out_tlasso) <- names(data_log_returns_median) 
+colnames(out_tlasso) <- names(data_log_returns_median) 
+G_melt_ind_tlasso[[sector]] <- melt(out_tlasso)
+G_melt_ind_tlasso[[sector]]$sector <- sector
+
+# Tyler
+out_tyler <- fit_Tyler(data_log_returns_median)
+tyler_prec <- -glasso(cov2cor(out_tyler$cov), 0.12)$wi
+diag(tyler_prec) <- 0
+rownames(tyler_prec) <- names(data_log_returns_median) 
+colnames(tyler_prec) <- names(data_log_returns_median) 
+G_melt_ind_tyler[[sector]] <- melt(tyler_prec)
+G_melt_ind_tyler[[sector]]$sector <- sector
+
+# mvt
+out_mvt <- fit_mvt(data_log_returns_median)
+mvt_prec <- -glasso(cov2cor(out_mvt$cov), 0.12)$wi
+diag(mvt_prec) <- 0
+rownames(mvt_prec) <- names(data_log_returns_median) 
+colnames(mvt_prec) <- names(data_log_returns_median) 
+G_melt_ind_mvt[[sector]] <- melt(mvt_prec)
+G_melt_ind_mvt[[sector]]$sector <- sector
+
+# spectral
+out_spectral <- learn_connected_graph(cor(data_log_retuns))
+A_spectral <- out_spectral$adjacency
+rownames(A_spectral) <- names(data_log_returns_median) 
+colnames(A_spectral) <- names(data_log_returns_median) 
+G_melt_ind_spectral[[sector]] <- melt(A_spectral)
+G_melt_ind_spectral[[sector]]$sector <- sector
+
+# spectral heavy
+out_spectral_heavy <- learn_regular_heavytail_graph(scale(data_log_retuns), 
+                                                    heavy_type = "student",
+                                                    nu = fit_mvt(scale(data_log_retuns),nu="MLE-diag-resample")$nu)
+A_spectral_heavy <- out_spectral_heavy$adjacency
+rownames(A_spectral_heavy) <- names(data_log_returns_median) 
+colnames(A_spectral_heavy) <- names(data_log_returns_median) 
+G_melt_ind_spectral_heavy[[sector]] <- melt(A_spectral_heavy)
+G_melt_ind_spectral_heavy[[sector]]$sector <- sector
+
+
+}
+
+```
+
+
+Compare the methods
+
+```{r}
+plot_corr <- function(data, sector, title){
+  data <- data[[sector]] 
+  x_sort <- data$Var1[1:length(unique(G_melt_ind_normal$`Basic Materials`$Var1))]
+  plot1 <- ggplot() +geom_tile(aes(x=factor(Var1, rev(x_sort)), y=factor(Var2, x_sort), fill=value), data) +
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.5,0.5), space = "Lab", 
+    name="Precision Matrix") + theme_minimal()  + ggtitle(title)  + xlab("") + ylab("")
+  
+  return(plot1)
+  
+  
+}
+
+library(grid)
+for(sector in names(sector_classification)){
+  grid.arrange(plot_corr(G_melt_ind_normal, sector, 'Normal'), 
+             plot_corr(G_melt_ind_tlasso, sector, 'tlasso'),
+             plot_corr(G_melt_ind_tyler, sector, 'Tyler'), 
+             plot_corr(G_melt_ind_mvt, sector, 'MVT'),
+             plot_corr(G_melt_ind_spectral, sector, 'Spectral'), 
+             plot_corr(G_melt_ind_spectral_heavy, sector, 'Heavy'),
+             ncol=2, top = textGrob(sector,gp=gpar(fontsize=20,font=3)))
+  
+}
+
+
+```
+
+Let's look at how the penalizing parameter affects the edge density.
+
+## Normal
+
+```{r}
+
+lasso_check <- list()
+ebic_check <- list()
+dense_check <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regression_esg[(1+0):(window_size + 0),names(log_returns_median_regression_esg) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns_esg[(1+0):(window_size + 0), names(log_returns_esg) %in% sector_classification[[sector]]]
+  
+  corr_out <- cor(data_log_returns_median)
+  
+  if(qr(corr_out)$rank != dim(corr_out)[1]){
+    warning(paste0("corrleation not full rank ", sector))
+  }
+  
+  # mle ESTIMATION
+  precision_mle <- glasso(corr_out, rho = 0)$wi
+  
+  
+
+  for(rho in c(0.001, 0.005, 0.01, 0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 1.5, 2, 5, 8, 100)){
+    
+    rho_matrix <- rho*abs(precision_mle)^(-2.5)#matrix(rep(1, nrow(corr_out)^2), nrow = nrow(corr_out))# 
+
+    # Normal Correlation
+    normal_prec <- -glasso(corr_out, rho_matrix)$wi
+    # EBIC
+    EBIC_out <- EBIC(-normal_prec, corr_out, window_size)
+    ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC)
+    ebic$sector <- sector
+    ebic$rho <- rho
+    
+    diag(normal_prec) <- 0
+    rownames(normal_prec) <- rownames(corr_out) 
+    colnames(normal_prec) <- colnames(corr_out) 
+    ind <- which( upper.tri(normal_prec,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(normal_prec)[ind[,2]] ,
+                                  row = rownames(normal_prec)[ind[,1]] ,
+                                  val = normal_prec[ ind ] )
+
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    lasso_check[[paste0(rho, sector)]] <- melted_cormat
+    ebic_check[[paste0(rho, sector)]] <- ebic
+    dense_check[[paste0(rho, sector)]] <- data.frame(Density = sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat), sector = sector, rho = rho)
+    
+  }
+  
+}
+
+lasso_check <- bind_rows(lasso_check)
+lasso_check$id <- paste(lasso_check$col, lasso_check$row)
+lasso_check$absValue <- abs(lasso_check$val)
+
+ebic_check <- bind_rows(ebic_check)
+
+ggplot(lasso_check) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = ebic)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = loglik,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = BIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = AIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+dense_check <- bind_rows(dense_check)
+ggplot(dense_check) + geom_line(aes(x = rho, y = Density,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+
+
+```
+
+
+## Tlasso
+
+```{r}
+
+lasso_check_tlasso <- list()
+ebic_check_tlasso <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regresion[(1+0):(window_size + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns[(1+0):(window_size + 0), names(log_returns) %in% sector_classification[[sector]]]
+  nu <-  fit_mvt(data_log_retuns,nu="MLE-diag-resample")$nu
+  
+  corr_out <- cor(data_log_returns_median)
+  
+  if(qr(corr_out)$rank != dim(corr_out)[1]){
+    warning(paste0("corrleation not full rank ", sector))
+  }
+  
+  # mle ESTIMATION
+  precision_mle <- solve(t_ml(data_log_returns_median, nu = nu)$S_tau)
+  
+  
+
+  for(rho in c(0.001, 0.005, 0.01, 0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 1.5, 2, 5, 8, 100)){
+    
+    out_tlasso <- tlasso(data_log_returns_median, nu, rho)
+    rho_matrix <- rho*abs(precision_mle)^(-1.5)
+
+    
+    tlasso_prec <- -out_tlasso$Si
+    # EBIC
+    EBIC_out <- EBIC(-tlasso_prec, corr_out, window_size)
+    ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC)
+    ebic$sector <- sector
+    ebic$rho <- rho
+    
+    diag(tlasso_prec) <- 0
+    rownames(tlasso_prec) <- rownames(corr_out) 
+    colnames(tlasso_prec) <- colnames(corr_out) 
+    ind <- which( upper.tri(tlasso_prec,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(tlasso_prec)[ind[,2]] ,
+                                  row = rownames(tlasso_prec)[ind[,1]] ,
+                                  val = tlasso_prec[ ind ] )
+
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
+    lasso_check_tlasso[[paste0(rho, sector)]] <- melted_cormat
+    ebic_check_tlasso[[paste0(rho, sector)]] <- ebic
+    
+  }
+  
+}
+
+lasso_check_tlasso <- bind_rows(lasso_check_tlasso)
+lasso_check$id <- paste(lasso_check_tlasso$col, lasso_check_tlasso$row)
+lasso_check_tlasso$absValue <- abs(lasso_check_tlasso$val)
+
+ebic_check_tlasso <- bind_rows(ebic_check_tlasso)
+
+ggplot(lasso_check) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = ebic,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = loglik,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = BIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = AIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+ggplot(ebic_check_tlasso) + geom_line(aes(x = rho, y = Density,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+
+
+```
+
+
+## Tyler
+
+```{r}
+
+lasso_check_tyler <- list()
+ebic_check_tyler <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regresion[(1+0):(window_size + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns[(1+0):(window_size + 0), names(log_returns) %in% sector_classification[[sector]]]
+  
+  out_tyler <- fit_Tyler(data_log_returns_median)
+  corr_out <- cov2cor(out_tyler$cov)
+  
+  if(qr(corr_out)$rank != dim(corr_out)[1]){
+    warning(paste0("corrleation not full rank ", sector))
+  }
+  
+  # mle ESTIMATION
+  precision_mle <- glasso(corr_out, rho = 0)$wi
+  
+  
+  
+
+  for(rho in c(0.001, 0.005, 0.01, 0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 1.5, 2, 5, 8, 100)){
+    
+    rho_matrix <- rho*abs(precision_mle)^(-1.5)
+
+    
+    tyler_prec <- -glasso(cov2cor(out_tyler$cov), rho)$wi
+    # EBIC
+    EBIC_out <- EBIC(-tyler_prec, corr_out, window_size)
+    ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC)
+    ebic$sector <- sector
+    ebic$rho <- rho
+    
+    diag(tyler_prec) <- 0
+    rownames(tyler_prec) <- rownames(corr_out) 
+    colnames(tyler_prec) <- colnames(corr_out) 
+    ind <- which( upper.tri(tyler_prec,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(tyler_prec)[ind[,2]] ,
+                                  row = rownames(tyler_prec)[ind[,1]] ,
+                                  val = tyler_prec[ ind ] )
+
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
+    lasso_check_tyler[[paste0(rho, sector)]] <- melted_cormat
+    ebic_check_tyler[[paste0(rho, sector)]] <- ebic
+    
+  }
+  
+}
+
+lasso_check_tyler <- bind_rows(lasso_check_tyler)
+lasso_check$id <- paste(lasso_check_tyler$col, lasso_check_tyler$row)
+lasso_check_tyler$absValue <- abs(lasso_check_tyler$val)
+
+ebic_check_tyler <- bind_rows(ebic_check_tyler)
+
+ggplot(lasso_check) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = ebic,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = loglik,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = BIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = AIC,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+ggplot(ebic_check_tyler) + geom_line(aes(x = rho, y = Density,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal() + xlim(c(0, 0.8))
+
+
+```
+
+
+
+## mvt
+
+```{r}
+
+lasso_check_mvt <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regresion[(1+0):(250 + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns[(1+0):(250 + 0), names(log_returns) %in% sector_classification[[sector]]]
+
+  for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+  
+    
+    
+    # Tyler
+    out_mvt <- fit_mvt(data_log_returns_median)
+    mvt_prec <- -glasso(cov2cor(out_mvt$cov), rho)$wi
+    diag(mvt_prec) <- 0
+    rownames(mvt_prec) <- names(data_log_returns_median) 
+    colnames(mvt_prec) <- names(data_log_returns_median)  
+     
+    ind <- which( upper.tri(mvt_prec,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(mvt_prec)[ind[,2]] ,
+                                  row = rownames(mvt_prec)[ind[,1]] ,
+                                  val = mvt_prec[ ind ] )
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    lasso_check_mvt[[paste0(rho, sector)]] <- melted_cormat
+    
+  }
+  
+}
+
+lasso_check_mvt <- bind_rows(lasso_check_mvt)
+lasso_check_mvt$id <- paste(lasso_check_mvt$col, lasso_check_mvt$row)
+lasso_check_mvt$absValue <- abs(lasso_check_mvt$val)
+
+ggplot(lasso_check_mvt) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal()
+
+
+```
+
+## spectral
+
+```{r}
+lasso_check_spectral <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regresion[(1+0):(250 + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns[(1+0):(250 + 0), names(log_returns) %in% sector_classification[[sector]]]
+
+  for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+  
+    
+    
+    out_spectral <- learn_connected_graph(cor(data_log_retuns), rho = rho)
+    A_spectral <- out_spectral$adjacency
+    rownames(A_spectral) <- names(data_log_returns_median) 
+    colnames(A_spectral) <- names(data_log_returns_median) 
+     
+    ind <- which( upper.tri(A_spectral,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(A_spectral)[ind[,2]] ,
+                                  row = rownames(A_spectral)[ind[,1]] ,
+                                  val = A_spectral[ ind ] )
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    lasso_check_spectral[[paste0(rho, sector)]] <- melted_cormat
+    
+  }
+  
+}
+
+lasso_check_spectral <- bind_rows(lasso_check_spectral)
+lasso_check_spectral$id <- paste(lasso_check_spectral$col, lasso_check_mvt$row)
+lasso_check_spectral$absValue <- abs(lasso_check_spectral$val)
+
+ggplot(lasso_check_spectral) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal()
+```
+
+
+
+## spectral heavy
+
+```{r}
+lasso_check_spectral_heavy <- list()
+
+for(sector in names(sector_classification)){
+  
+  data_log_returns_median <- log_returns_median_regresion[(1+0):(250 + 0),names(log_returns_median_regresion) %in% sector_classification[[sector]]]
+  data_log_retuns <- log_returns[(1+0):(250 + 0), names(log_returns) %in% sector_classification[[sector]]]
+  nu <- fit_mvt(scale(data_log_retuns),nu="MLE-diag-resample")$nu
+
+  for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+  
+    
+    out_spectral_heavy <- learn_regular_heavytail_graph(scale(data_log_retuns), 
+                                                    heavy_type = "student",
+                                                    nu = nu)
+    A_spectral_heavy <- out_spectral_heavy$adjacency
+    rownames(A_spectral_heavy) <- names(data_log_returns_median) 
+    colnames(A_spectral_heavy) <- names(data_log_returns_median) 
+ 
+     
+    ind <- which( upper.tri(A_spectral_heavy,diag=TRUE) , arr.ind = TRUE )
+      melted_cormat <- data.frame( col = colnames(A_spectral_heavy)[ind[,2]] ,
+                                  row = rownames(A_spectral_heavy)[ind[,1]] ,
+                                  val = A_spectral_heavy[ ind ] )
+    melted_cormat$sector <- sector
+    melted_cormat$rho <- rho
+    lasso_check_spectral_heavy[[paste0(rho, sector)]] <- melted_cormat
+    
+  }
+  
+}
+
+lasso_check_spectral_heavy <- bind_rows(lasso_check_spectral_heavy)
+lasso_check_spectral_heavy$id <- paste(lasso_check_spectral_heavy$col, lasso_check_spectral_heavy$row)
+lasso_check_spectral_heavy$absValue <- abs(lasso_check_spectral_heavy$val)
+
+ggplot(lasso_check_spectral_heavy) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal()
+
+ggplot(ebic_check) + geom_line(aes(x = rho, y = ebic,  color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+  theme_minimal()
+
+
+```
+
+
+
+
+
+
+# Create list of graphs
+
+## Estimate graphs for each sector independently
+
+
+```{r}
+
+n <- dim(log_returns)[1]
+corr_list <- list()
+date_list <- list()
+graph_list <- list()
+
+pb <- progress::progress_bar$new(format = "<:bar> :current/:total  eta: :eta",
+                                     total = length(sector_classification), clear = TRUE, width = 80)
+                                  
+                                     
+window <- 0
+
+
+for(sector in names(sector_classification)){
+  
+  graph_list[[sector]] <- lapply(seq(from = 1, to = n-250, by = 5), function(x){
+    
+                                          data_log_retuns <- log_returns[x:(250 + x-1), names(log_returns) %in% sector_classification[[sector]]]
+                                          nu <- fit_mvt(scale(data_log_retuns),nu="MLE-diag-resample")$nu
+                                          out_spectral_heavy <- learn_regular_heavytail_graph(scale(data_log_retuns), 
+                                                                                          heavy_type = "student",
+                                                                                          nu = nu, verbose = FALSE)
+    
+    
+                                        out_spectral_heavy$adjacency
+                                        })
+  
+  date_list[[sector]] <- lapply(seq(from = 1, to = n-250, by = 5), function(x, dates){dates[250+x-1]}, dates = rownames(log_returns))
+  
+  pb$tick()
+  
+}
+
+
+#saveRDS(graph_list, "../MMDGraph/data/FinancialGraphs/SpectralHeavy/network_list_by_5_per_sector.rds")
+#saveRDS(date_list, "../MMDGraph/data/FinancialGraphs/SpectralHeavy/Dates_by_5_per_sector.rds")
+
+```
+
+
+
+pb <- progress::progress_bar$new(format = "<:bar> :current/:total  eta: :eta",
+                                     total = maxiter, clear = FALSE, width = 80)
+                                     pb$tick()
+n <- 100
+corr_list <- list()
+date_list <- list()
+
+window <- 0
+for(i in 1:n){
+  if((250+window) > nrow(log_returns_no_market)) break
+  corr_list[[i]] <- cor(as.matrix(log_returns_no_market[(1+window):(250+window),]))
+  date_list[[i]] <- rownames(log_returns_no_market)[250+window]
+  window <- window + 10
+
+}
+date_list <- unlist(date_list)
+
+network_list <- list()
+for(i in 1:length(corr_list)){
+  print(i/length(corr_list))
+  out <- glasso(corr_list[[i]], 0.15)
+  network_list[[i]] <- -out$wi
+}
+
+# saveRDS(network_list, "../MMDGraph/data/network_list015.rds")
+
+
+
+Compare the precision matrix calculated from the whole matrix and sector submatrix.
+
+```{r}
+
+sector_compare <- "Basic Materials"
+
+data_ind <- melted_cormat_ind[melted_cormat_ind$sector == sector_compare,] %>% arrange(Var1,Var2 )
+data_all <- melted_cormat_all[melted_cormat_all$sector == sector_compare,] %>% arrange(Var1,Var2 )
+
+x_sort <- unique(sort(data_ind$Var1))
+
+plot1 <- ggplot() +geom_tile(aes(x=factor(Var1, rev(x_sort)), y=factor(Var2, x_sort), fill=value), data_ind) +
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.2,0.2), space = "Lab", 
+    name="Precision Matrix") + theme_minimal()  +ggtitle("Individual")
+
+plot2 <- ggplot() + geom_tile(aes(x=factor(Var1, rev(x_sort)), y=factor(Var2, x_sort), fill=value), data_all) +
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.2,0.2), space = "Lab", 
+    name="Precision Matrix")+
+  theme_minimal() +ggtitle("All")
+
+
+grid.arrange(plot1, plot2, ncol=2)
+
+```
+
+
+
+Plot the correlation matrix for multiple different rho's.
+
+
+```{r}
+
+
+precision_lasso <- list()
+EBIC_lasso <- list()
+p <- ncol(corr_out)
+
+for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+  print(rho)
+  
+  out <- glasso(corr_out, rho)
+  precision <- -out$wi
+  EBIC_lasso[[paste0(rho)]] <- EBIC(-precision, corr_out, 250)
+  colnames(precision) <- colnames(corr_out)
+  rownames(precision) <- rownames(corr_out)
+  ind <- which( upper.tri(precision,diag=TRUE) , arr.ind = TRUE )
+  melted_cormat <- data.frame( col = colnames(corr_out)[ind[,2]] ,
+                              row = rownames(corr_out)[ind[,1]] ,
+                              val = precision[ ind ] )
+  
+  
+  melted_cormat <- left_join(melted_cormat, asset_profiles[, c("sector", "ticker")], by = c("col"="ticker"))
+  melted_cormat <- left_join(melted_cormat, asset_profiles[, c("sector", "ticker")], by = c("row"="ticker"))
+  
+  melted_cormat$sector <- ifelse(melted_cormat$sector.x == melted_cormat$sector.y, melted_cormat$sector.x, "Different Sectors")
+  melted_cormat$rho <- rho
+  precision_lasso[[paste0(rho)]] <- melted_cormat
+  
+  
+}
+
+precision_lasso <- bind_rows(precision_lasso)
+precision_lasso$id <- paste(melted_cormat$col, melted_cormat$row)
+precision_lasso$absValue <- abs(precision_lasso$val)
+
+plot(as.numeric(names(EBIC_lasso)), unlist(EBIC_lasso))
+
+```
+
+
+Plot the correlations
+
+```{r}
+
+ggplot(precision_lasso) + geom_line(aes(x = rho, y = absValue, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3) + 
+theme_minimal() 
+```
+
+# Creation of networkx
+
+Calculate n correlation matrices and n graphs. 
+
+
+```{r}
+n <- 100
+corr_list <- list()
+date_list <- list()
+
+window <- 0
+for(i in 1:n){
+  if((250+window) > nrow(log_returns_no_market)) break
+  corr_list[[i]] <- cor(as.matrix(log_returns_no_market[(1+window):(250+window),]))
+  date_list[[i]] <- rownames(log_returns_no_market)[250+window]
+  window <- window + 10
+
+}
+date_list <- unlist(date_list)
+
+network_list <- list()
+for(i in 1:length(corr_list)){
+  print(i/length(corr_list))
+  out <- glasso(corr_list[[i]], 0.15)
+  network_list[[i]] <- -out$wi
+}
+
+#saveRDS(network_list, "../MMDGraph/data/network_list015.rds")
+```
+
+
+
+```{r}
+
+# classify numerically only used for qgraph
+sector_classification_numerical <- list()
+names_stock <- colnames(corr_out)
+for(i in 1:nrow(corr_out)){
+  
+  for(j in names(sector_classification)){
+    
+    if(names_stock[i] %in% sector_classification[[j]] ){
+      sector_classification_numerical[[j]] <- c(sector_classification_numerical[[j]], i)
+      break
+      
+    }
+    
+  }
+  
+}
+
+
+plot_qgraph <- function(est_graph, sector_classification_numerical, ignore_inter = TRUE){
+  library(Matrix)
+  library("qgraph")
+  
+  est_graph <- -out$wi
+  diag(est_graph) <- 0
+
+  if(ignore_inter){
+    # Ignore inter-connections
+  est_graph_diag <- list()
+  for(i in names(sector_classification_numerical)){
+    est_graph_diag[[i]] <- est_graph[sector_classification_numerical[[i]], sector_classification_numerical[[i]]]
+  }
+  
+  est_graph_diag <- bdiag(est_graph_diag)
+    
+  } else {
+    est_graph_diag <- est_graph
+    
+  }
+  
+  qgraph(as.matrix(est_graph_diag),vsize=1,groups=sector_classification_numerical,legend=TRUE,borders=FALSE, layout = "groups", directed = FALSE)
+  
+}
+
+plot_qgraph(network_list[[1]], sector_classification_numerical, TRUE)
+
+
+
+```
+
+
+Another plot
+
+```{r}
+
+plot_corr <- function(x){
+  
+  diag(x) <- 0
+  melted_cormat <- melt(x)
+  ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()+
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.2,0.2), space = "Lab", 
+    name="Precision Matrix")+
+  theme_minimal()
+  
+  
+} 
+
+plot_corr(network_list[[1]])
+
+
+```
+
+
+
+
+# OLD
+
+
+All in one 
+
+```{r}
+
+# G_all_normal <- list()
+# G_all_tlasso <- list()
+# G_all_11comp <- list()
+# G_all_11compheavy <- list()
+# G_all_spectral <- list()
+# G_all_spectral_heavy <- list()
+
+data_log_returns_all <- log_returns_median_regresion[(1+0):(250 + 0),]
+# Normal correlation.
+corr_out <- cor(data_log_returns_all)
+G_all_normal <- -glasso(corr_out, 0.12)$wi
+diag(G_all_normal) <- 0
+rownames(G_all_normal) <- rownames(corr_out) 
+colnames(G_all_normal) <- colnames(corr_out) 
+G_melt_all_normal <- melt(G_all_normal)
+G_melt_all_normal <- left_join(G_melt_all_normal, asset_profiles[, c("sector", "ticker")], by = c("Var1"="ticker"))
+G_melt_all_normal <- left_join(G_melt_all_normal, asset_profiles[, c("sector", "ticker")], by = c("Var2"="ticker"))
+G_melt_all_normal$sector <- ifelse(G_melt_all_normal$sector.x == G_melt_all_normal$sector.y, G_melt_all_normal$sector.x, "Different Sectors")
+
+# tlasso
+G_all_tlasso <- -tlasso(data_log_returns_all, 4, 0.12)$Si
+diag(G_all_tlasso) <- 0
+rownames(G_all_tlasso) <- names(data_log_returns_all) 
+colnames(G_all_tlasso) <- names(data_log_returns_all) 
+G_melt_all_tlasso <- melt(G_all_tlasso)
+G_melt_all_tlasso <- left_join(G_melt_all_tlasso, asset_profiles[, c("sector", "ticker")], by = c("Var1"="ticker"))
+G_melt_all_tlasso <- left_join(G_melt_all_tlasso, asset_profiles[, c("sector", "ticker")], by = c("Var2"="ticker"))
+G_melt_all_tlasso$sector <- ifelse(G_melt_all_tlasso$sector.x == G_melt_all_tlasso$sector.y, G_melt_all_tlasso$sector.x, "Different Sectors")
+
+# 11cmop crahes computer
+G_all_spectral <- learn_connected_graph(cor(log_returns),verbose = TRUE)
+
+
+
+
+dd <- G_melt_all_normal[G_melt_all_normal$sector != "Different Sectors",]
+x_sort <- unique(sort(dd$Var1))
+ggplot(data = dd, aes(x=factor(Var1, rev(x_sort)), y=factor(Var2, x_sort), fill=value)) + 
+  geom_tile()+
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.2,0.2), space = "Lab", 
+    name="Precision Matrix")+
+  theme_minimal() +
+  facet_wrap(~ sector, ncol=3, scales ="free")  
+
+
+dd <- G_melt_all_normal[G_melt_all_normal$sector != "Different Sectors",]
+x_sort <- unique(sort(dd$Var1))
+ggplot(data = dd, aes(x=factor(Var1, rev(x_sort)), y=factor(Var2, x_sort), fill=value)) + 
+  geom_tile()+
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-0.2,0.2), space = "Lab", 
+    name="Precision Matrix")+
+  theme_minimal() +
+  facet_wrap(~ sector, ncol=3, scales ="free") 
+
+
+
+# Tyler
+# cov_Tyler <- fit_Tyler(log_returns_median_regresion[(1+0):(250 + 0),])
+
+
+```
+
+
+Play with lasso parameter
+
+## normal
+
+```{r}
+lasso_check <- list()
+
+data_log_returns_median <- log_returns_median_regresion[(1+0):(250 + 0),]
+
+for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+
+  # Normal Correlation
+  corr_out <- cor(data_log_returns_median)
+  normal_prec <- -glasso(corr_out, rho)$wi
+  diag(normal_prec) <- 0
+  rownames(normal_prec) <- rownames(corr_out) 
+  colnames(normal_prec) <- colnames(corr_out) 
+  ind <- which( upper.tri(normal_prec,diag=TRUE) , arr.ind = TRUE )
+    melted_cormat <- data.frame( col = colnames(normal_prec)[ind[,2]] ,
+                                row = rownames(normal_prec)[ind[,1]] ,
+                                val = normal_prec[ ind ] )
+  melted_cormat <- left_join(melted_cormat, asset_profiles, by = c("col"= "ticker"))
+  melted_cormat <- left_join(melted_cormat, asset_profiles, by = c("row"= "ticker"))
+  melted_cormat$sector <- ifelse(melted_cormat$sector.x == melted_cormat$sector.y, melted_cormat$sector.y, "Between Sectors")
+  melted_cormat$rho <- rho
+  lasso_check[[paste0(rho, sector)]] <- melted_cormat
+  
+}
+  
+
+
+lasso_check <- bind_rows(lasso_check)
+lasso_check$id <- paste(lasso_check$col, lasso_check$row)
+lasso_check$absValue <- abs(lasso_check$val)
+
+ggplot(lasso_check) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal()
+```
+
+## Tlasso
+
+```{r}
+lasso_check <- list()
+
+data_log_returns_median <- log_returns_median_regresion[(1+0):(250 + 0),]
+
+for(rho in c(0.05,0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8)){
+
+  G_all_tlasso <- -tlasso(data_log_returns_all, 4, 0.12)$Si
+  diag(G_all_tlasso) <- 0
+  rownames(G_all_tlasso) <- rownames(corr_out) 
+  colnames(G_all_tlasso) <- colnames(corr_out) 
+  ind <- which( upper.tri(G_all_tlasso,diag=TRUE) , arr.ind = TRUE )
+    melted_cormat <- data.frame( col = colnames(G_all_tlasso)[ind[,2]] ,
+                                row = rownames(G_all_tlasso)[ind[,1]] ,
+                                val = G_all_tlasso[ ind ] )
+  melted_cormat <- left_join(melted_cormat, asset_profiles, by = c("col"= "ticker"))
+  melted_cormat <- left_join(melted_cormat, asset_profiles, by = c("row"= "ticker"))
+  melted_cormat$sector <- ifelse(melted_cormat$sector.x == melted_cormat$sector.y, melted_cormat$sector.y, "Between Sectors")
+  melted_cormat$rho <- rho
+  lasso_check[[paste0(rho, sector)]] <- melted_cormat
+  
+}
+  
+
+
+lasso_check <- bind_rows(lasso_check)
+lasso_check$id <- paste(lasso_check$col, lasso_check$row)
+lasso_check$absValue <- abs(lasso_check$val)
+
+ggplot(lasso_check) + geom_line(aes(x = rho, y = val, group = id, color = sector)) +
+  facet_wrap(~ sector, ncol=3, scales = "free") + 
+theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

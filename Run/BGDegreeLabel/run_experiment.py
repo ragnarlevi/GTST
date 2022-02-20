@@ -36,14 +36,14 @@ print(now)
 #                 print(datetime.now() - now )
             
 # SP
-print('sp')
-os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/SP/n1_20_n2_20_v1_60_v2_60_norm_0_wlab_{0}_k_{0.25}' -B 10000 -N 10000 -kernel sp -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 -wlab 0")
-print('sp')
-os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/SP/n1_20_n2_20_v1_60_v2_60_norm_0_wlab_{1}_k_{0.25}' -B 10000 -N 10000 -kernel sp -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 -wlab 1")
+#print('sp')
+#os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/SP/n1_20_n2_20_v1_60_v2_60_norm_0_wlab_{0}_k_{0.25}' -B 10000 -N 10000 -kernel sp -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 -wlab 0")
+#print('sp')
+#os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/SP/n1_20_n2_20_v1_60_v2_60_norm_0_wlab_{1}_k_{0.25}' -B 10000 -N 10000 -kernel sp -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 -wlab 1")
 
 # VH
-print('vh')
-os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/VH/n1_20_n2_20_v1_60_v2_60_norm_0_k_{0.25}' -B 10000 -N 10000 -kernel vh -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 ")
+#print('vh')
+#os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/VH/n1_20_n2_20_v1_60_v2_60_norm_0_k_{0.25}' -B 10000 -N 10000 -kernel vh -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 20 -n2 20 -d 4 -norm 0 ")
 
 
 # WWL
@@ -95,23 +95,23 @@ os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel
 
 # Test multiple samples
 
-for n in [40, 60, 80, 100, 150]:
+for n in [20]:
     print('vh {n}')
     os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/VH/n1_{n}_n2_{n}_v1_60_v2_60_diff_{0.25}' -B 3000 -N 3000 -kernel vh -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr 4")
-    print('wl {n}')
-    os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WLsubtree/n1_{n}_n2_{n}_v1_60_v2_60_nitr_3_diff_{0.25}' -B 3000 -N 3000 -kernel wl -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr 4")
-    print('wloa {n}')
-    os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WLOA/n1_{n}_n2_{n}_v1_60_v2_60_nitr_3_diff_{0.25}' -B 3000 -N 3000 -kernel wloa -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr 4")
+    #print('wl {n}')
+    #os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WLsubtree/n1_{n}_n2_{n}_v1_60_v2_60_nitr_3_diff_{0.25}' -B 3000 -N 3000 -kernel wl -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr 4")
+    #print('wloa {n}')
+    #os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WLOA/n1_{n}_n2_{n}_v1_60_v2_60_nitr_3_diff_{0.25}' -B 3000 -N 3000 -kernel wloa -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr 4")
     #print('sp')
     #os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/SP/n1_{n}_n2_{n}_v1_60_v2_60_norm_0_k_{0.25}' -B 3000 -N 3000 -kernel sp -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -wlab 0")
-    # print('wwl')
-    # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WWL/n1_{n}_n2_{n}_v1_60_v2_60_nitr_{3}_l_{0.1}_norm_0_k_{0.25}' -B 3000 -N 3000 -kernel wwl -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr {3} -l {0.1}")
+    print('wwl')
+    os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/WWL/n1_{n}_n2_{n}_v1_60_v2_60_nitr_{3}_l_{0.1}_norm_0_k_{0.25}' -B 3000 -N 3000 -kernel wwl -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -nitr {3} -l {0.1}")
     # print('prop')
     # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/PROP/n1_{n}_n2_{n}_v1_60_v2_60_tmax_{2}_M_TV_w_{0.01}_norm_0_diff_0.1.pkl' -B 3000 -N 3000 -kernel prop -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -tmax {2} -w {0.01} -M H")
     # print('pyramid')
     # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/PYRAMID/n1_{n}_n2_{n}_v1_60_v2_60_L_{6}_dim_{2}_norm_0_diff_0.1_wlab_{1}' -B 3000 -N 3000 -kernel pyramid -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -L {6} -dim {2} -wlab 1")
     # print('dk')
-    # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/PYRAMID/n1_{n}_n2_{n}_v1_60_v2_60_type_sp_norm_0_diff_0.25' -B 3000 -N 3000 -kernel dk -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -type sp")
+    # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/DK/n1_{n}_n2_{n}_v1_60_v2_60_type_sp_norm_0_diff_0.25' -B 3000 -N 3000 -kernel dk -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -type sp")
     # print('rw')
     # os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/RW/n1_{n}_n2_{n}_v1_60_v2_60_c_{0.01}_tmax_{0}_r_{2}_type_{'ARKU_plus'}_norm_0_k_{0.25}_adjnorm_0_rownorm_0' -B 3000 -N 3000 -kernel rw -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 4 -norm 0 -rwApprox {2} -l {0.01} -type ARKU_plus -adj_norm {0} -row_norm {0}")
 
