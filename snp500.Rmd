@@ -206,6 +206,18 @@ plot_data_frames(ESG_y_smooth_pct, "ESG smoothed y pct")
 ```
 
 
+Plot ESG scores
+
+
+```{r}
+names(ESG_SMOOTH)[names(ESG_SMOOTH) %in% sector_classification$`Financial Services`]
+```
+
+```{r}
+tmp <- data.frame(y = ESG_y_smooth[["AFL"]], x= as.Date(rownames(ESG_SMOOTH)))
+
+ggplot(tmp) + geom_line(aes(x = x, y = y))
+```
 
 
 
@@ -445,8 +457,8 @@ order_tickers <- unlist(asset_profiles[asset_profiles$ticker %in% names(log_retu
 
 
 log_returns_median_regresion <- list()
-log_returns_ald_regresion <- list()
-log_returns_ald_scaled <- list()
+# log_returns_ald_regresion <- list()
+# log_returns_ald_scaled <- list()
 regression_data_info <-list()
 
 for(stock in order_tickers){
@@ -467,20 +479,20 @@ for(stock in order_tickers){
   
   # ald regression
   
-  out_ald <- optim(par = c(0.03, 0.4, 0), fn = ald_regression, y = regression_data$y, x = regression_data$market, q = 0.5)
-  log_returns_ald_regresion[[stock]] <- regression_data$y - out_ald$par[3] - out_ald$par[2]*regression_data$market
+  #out_ald <- optim(par = c(0.03, 0.4, 0), fn = ald_regression, y = regression_data$y, x = regression_data$market, q = 0.5)
+  #log_returns_ald_regresion[[stock]] <- regression_data$y - out_ald$par[3] - out_ald$par[2]*regression_data$market
   
-  log_returns_ald_scaled[[stock]] <- rqfit$residuals/out_ald$par[1]
+  #log_returns_ald_scaled[[stock]] <- rqfit$residuals/out_ald$par[1]
   
   
 }
 
 log_returns_median_regresion <- bind_cols(log_returns_median_regresion)[, order_tickers]
 rownames(log_returns_median_regresion) <- rownames(log_returns)
-log_returns_ald_regresion <- bind_cols(log_returns_ald_regresion)[, order_tickers]
-rownames(log_returns_ald_regresion) <- rownames(log_returns)
-log_returns_ald_scaled <- bind_cols(log_returns_ald_scaled)[, order_tickers]
-rownames(log_returns_ald_scaled) <- rownames(log_returns)
+#log_returns_ald_regresion <- bind_cols(log_returns_ald_regresion)[, order_tickers]
+#rownames(log_returns_ald_regresion) <- rownames(log_returns)
+#log_returns_ald_scaled <- bind_cols(log_returns_ald_scaled)[, order_tickers]
+#rownames(log_returns_ald_scaled) <- rownames(log_returns)
 
 regression_data_info <- bind_rows(regression_data_info)
 
@@ -573,7 +585,10 @@ tlasso <- function(x, nu, rho, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), ma
       mu1 <- rep(0, p)
     }
     
-    S_tau <- cov.wt(x, tau, center = FALSE, method = 'ML', cor = TRUE)$cor
+    S_tau <- Reduce('+', lapply(1:nrow(x), function(i){
+      y <- as.numeric(x[i,]) 
+      tau[i]*outer(y,y)/nrow(x)}))
+      
     S1 <- glasso(S_tau, rho)$wi
     
     e <- norm(S1-S0, type = "F")/norm(S0, type = "F")
@@ -627,7 +642,7 @@ t_ml <- function(x, nu, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), maxitr = 
 }
 
 
-EBIC <- function(wi, Csample, N, beta = 0.5){
+EBIC <- function(wi, x, N, rho_matrix, beta = 0.5){
   
   # wi precision
   # Csample Sample covariance
@@ -645,10 +660,11 @@ EBIC <- function(wi, Csample, N, beta = 0.5){
         #U <- U[, w >10e-2]
         # w <- w[w >10e-2]
         
-        loglik <- 0.5*N*sum(log(w)) - 0.5*N*sum(diag(wi %*% Csample)) - 0.5*p*N*log(2*pi)
+        loglik <- N*0.5*log(det(wi)) - 0.5*sum(mahalanobis(x,0, wi, TRUE)) - 0.5*p*N*log(2*pi) #- sum(abs(wi*rho_matrix))
+        #loglik <- sum(log(w)) - N*sum(diag(wi %*% Csample)) #- 0.5*p*N*log(2*pi)
         
         # get upper triangle
-        ind <- which( upper.tri(wi,diag=FALSE) , arr.ind = TRUE )
+        ind <- which( upper.tri(wi,diag=TRUE) , arr.ind = TRUE )
         M <- sum(abs(wi[ind]) > 1e-15) # count edges of upper triangle matrix
         EBIC <- -2*loglik + M*log(N) + 4*beta*M*log(p)
         BIC <- -2*loglik + M*log(N)
@@ -660,20 +676,56 @@ EBIC <- function(wi, Csample, N, beta = 0.5){
 }
 
 
-EBIC_spectral_heavy <- function(L, data, N, nu, beta = 0.5){
+
+EBIC_tlasso <- function(wi, x, tau, N, rho_matrix, beta = 0.5){
+  
+  # wi precision
+  # Csample Sample covariance
+  # N number of samples
+  #
+  #
+        
+        p <- dim(wi)[1]
+        
+        out <- eigen(wi)
+        
+        
+        w <- out$values
+        U <- out$vectors
+        #U <- U[, w >10e-2]
+        # w <- w[w >10e-2]
+        
+        # print(tau)
+        loglik <- N*0.5*log(det(wi)) - 0.5*sum(mahalanobis(x,0, wi, TRUE)*tau) - 0.5*p*N*log(2*pi) #- sum(abs(wi*rho_matrix))
+        #loglik <- sum(log(w)) - N*sum(diag(wi %*% Csample)) #- 0.5*p*N*log(2*pi)
+        
+        # get upper triangle
+        ind <- which( upper.tri(wi,diag=TRUE) , arr.ind = TRUE )
+        M <- sum(abs(wi[ind]) > 1e-15) # count edges of upper triangle matrix
+        EBIC <- -2*loglik + M*log(N) + 4*beta*M*log(p)
+        BIC <- -2*loglik + M*log(N)
+        AIC <- -2*loglik + 2*M
+        
+        
+        return(list(EBIC = EBIC, loglik = loglik, BIC = BIC, AIC = AIC))
+
+}
+
+
+EBIC_spectral_heavy <- function(Laplacian, data, N, nu, beta = 0.5){
   
   
-  
+  L <- Laplacian
   p <- nrow(L)
-  const <- (p + nu)/N
+  const <- (p + nu)/2
   
   out <- eigen(L)
   w <- out$values
   w <- w[w >10e-15]
   
-  log_sum <- sum(apply(data_log_retuns, 1, function(x){log(1 + x %*% corr_out %*% x)}))
+  log_sum <- sum(apply(data, 1, function(x){log(1 + (x %*% L %*% x)/nu)}))
   
-  loglik <- const*log_sum -  - sum(log(w))
+  loglik <- -const*log_sum + 0.5*N*sum(log(w)) + N*lgamma((nu+p)/2) - N*lgamma(nu/2) - N*(p/2)*log(nu) - N*(p/2)*log(pi)
   
    # get upper triangle
   ind <- which( upper.tri(L,diag=FALSE) , arr.ind = TRUE )
@@ -696,19 +748,185 @@ EBIC_spectral_heavy <- function(L, data, N, nu, beta = 0.5){
 # }
 
 
+fit_one_sample <- function(x){
+  p <- dim(x)[2]
+  N <- dim(x)[1]
+  info <- list()
+
+  for(rho in seq(from = 0, to = 0.5, by = 0.02)){
+    
+    # Test normal
+    rho_matrix <- matrix(rep(rho, p^2), nrow = p)
+    # diag(rho_matrix) <- 0
+    precision_i <- glasso(cor(x), rho = rho_matrix)$wi
+    # number of edges
+    num_edges <- sum(upper.tri(precision_i) & abs(precision_i) ==  0)
+    # number of false edge discoveries
+    num_edges_false <- sum(upper.tri(precision_i) & abs(precision_i) == 0 & abs(precision_test) > 0)
+    num_missing_edges <- sum(upper.tri(precision_i) & abs(precision_i) > 0)
+    num_missing_edges_f <- sum(upper.tri(precision_i) & abs(precision_i) > 0 & abs(precision_test) == 0 )
+    
+    EBIC_out <- EBIC(precision_i, scale(x), N, rho_matrix = rho_matrix)
+    info[[paste0(rho, "normal")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "normal", rho = rho)
+    
+    # Test Tyler
+    out_tyler <- fit_Tyler(scale(x))
+    corr_out_tyler <- cov2cor(out_tyler$cov)
+    precision_tyler <- glasso(corr_out_tyler, rho = rho_matrix)$wi
+    num_edges <- sum(upper.tri(precision_tyler) & abs(precision_tyler) ==  0)
+    num_edges_false <- sum(upper.tri(precision_tyler) & abs(precision_tyler) == 0 & abs(precision_test) > 0)
+    num_missing_edges <- sum(upper.tri(precision_tyler) & abs(precision_tyler) > 0)
+    num_missing_edges_f <- sum(upper.tri(precision_tyler) & abs(precision_tyler) > 0 & abs(precision_test) == 0 )
+    EBIC_out <- EBIC(precision_tyler, scale(x), N, rho_matrix = rho_matrix)
+    info[[paste0(rho, "Tyler")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "Tyler", rho = rho)
+    
+    
+    # Test tlasso
+    nu <- fit_mvt(scale(x), nu="MLE-diag-resample")$nu
+    out_tlasso <- tlasso(scale(x), nu, rho_matrix)
+    
+    precision_tlasso <- out_tlasso$Si
+    num_edges <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) ==  0)
+    num_edges_false <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) == 0 & abs(precision_test) > 0)
+    num_missing_edges <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) > 0)
+    num_missing_edges_f <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) > 0 & abs(precision_test) == 0 )
+    EBIC_out <- EBIC_tlasso(precision_tlasso, out_tlasso$S_tau, N, rho_matrix = rho_matrix)
+    info[[paste0(rho, "tlasso")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "tlasso", rho = rho)
+    
+    
+  }
+  
+  info <- bind_rows(info)
+  
+}
+
 
 
 
 ```
 
 
-# Individual Sectors, 
+# Test on simulated data
 
-Select only companies with ESG ratings.
+Synthetic study
 
 ```{r}
-log_returns_median_regression_esg <- log_returns_median_regresion[, names(log_returns_median_regresion) %in% names(ESG_y_smooth)]
-log_returns_esg <- log_returns[, names(log_returns) %in% names(ESG_y_smooth)]
+# Define precision
+
+# cor_test <- cor(log_returns_median_regresion[, (names(log_returns_median_regresion) %in% names(ESG_y_smooth)) & (names(log_returns) %in% sector_classification$`Basic Materials`)])
+# 
+# rho_matrix <- 0.15*matrix(rep(1, dim(cor_test)[1]^2), nrow = dim(cor_test)[1])
+# # diag(rho_matrix) <- 0
+# precision_test <- glasso(cor_test, rho_matrix)$wi
+# cor_test_final <- solve(precision_test)
+
+library(pracma)
+k = 10
+sparsity = .4
+# generate the symmetric sparsity mask
+mask = rand(k)
+mask = mask * (mask < sparsity)
+mask[lower.tri(mask, diag = TRUE)] = 0
+mask = mask + t(mask) + eye(k)
+mask[mask > 0] = 1
+
+# generate the symmetric precision matrix
+theta = matrix(rnorm(k^2), k)
+theta[lower.tri(theta, diag = TRUE)] = 0
+theta = theta + t(theta) + eye(k)
+
+# apply the reqired sparsity
+theta = theta * mask
+
+# force it to be positive definite
+precision_test = theta - (min(eig(theta))-.1) * eye(k)
+
+# precision_test <- matrix(c(0.9 , 0    , -0.6 , -0.6 , 0    ,
+#                            0   , 0.8  , -0.5 , -0.4 , -0.65,
+#                            -0.6, -0.5 , 0.7  , 0    , -0.55,
+#                            -0.6, -0.4 , 0    , 0.8  ,-0.44 ,
+#                            0   , -0.65, -0.55, -0.44, 0.7), nrow = 5 )
+# precision_test <- precision_test %*% t(precision_test)
+
+cor_test_final <- solve(precision_test)
+
+# Generate multivariate normal
+N <- 125
+p <- dim(cor_test_final)[1]
+x <- MASS::mvrnorm(N, rep(0, p), cor_test_final)
+
+info <- fit_one_sample(x)
+
+
+
+```
+
+```{r}
+ggplot(info) + geom_line(aes(x = rho, y = ebic, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = BIC, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = AIC, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = loglik, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = FDR, color = model)) + geom_line(aes(x = rho, y = FNR, color = model))
+```
+
+Test the best
+```{r}
+one_matrix <- matrix(rep(1, p^2), nrow = p)
+# diag(rho_matrix) <- 0
+precision_normal <- glasso(cov(x), rho = one_matrix*0.04)$wi
+num_edges <- sum(upper.tri(precision_normal) & abs(precision_normal) == 0)
+num_edges_false <- sum(upper.tri(precision_normal) & abs(precision_normal) == 0 & abs(precision_test) > 0)
+print(num_edges_false/num_edges)
+
+out_tyler <- fit_Tyler(scale(x))
+corr_out_tyler <- cov2cor(out_tyler$cov)
+precision_tyler <- glasso(corr_out_tyler, rho = one_matrix*0.04)$wi
+
+nu <- fit_mvt(scale(x), nu="MLE-diag-resample")$nu
+precision_tlasso <- tlasso(scale(x), nu, one_matrix*0.04)$Si
+
+
+```
+If the data is generated from well-behaved normal correlation matrix then the graphical lasso is unnecessary.
+
+
+Look at multivarate t generated data
+
+```{r}
+library(mvtnorm)
+
+info <- fit_one_sample(rmvt(N, rep(0, p), sigma = cor_test_final, df = 4))
+
+ggplot(info) + geom_line(aes(x = rho, y = ebic, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = BIC, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = AIC, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = loglik, color = model))
+ggplot(info) + geom_line(aes(x = rho, y = FDR, color = model)) + geom_line(aes(x = rho, y = FNR, color = model))
+
+```
+
+
+
+
+
+# Individual Sectors, 
+
+Select only companies with ESG ratings and match dates
+
+```{r}
+rnames <- rownames(log_returns)
+log_returns_median_regresion <- log_returns_median_regresion[, names(log_returns_median_regresion) %in% names(ESG_y_smooth)]
+rownames(log_returns_median_regresion) <- rnames
+log_returns <- log_returns[, names(log_returns) %in% names(ESG_y_smooth)]
+rownames(log_returns) <- rnames
+
+dates <- rownames(log_returns)
+dates <- dates[dates %in% rownames(ESG_y_smooth)]
+log_returns <- log_returns %>% filter(rownames(log_returns) %in% dates)
+log_returns_median_regresion <- log_returns_median_regresion %>% filter(rownames(log_returns_median_regresion) %in% dates)
+ESG_SMOOTH <- ESG_SMOOTH %>% filter(rownames(ESG_SMOOTH) %in% dates)
+
+
 ```
 
 
@@ -717,7 +935,7 @@ Let's test multiple methods, glasso on MCD, Rocke, Tyler, tlasso and Spectral La
 
 ```{r}
 
-fit_glasso_models <- function(corr_out, rho, n_samples, id, sector, time, adaptive_lasso = TRUE){
+fit_glasso_models <- function(corr_out, x, rho, n_samples, id, sector, time, adaptive_lasso = TRUE){
   
   # Normal
   if(adaptive_lasso){
@@ -729,19 +947,19 @@ fit_glasso_models <- function(corr_out, rho, n_samples, id, sector, time, adapti
     
   neg_prec <- -glasso(corr_out, rho_matrix)$wi
   # EBIC
-  EBIC_out <- EBIC(-neg_prec, corr_out, n_samples)
+  EBIC_out <- EBIC(-neg_prec, x, n_samples, rho_matrix)
   ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
   ebic$rho <- rho
   ebic$sector <- sector
   ebic$time <- time
   
-  diag(neg_prec) <- 0
+  # diag(neg_prec) <- 0
   rownames(neg_prec) <- rownames(corr_out)
   colnames(neg_prec) <- colnames(corr_out) 
   ind <- which( upper.tri(neg_prec,diag=TRUE) , arr.ind = TRUE )
-  melted_cormat <- data.frame( col = colnames(neg_prec)[ind[,2]] ,
-                                  row = rownames(neg_prec)[ind[,1]] ,
-                                  val = neg_prec[ ind ] )
+  melted_cormat <- data.frame(col = colnames(neg_prec)[ind[,2]] ,
+                              row = rownames(neg_prec)[ind[,1]] ,
+                              val = neg_prec[ ind ] )
   ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
 
   melted_cormat$sector <- sector
@@ -760,7 +978,7 @@ fit_tlasso_models <- function(data, mle, nu, rho, n_samples, id, sector, time, a
   if(adaptive_lasso){
     rho_matrix <- rho*abs(mle)^(-2.5)
   }else{
-    rho_matrix <- rho*matrix(rep(1, nrow(corr_out)^2), nrow = ncol(data))
+    rho_matrix <- rho*matrix(rep(1, ncol(data)^2), nrow = ncol(data))
   }
   
   out_tlasso <- tlasso(data, nu, rho_matrix)
@@ -768,15 +986,15 @@ fit_tlasso_models <- function(data, mle, nu, rho, n_samples, id, sector, time, a
   neg_prec <- -out_tlasso$Si
         
   # EBIC
-  EBIC_out <- EBIC(-neg_prec, out_tlasso$S_tau, n_samples)
+  EBIC_out <- EBIC_tlasso(-neg_prec,  data, out_tlasso$tau, n_samples, rho_matrix)
   ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
   ebic$rho <- rho
   ebic$sector <- sector
   ebic$time <- time
   
-  diag(neg_prec) <- 0
-  rownames(neg_prec) <- names(data)
-  colnames(neg_prec) <- names(data) 
+  # diag(neg_prec) <- 0
+  rownames(neg_prec) <- colnames(data)
+  colnames(neg_prec) <- colnames(data) 
   ind <- which( upper.tri(neg_prec,diag=TRUE) , arr.ind = TRUE )
   melted_cormat <- data.frame( col = colnames(neg_prec)[ind[,2]] ,
                                   row = rownames(neg_prec)[ind[,1]] ,
@@ -802,13 +1020,13 @@ fit_spectral_model <- function(data, nu, time, n_samples, sector, id){
   
   EBIC_out <- EBIC_spectral_heavy(out_spectral_heavy$laplacian, data, n_samples, nu, beta = 0.5)
   ebic <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, id = id)
-  ebic$rho <- rho
+  ebic$rho <- 1
   ebic$sector <- sector
   ebic$time <- time
     
   A_spectral_heavy <- out_spectral_heavy$adjacency
-  rownames(A_spectral_heavy) <- names(data) 
-  colnames(A_spectral_heavy) <- names(data) 
+  rownames(A_spectral_heavy) <- colnames(data) 
+  colnames(A_spectral_heavy) <- colnames(data) 
  
      
   ind <- which( upper.tri(A_spectral_heavy,diag=TRUE) , arr.ind = TRUE )
@@ -819,16 +1037,16 @@ fit_spectral_model <- function(data, nu, time, n_samples, sector, id){
   ebic$Density <- sum(abs(melted_cormat$val) > 0)/nrow(melted_cormat)
 
   melted_cormat$sector <- sector
-  melted_cormat$rho <- rho
+  melted_cormat$rho <- 1
   melted_cormat$time <- time
   melted_cormat$id <- id
   
-  return(list(A = A, information = ebic, melted_cormat = melted_cormat))  
+  return(list(A = A_spectral_heavy, information = ebic, melted_cormat = melted_cormat))  
 }
 
 
 
-fit_precisions <- function(data, data_no_market, window_size, sector_classification, dates, adaptive_lasso = TRUE, step_forward = 5){
+fit_precisions <- function(data, data_no_market, window_size, sector_classification, dates, adaptive_lasso = TRUE, step_forward = 5, heavy = TRUE){
   
   
   information_criteria <- list()  # Store information criteria
@@ -838,10 +1056,11 @@ fit_precisions <- function(data, data_no_market, window_size, sector_classificat
   networks_spectral_heavy <- list()
   melted_cormat <- list()
   
-  rhos <- c(seq(0.001, 0.15, 0.004), 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.8, 1.5, 2, 5, 8, 100)
   
+  rhos <- c(seq(0.001, 0.15, 0.004), 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75)
+  times <- seq(from = 1, to = nrow(data)-window_size+1, by = step_forward)
   pb <- progress::progress_bar$new(format = "<:bar> :current/:total  eta: :eta",
-                                     total = length(sector_classification), clear = TRUE, width = 80)
+                                     total = length(sector_classification)*length(times), clear = TRUE, width = 80)
   
   # Loop sector
   for(sector in names(sector_classification)){
@@ -855,61 +1074,82 @@ fit_precisions <- function(data, data_no_market, window_size, sector_classificat
       networks_tlasso[[sector]][[paste0(rho)]] <- list()
     }
     
+    
+    
     # Loop time
     # 500 = large enough number so we will get all data
-    for(t in seq(from = 1, to = nrow(data)-window_size, by = step_forward)){
+    for(t in times){
       
       time <- dates[window_size + t-1]
     
       data_no_market_t <- data_no_market[t:(window_size + t-1),names(data_no_market) %in% sector_classification[[sector]]]
       data_t <- data[t:(window_size + t-1), names(data) %in% sector_classification[[sector]]]
-      nu_no_market <- fit_mvt(data_no_market,nu="MLE-diag-resample")$nu  # for heavy distributions
-      nu <- fit_mvt(data,nu="MLE-diag-resample")$nu
-      corr_out_normal <- cor(data_no_market_t)
-      out_tyler <- fit_Tyler(data_no_market_t)
-      corr_out_tyler <- cov2cor(out_tyler$cov)
-      
-      
+      if(heavy){
+        nu_no_market <- fit_mvt(data_no_market_t,nu="MLE-diag-resample")$nu  # for heavy distributions
+        nu <- fit_mvt(data_t,nu="MLE-diag-resample")$nu
+      }
+      corr_out_normal <- cor(scale(data_no_market_t))
+      if(heavy){
+        out_tyler <- fit_Tyler(scale(data_no_market_t))
+        corr_out_tyler <- cov2cor(out_tyler$cov)
+      }
 
       # calculate mle, only used if adaptive_lasso
-      precision_mle_tlasso <- solve(t_ml(data_no_market_t, nu = nu)$S_tau)
+      if(adaptive_lasso){
+        precision_mle_tlasso <- solve(t_ml(data_no_market_t, nu = nu)$S_tau)
+      }else{
+        precision_mle_tlasso <- NULL
+      }
 
-      
-      
       for(rho in rhos){
         
-        
         # Normal
-        out_normal <- fit_glasso_models(corr_out_normal, rho, window_size, "normal", sector, time, adaptive_lasso)
+        #old <- Sys.time()
+        out_normal <- fit_glasso_models(corr_out_normal, scale(data_no_market_t), rho, window_size, "normal", sector, time, adaptive_lasso)
+        if(is.complex(out_normal$information$ebic)){
+          print(paste0(rho, " ", t))
+        }
         information_criteria[[paste0(sector,t,rho,"normal")]] <- out_normal$information
         melted_cormat[[paste0(sector,t,rho,"normal")]] <- out_normal$melted_cormat
         networks_normal[[sector]][[paste0(rho)]][[paste0(time)]] <- out_normal$neg_precision
+        #print(Sys.time() - old )
         
-        # Tyler
-        out_tyler <- fit_glasso_models(corr_out_tyler, rho, window_size, "tyler", sector, time, adaptive_lasso)
-        information_criteria[[paste0(sector,t,rho,"tyler")]] <- out_tyler$information
-        melted_cormat[[paste0(sector,t,rho,"tyler")]] <- out_tyler$melted_cormat
-        networks_tyler[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tyler$neg_precision
-        
-        
-        # Tlasso
-        out_tlasso <- fit_tlasso_models(data_no_market_t,precision_mle_tlasso, nu_no_market, rho, window_size, "Tlasso", sector, time, adaptive_lasso)
-        information_criteria[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$information
-        melted_cormat[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$melted_cormat
-        networks_tlasso[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tlasso$neg_precision
-        
+        if(heavy){
+          # Tyler
+          #old <- Sys.time()
+          out_tyler <- fit_glasso_models(corr_out_tyler, scale(data_no_market_t), rho, window_size, "tyler", sector, time, adaptive_lasso)
+          information_criteria[[paste0(sector,t,rho,"tyler")]] <- out_tyler$information
+          melted_cormat[[paste0(sector,t,rho,"tyler")]] <- out_tyler$melted_cormat
+          networks_tyler[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tyler$neg_precision
+          #print(Sys.time() - old )
+          
+          # Tlasso
+          #old <- Sys.time()
+          out_tlasso <- fit_tlasso_models(scale(data_no_market_t),precision_mle_tlasso, nu_no_market, rho, window_size, "Tlasso", sector, time, adaptive_lasso)
+          information_criteria[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$information
+          melted_cormat[[paste0(sector,t,rho,"tlasso")]] <- out_tlasso$melted_cormat
+          networks_tlasso[[sector]][[paste0(rho)]][[paste0(time)]] <- out_tlasso$neg_precision
+          #print(Sys.time() - old )
+          
+        }
+
         
       }
       
-      # Spectral Heavy
-      # out_spectral_heavy <- fit_spectral_model(data_t, nu, time, window_size, sector, "Heavy_Spectral")
-      # information_criteria[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$information
-      # melted_cormat[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$melted_cormat
-      # networks_spectral_heavy[[sector]][[paste0(time)]] <- out_spectral_heavy$A
-    
+      if(heavy){
+        # Spectral Heavy
+        # old <- Sys.time()
+        out_spectral_heavy <- fit_spectral_model(scale(data_t), nu, time, window_size, sector, "Heavy_Spectral")
+        information_criteria[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$information
+        melted_cormat[[paste0(sector,t,"Heavy_Spectral")]] <- out_spectral_heavy$melted_cormat
+        networks_spectral_heavy[[sector]][[paste0(time)]] <- out_spectral_heavy$A
+        # print(Sys.time() - old )
+        
+      }
+
+       pb$tick()
     }
   
-  pb$tick()
   }
   
   information_criteria <- bind_rows(information_criteria)
@@ -931,15 +1171,165 @@ fit_precisions <- function(data, data_no_market, window_size, sector_classificat
 
 ```
 
+
+Test fitting of Basic Materials
+
+```{r}
+sector_tmp <- list("Basic Materials" = sector_classification[["Basic Materials"]])
+
+for(sector in names(sector_classification)){
+  file_name <- paste0("data/network_raw/log_return_graphs_", gsub(" ", "", sector, fixed = TRUE),".Rdata")
+  print(file_name)
+  out_returns <- fit_precisions(log_returns, log_returns_median_regresion, 125, sector_tmp, dates,  FALSE,  5)
+  save(out_returns, file = file_name)
+  
+}
+```
+
+
+```{r}
+ggplot(out_returns_adaptive_bm$melted_cormat %>% filter(time == "2015-03-26", id != "Heavy_Spectral")) + geom_line(aes(x = rho, y = abs(val), group = paste(col, row))) + facet_wrap(~id)
+
+
+df <- out_returns_adaptive_bm$information_criteria
+
+# select best rho
+df_optimal <- df %>% group_by(id, time, sector) %>% summarise(best_rho_ebic = which.min(ebic),
+                                                               best_rho_bic = which.min(BIC),
+                                                               best_rho_aic = which.min(AIC),
+                                                               best_rho_loglik = which.max(AIC),
+                                                               ebic = min(ebic),
+                                                               bic = min(BIC),
+                                                               aic = min(AIC),
+                                                               loglik = max(loglik))
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = ebic, color = id))
+
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = ebic), color = "darkblue")+
+  geom_line(aes(x = as.Date(time), y = bic), color = "darkred")+
+  geom_line(aes(x = as.Date(time), y = aic), color = "orange")+
+  #geom_line(aes(x = as.Date(time), y = loglik), color = "green")+
+  facet_wrap(~id, scales = "free")
+
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = best_rho_ebic), color = "darkblue")+
+  geom_line(aes(x = as.Date(time), y = best_rho_bic), color = "darkred")+
+  geom_line(aes(x = as.Date(time), y = best_rho_aic), color = "orange")+
+  facet_wrap(~id, scales = "free")
+
+
+ggplot(df[df$rho < 0.15,]) + 
+  geom_line(aes(x = time, y = ebic, group = factor(rho), color = rho)) + 
+  facet_wrap(~id)
+
+
+ggplot(df[(df$rho < 0.2) & as.Date(df$time) < as.Date("2015-04-29"),]) + 
+  geom_line(aes(x = rho, y = ebic, color = id)) + 
+  facet_wrap(~time)
+
+
+# df <- out_esg_smooth_adaptive_Energy$information_criteria
+# ggplot(df[df$rho < 0.15 | df$id  == "Heavy_Spectral",]) + 
+#   geom_line(aes(x = time, y = loglik, group = factor(rho), color = rho)) + 
+#   facet_wrap(~id)
+# 
+# df <- out_returns_adaptive_Energy$information_criteria
+# ggplot(df[df$rho < 0.15,]) + 
+#   geom_line(aes(x = time, y = BIC, group = factor(rho), color = rho)) + 
+#   facet_wrap(~id)
+
+```
+
+
+
+
+
+
 Fitting time:
 
 
 ```{r}
-dates <- rownames(log_returns_esg)
+sector_tmp <- list("Financial Services" = sector_classification[["Financial Services"]])
 
-out_returns_adaptive <- fit_precisions(log_returns_esg, log_returns_median_regression_esg, 125, sector_classification, dates,  TRUE,  5)
-save.image()
+out_returns_adaptive_fs <- fit_precisions(log_returns, log_returns_median_regresion, 250, sector_tmp, dates,  TRUE,  5)
+save(out_returns_adaptive_fs, file = "data/network_raw/log_return_graphs_fs.Rdata")
+
+
+#out_returns_adaptive_util <- fit_precisions(log_returns, 
+                                            log_returns_median_regresion, 
+                                            250, 
+                                            list("Utilities" = sector_classification[["Utilities"]]), 
+                                            dates,  TRUE,  5)
+save(out_returns_adaptive_util, file = "data/network_raw/log_return_graphs_util.Rdata")
+
+
 ```
+
+```{r}
+energy <- list("Energy" = sector_classification[["Energy"]])
+
+out_esg_smooth_adaptive_Energy <- fit_precisions(ESG_SMOOTH, ESG_SMOOTH, 250, energy, dates,  FALSE,  5)
+save(out_esg_smooth_adaptive_Energy, file = "data/network_raw/esg_smooth_graphs_Energy.Rdata")
+```
+```{r}
+out_esg_smooth_pct_adaptive_Energy <- fit_precisions(ESG_SMOOTH, ESG_SMOOTH, 375, sector_tmp, dates,  FALSE,  5, heavy = FALSE)
+
+```
+
+plot
+
+```{r}
+df <- out_returns_adaptive_fs$information_criteria
+
+# select best rho
+df_optimal <- df %>% group_by(id, time, sector) %>% summarise(best_rho_ebic = which.min(ebic),
+                                                               best_rho_bic = which.min(BIC),
+                                                               best_rho_aic = which.min(AIC),
+                                                               best_rho_loglik = which.max(AIC),
+                                                               ebic = min(ebic),
+                                                               bic = min(BIC),
+                                                               aic = min(AIC),
+                                                               loglik = max(loglik))
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = ebic, color = id))
+
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = ebic), color = "darkblue")+
+  geom_line(aes(x = as.Date(time), y = bic), color = "darkred")+
+  geom_line(aes(x = as.Date(time), y = aic), color = "orange")+
+  #geom_line(aes(x = as.Date(time), y = loglik), color = "green")+
+  facet_wrap(~id, scales = "free")
+
+
+ggplot(df_optimal) + geom_line(aes(x = as.Date(time), y = best_rho_ebic), color = "darkblue")+
+  geom_line(aes(x = as.Date(time), y = best_rho_bic), color = "darkred")+
+  geom_line(aes(x = as.Date(time), y = best_rho_aic), color = "orange")+
+  facet_wrap(~id, scales = "free")
+
+
+ggplot(df[df$rho < 0.15,]) + 
+  geom_line(aes(x = time, y = ebic, group = factor(rho), color = rho)) + 
+  facet_wrap(~id)
+
+
+ggplot(df[df$rho < 0.2 & as.Date(df$time) < as.Date("2016-05-29"),]) + 
+  geom_line(aes(x = rho, y = Density)) + 
+  facet_wrap(~time)
+
+
+df <- out_esg_smooth_adaptive_Energy$information_criteria
+ggplot(df[df$rho < 0.15 | df$id  == "Heavy_Spectral",]) + 
+  geom_line(aes(x = time, y = loglik, group = factor(rho), color = rho)) + 
+  facet_wrap(~id)
+
+df <- out_returns_adaptive_Energy$information_criteria
+ggplot(df[df$rho < 0.15,]) + 
+  geom_line(aes(x = time, y = BIC, group = factor(rho), color = rho)) + 
+  facet_wrap(~id)
+```
+
+
 
 Plot 
 

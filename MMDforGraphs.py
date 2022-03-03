@@ -1103,7 +1103,7 @@ def iterationGraphStat(N:int, Graph_Statistics_functions, bg1, bg2, B:int):
 
 
 
-def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None, rw_attributes = False):
+def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int, kernel_hypothesis, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None, rw_attributes = False, function_arguments = None):
     """
     Function That generates samples according to the graph generators bg1 and bg2 and calculates graph statistics
 
@@ -1144,8 +1144,8 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
 
     for sample in range(N):
 
-        if sample % 10 == 0:
-            print(f'{sample} ')
+        #if sample % 10 == 0:
+        print(f'{sample} ')
     
         # sample binomial graphs
         bg1.Generate()
@@ -1225,7 +1225,9 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
         #print("")
 
         # bootstrap function argument
-        function_arguments=[dict(n = bg1.n, m = bg2.n ), dict(n = bg1.n, m = bg2.n )]
+        function_arguments = [dict(n = bg1.n, m = bg2.n), 
+                       dict(n = bg1.n, m = bg2.n),
+                       dict(Q = 11, y1 = Gs[:bg1.n], y2 = Gs[bg1.n:] )]
         
         kernel_hypothesis.Bootstrap(K, function_arguments, B = B)
         for i in range(len(MMD_functions)):
