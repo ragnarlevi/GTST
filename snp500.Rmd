@@ -568,7 +568,6 @@ ggplot() + geom_bar(aes(sector, fill = Box_p_val_reject), data = regression_data
 ```{r}
 tlasso <- function(x, nu, rho, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), maxitr = 300, tol = 1e-5, est_mu = FALSE){
   
-  
   p <- dim(x)[2]
   
   itr <- 1
@@ -598,7 +597,6 @@ tlasso <- function(x, nu, rho, S0 = diag(dim(x)[2]), mu0 = rep(0, dim(x)[2]), ma
     
     itr <- itr + 1
   }
-  
   
   
   return(list(Si = S1, mu = mu1, e = e, itr = itr, S_tau = S_tau, tau = tau))
@@ -677,7 +675,7 @@ EBIC <- function(wi, x, N, rho_matrix, beta = 0.5){
 
 
 
-EBIC_tlasso <- function(wi, x, tau, N, rho_matrix, beta = 0.5){
+EBIC_tlasso <- function(wi, x, nu, N,  rho_matrix, beta = 0.5){
   
   # wi precision
   # Csample Sample covariance
@@ -692,11 +690,17 @@ EBIC_tlasso <- function(wi, x, tau, N, rho_matrix, beta = 0.5){
         
         w <- out$values
         U <- out$vectors
-        #U <- U[, w >10e-2]
-        # w <- w[w >10e-2]
+        U <- U[, w >10e-2]
+        w <- w[w >10e-2]
+        
+        const <- (p + nu)/2
+        
+        log_sum <- sum(apply(x, 1, function(y){log(1 + (y %*% wi %*% y)/nu)}))
         
         # print(tau)
-        loglik <- N*0.5*log(det(wi)) - 0.5*sum(mahalanobis(x,0, wi, TRUE)*tau) - 0.5*p*N*log(2*pi) #- sum(abs(wi*rho_matrix))
+        loglik <- -const*log_sum + 0.5*N*sum(log(w)) + N*lgamma((nu+p)/2) - N*lgamma(nu/2) - N*(p/2)*log(nu) - N*(p/2)*log(pi)
+        
+        # loglik <- N*0.5*log(det(wi)) - 0.5*sum(mahalanobis(x,0, wi, TRUE)*tau) - 0.5*p*N*log(2*pi) #- sum(abs(wi*rho_matrix))
         #loglik <- sum(log(w)) - N*sum(diag(wi %*% Csample)) #- 0.5*p*N*log(2*pi)
         
         # get upper triangle
@@ -753,7 +757,7 @@ fit_one_sample <- function(x){
   N <- dim(x)[1]
   info <- list()
 
-  for(rho in seq(from = 0, to = 0.5, by = 0.02)){
+  for(rho in seq(from = 0.01, to = 0.5, by = 0.02)){
     
     # Test normal
     rho_matrix <- matrix(rep(rho, p^2), nrow = p)
@@ -767,7 +771,13 @@ fit_one_sample <- function(x){
     num_missing_edges_f <- sum(upper.tri(precision_i) & abs(precision_i) > 0 & abs(precision_test) == 0 )
     
     EBIC_out <- EBIC(precision_i, scale(x), N, rho_matrix = rho_matrix)
-    info[[paste0(rho, "normal")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "normal", rho = rho)
+    info[[paste0(rho, "normal")]] <- data.frame(ebic = EBIC_out$EBIC, 
+                                                loglik = EBIC_out$loglik, 
+                                                BIC = EBIC_out$BIC, 
+                                                AIC = EBIC_out$AIC, 
+                                                FDR = num_edges_false/num_edges, 
+                                                FNR = num_missing_edges_f/num_missing_edges,
+                                                model = "normal", rho = rho)
     
     # Test Tyler
     out_tyler <- fit_Tyler(scale(x))
@@ -777,8 +787,16 @@ fit_one_sample <- function(x){
     num_edges_false <- sum(upper.tri(precision_tyler) & abs(precision_tyler) == 0 & abs(precision_test) > 0)
     num_missing_edges <- sum(upper.tri(precision_tyler) & abs(precision_tyler) > 0)
     num_missing_edges_f <- sum(upper.tri(precision_tyler) & abs(precision_tyler) > 0 & abs(precision_test) == 0 )
+    
     EBIC_out <- EBIC(precision_tyler, scale(x), N, rho_matrix = rho_matrix)
-    info[[paste0(rho, "Tyler")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "Tyler", rho = rho)
+    info[[paste0(rho, "Tyler")]] <- data.frame(ebic = EBIC_out$EBIC, 
+                                               loglik = EBIC_out$loglik,
+                                               BIC = EBIC_out$BIC, 
+                                               AIC = EBIC_out$AIC,
+                                               FDR = num_edges_false/num_edges, 
+                                               FNR = num_missing_edges_f/num_missing_edges, 
+                                               model = "Tyler", 
+                                               rho = rho)
     
     
     # Test tlasso
@@ -790,11 +808,43 @@ fit_one_sample <- function(x){
     num_edges_false <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) == 0 & abs(precision_test) > 0)
     num_missing_edges <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) > 0)
     num_missing_edges_f <- sum(upper.tri(precision_tlasso) & abs(precision_tlasso) > 0 & abs(precision_test) == 0 )
-    EBIC_out <- EBIC_tlasso(precision_tlasso, out_tlasso$S_tau, N, rho_matrix = rho_matrix)
-    info[[paste0(rho, "tlasso")]] <- data.frame(ebic = EBIC_out$EBIC, loglik = EBIC_out$loglik, BIC = EBIC_out$BIC, AIC = EBIC_out$AIC, FDR = num_edges_false/num_edges, FNR = num_missing_edges_f/num_missing_edges, model = "tlasso", rho = rho)
+    
+    EBIC_out <- EBIC_tlasso(precision_tlasso, x, nu, N, rho_matrix = rho_matrix)
+    info[[paste0(rho, "tlasso")]] <- data.frame(ebic = EBIC_out$EBIC, 
+                                                loglik = EBIC_out$loglik, 
+                                                BIC = EBIC_out$BIC,
+                                                AIC = EBIC_out$AIC, 
+                                                FDR = num_edges_false/num_edges, 
+                                                FNR = num_missing_edges_f/num_missing_edges,
+                                                model = "tlasso", 
+                                                rho = rho)
+    
+    
+    # Test Laplacian
+    out_spectral_heavy <- learn_regular_heavytail_graph(scale(x), 
+                                                    heavy_type = "student",
+                                                    nu = nu, verbose = FALSE)
+    num_edges <- sum(upper.tri(out_spectral_heavy$laplacian) & abs(out_spectral_heavy$laplacian) ==  0)
+    num_edges_false <- sum(upper.tri(out_spectral_heavy$laplacian) & abs(out_spectral_heavy$laplacian) == 0 & abs(precision_test) > 0)
+    num_missing_edges <- sum(upper.tri(out_spectral_heavy$laplacian) & abs(out_spectral_heavy$laplacian) > 0)
+    num_missing_edges_f <- sum(upper.tri(out_spectral_heavy$laplacian) & abs(out_spectral_heavy$laplacian) > 0 & abs(precision_test) == 0 )
+  
+    EBIC_out <- EBIC_spectral_heavy(out_spectral_heavy$laplacian, scale(x), N, nu, beta = 0.5)
+    info[[paste0(rho, "heavy_spectral")]] <- data.frame(ebic = EBIC_out$EBIC, 
+                                                loglik = EBIC_out$loglik, 
+                                                BIC = EBIC_out$BIC,
+                                                AIC = EBIC_out$AIC, 
+                                                FDR = num_edges_false/num_edges, 
+                                                FNR = num_missing_edges_f/num_missing_edges,
+                                                model = "heavy_spectral", 
+                                                rho = rho)
+    
+  
+  
     
     
   }
+  
   
   info <- bind_rows(info)
   
@@ -811,6 +861,21 @@ fit_one_sample <- function(x){
 Synthetic study
 
 ```{r}
+
+plot_corr <- function(x){
+  
+  # diag(x) <- 0
+  melted_cormat <- melt(x)
+  ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()+
+   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, space = "Lab", 
+    name="Precision Matrix")+
+  theme_minimal()
+  
+  
+} 
+
 # Define precision
 
 # cor_test <- cor(log_returns_median_regresion[, (names(log_returns_median_regresion) %in% names(ESG_y_smooth)) & (names(log_returns) %in% sector_classification$`Basic Materials`)])
@@ -821,8 +886,8 @@ Synthetic study
 # cor_test_final <- solve(precision_test)
 
 library(pracma)
-k = 10
-sparsity = .4
+k = 20
+sparsity = .8
 # generate the symmetric sparsity mask
 mask = rand(k)
 mask = mask * (mask < sparsity)
@@ -831,7 +896,7 @@ mask = mask + t(mask) + eye(k)
 mask[mask > 0] = 1
 
 # generate the symmetric precision matrix
-theta = matrix(rnorm(k^2), k)
+theta = matrix(-abs(rnorm(k^2)), k)
 theta[lower.tri(theta, diag = TRUE)] = 0
 theta = theta + t(theta) + eye(k)
 
@@ -856,7 +921,8 @@ p <- dim(cor_test_final)[1]
 x <- MASS::mvrnorm(N, rep(0, p), cor_test_final)
 
 info <- fit_one_sample(x)
-
+plot_corr(cor_test_final)
+plot_corr(precision_test)
 
 
 ```
@@ -1175,11 +1241,13 @@ fit_precisions <- function(data, data_no_market, window_size, sector_classificat
 Test fitting of Basic Materials
 
 ```{r}
-sector_tmp <- list("Basic Materials" = sector_classification[["Basic Materials"]])
+
 
 for(sector in names(sector_classification)){
   file_name <- paste0("data/network_raw/log_return_graphs_", gsub(" ", "", sector, fixed = TRUE),".Rdata")
   print(file_name)
+  sector_tmp <- list()
+  sector_tmp[[sector]] <-  sector_classification[[sector]]
   out_returns <- fit_precisions(log_returns, log_returns_median_regresion, 125, sector_tmp, dates,  FALSE,  5)
   save(out_returns, file = file_name)
   
@@ -1188,10 +1256,12 @@ for(sector in names(sector_classification)){
 
 
 ```{r}
-ggplot(out_returns_adaptive_bm$melted_cormat %>% filter(time == "2015-03-26", id != "Heavy_Spectral")) + geom_line(aes(x = rho, y = abs(val), group = paste(col, row))) + facet_wrap(~id)
+assign('out_networks', get(load('data/network_raw/log_return_graphs_Utilities.RData')))
+
+ggplot(out_networks$melted_cormat %>% filter(time == "2015-03-26", id != "Heavy_Spectral")) + geom_line(aes(x = rho, y = abs(val), group = paste(col, row))) + facet_wrap(~id)
 
 
-df <- out_returns_adaptive_bm$information_criteria
+df <- out_networks$information_criteria
 
 # select best rho
 df_optimal <- df %>% group_by(id, time, sector) %>% summarise(best_rho_ebic = which.min(ebic),
@@ -1226,7 +1296,8 @@ ggplot(df[df$rho < 0.15,]) +
 
 ggplot(df[(df$rho < 0.2) & as.Date(df$time) < as.Date("2015-04-29"),]) + 
   geom_line(aes(x = rho, y = ebic, color = id)) + 
-  facet_wrap(~time)
+  facet_wrap(~time) + 
+  geom_hline(aes(yintercept = ebic, color = "Heavy_Spectral"), data = df[df$id == "Heavy_Spectral" & as.Date(df$time) < as.Date("2015-04-29"),])
 
 
 # df <- out_esg_smooth_adaptive_Energy$information_criteria
