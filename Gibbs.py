@@ -309,15 +309,16 @@ def local_level(N, y, init_params, mh_width, shock = None, verbose = True, cov_s
 
         # sample alpha
         if shock is not None:
-            var = 1.0 / ((T / v[i-1,0]) + (1 / alpha_var[0]))
+            var = 1.0 / ((len(y[:shock[0], 0]) / v[i-1,0]) + (1 / alpha_var[0]))
             avg = np.nansum(y[:shock[0], 0] - beta_vec[i,0]*smooth_state_new[:shock[0], 0]   )/v[i-1,0]
             avg += alpha_mean[0]/alpha_var[0]
             avg *= var
             A_vec[i,0] = np.random.normal(avg, np.sqrt(var))
             
-            var = 1.0 / ((T / v[i-1,0]) + (1 / alpha_var[0]))
+            
+            var = 1.0 / ((len(y[shock[0]:, 0]) / v[i-1,0]) + (1 / alpha_var[0]))
             avg = np.nansum(y[shock[0]:, 0] - beta_vec[i,0]*smooth_state_new[shock[0]:, 0]   )/v[i-1,0]
-            avg += alpha_mean[0]/alpha_var[0]
+            avg += alpha_mean[1]/alpha_var[1]
             avg *= var
             A_vec[i,1] = np.random.normal(avg, np.sqrt(var))
         else:
@@ -329,7 +330,10 @@ def local_level(N, y, init_params, mh_width, shock = None, verbose = True, cov_s
 
         # Sample variance
         alpha = (T_obs/2.0) + v_alpha
-        beta = 0.5 * np.nansum((y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
+        if shock is not None:
+            beta = 0.5 * np.nansum((y[:shock[0],0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:shock[0], 0] ) ** 2 ) + 0.5 * np.nansum((y[shock[0]:,0] - A_vec[i,1] - beta_vec[i,0]*smooth_state_new[shock[0]:, 0] ) ** 2 ) + v_beta
+        else:
+            beta = 0.5 * np.nansum((y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
         # print(beta)
         # print(alpha)
         #print(y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0])
