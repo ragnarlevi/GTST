@@ -297,7 +297,7 @@ def local_level(N, y, init_params, mh_width, shock = None, verbose = True, cov_s
     #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
 
     if verbose:
-            pbar = tqdm.tqdm(disable=(verbose is False), total= N)
+        pbar = tqdm.tqdm(disable=(verbose is False), total= N)
 
     for i in range(1,N+1):
 
@@ -394,10 +394,10 @@ def local_level(N, y, init_params, mh_width, shock = None, verbose = True, cov_s
 
         # state equation  
         # intercept
-        x_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
+        # x_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
         var = 1.0 / ((y.shape[0] / w[i-1,0]) + (1.0 / eta_var[0]))
         # smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]
-        avg = np.nansum(x_no_missing[1:] - G_vec[i-1,0]*x_no_missing[:(len(x_no_missing)-1)]) / w[i-1,0]
+        avg = np.nansum(smooth_state_new[1:] - G_vec[i-1,0]*smooth_state_new[:(len(smooth_state_new)-1)]) / w[i-1,0]
         avg += (eta_mean[0]/eta_var[0])
         avg *= var
         B_vec[i,0] = 0# np.random.normal(avg, np.sqrt(var))
@@ -424,33 +424,22 @@ def local_level(N, y, init_params, mh_width, shock = None, verbose = True, cov_s
             proposal = np.random.uniform(G_vec[i-1,0]-mh_width, G_vec[i-1,0]+mh_width)
             # print(proposal)
 
-            proposal_post = -0.5 * np.nansum((x_no_missing[1:] - proposal*x_no_missing[:(len(x_no_missing)-1)]  - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha, b = G_beta)
-            current_post = -0.5 * np.nansum((x_no_missing[1:] - G_vec[i-1,0]*x_no_missing[:(len(x_no_missing)-1)]  - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0], a = G_alpha, b = G_beta)
+            to = (len(smooth_state_new)-1)
+            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,0] - proposal*smooth_state_new[:to,0]  - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha, b = G_beta, loc = -1, scale = 2)
+            current_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i-1,0]*smooth_state_new[:to,0]  - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0], a = G_alpha, b = G_beta, loc = -1, scale = 2)
 
-            # print(proposal_post -current_post)
             alpha = np.min((0, proposal_post -current_post))
-            # print(proposal_post)
-            # print(current_post)
-            # print(alpha == -np.inf)
-            # print(alpha)
-            #print(alpha)
 
             G_vec[i,0] = np.random.choice([proposal, G_vec[i-1,0]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
-            # if G_vec[i] == G_vec[i-1]:
-            #     print("reject")
-            # else:
-            #     print("accept")
-
             cnt += 1
-            # print(G_vec[i])
-            # print(" ")
+
 
 
         assert cnt <= 100, "Accept error"
 
         if verbose:
-                    pbar.update()
+            pbar.update()
 
     if verbose:
         pbar.close()
@@ -479,7 +468,7 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
 
     n_stock = 1
     T = y.shape[0]
-    T_obs = np.sum(~np.isnan(y[:,0]))
+    T_obs = [np.sum(~np.isnan(y[:,0])), np.sum(~np.isnan(y[:,1]))]
     print(T_obs)
     #print(n_stock)
 
@@ -558,8 +547,10 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
 
         if shock is not None:
             a = np.zeros((T, 2))
-            a[:shock[0]] = A_vec[i-1, :, 0]
-            a[shock[0]:] = A_vec[i-1, :, 1]
+            a[:shock[0],0] = A_vec[i-1, 0, 0]
+            a[:shock[1],1] = A_vec[i-1, 1, 0]
+            a[shock[0]:,0] = A_vec[i-1, 0, 1]
+            a[shock[1]:,1] = A_vec[i-1, 1, 1]
             # print(a)
         else:
             a = A_vec[i-1]
@@ -622,9 +613,11 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
             #print(j)
             #beta = 0.5 * np.nansum((y[:shock[j],j] - A_vec[i,j,0] - beta_vec[i,j]*smooth_state_new[:shock[j], j] ) ** 2 ) + 0.5 * np.nansum((y[shock[j]:,j] - A_vec[i,j,1] - beta_vec[i,j]*smooth_state_new[shock[j]:, j] ) ** 2 ) + v_beta
             #print(beta)
-            alpha = (T_obs/2.0) + v_alpha[j]
+            alpha = (T_obs[j]/2.0) + v_alpha[j]
             if shock is not None:
-                beta = 0.5 * np.nansum((y[:shock[j],j] - A_vec[i,j,0] - beta_vec[i,j]*smooth_state_new[:shock[j], j] ) ** 2 ) + 0.5 * np.nansum((y[shock[j]:,j] - A_vec[i,j,1] - beta_vec[i,j]*smooth_state_new[shock[j]:, j] ) ** 2 ) + v_beta[j]
+                beta = 0.5 * np.nansum((y[:shock[j],j] - A_vec[i,j,0] - beta_vec[i,j]*smooth_state_new[:shock[j], j] ) ** 2 ) +\
+                     0.5 * np.nansum((y[shock[j]:,j] - A_vec[i,j,1] - beta_vec[i,j]*smooth_state_new[shock[j]:, j] ) ** 2 ) +\
+                     v_beta[j]
             else:
                 beta = 0.5 * np.nansum((y[:,j] - A_vec[i,j] - beta_vec[i,j]*smooth_state_new[:, j] ) ** 2) + v_beta[j]
 
@@ -635,24 +628,32 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
         # state equation  
         # intercept
         for j in range(2):
-            x_no_missing = smooth_state_new
-            var = 1.0 / ((T_obs / w[i-1,j]) + (1.0 / eta_var[j]))
-            # smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]
-            to = (smooth_state_new.shape[0]-1)
-            avg = np.nansum(smooth_state_new[1:, j] - G_vec[i-1,j,0]*smooth_state_new[:to, 0]  - G_vec[i-1,j,1]*smooth_state_new[:to, 1]) / w[i-1,j]
-            avg += (eta_mean[j]/eta_var[j])
-            avg *= var
+            # var = 1.0 / ((T / w[i-1,j]) + (1.0 / eta_var[j]))
+            # # smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]
+            # to = (smooth_state_new.shape[0]-1)
+            # avg = np.nansum(smooth_state_new[1:, j] - G_vec[i-1,j,0]*smooth_state_new[:to, 0]  - G_vec[i-1,j,1]*smooth_state_new[:to, 1]) / w[i-1,j]
+            # avg += (eta_mean[j]/eta_var[j])
+            # avg *= var
             B_vec[i,j] = 0# np.random.normal(avg, np.sqrt(var))
 
 
         # variance
-        for j in range(2):
-            x_no_missing = smooth_state_new
-            alpha_w_tmp = T_obs/2.0 + w_alpha[j]
-            to = (smooth_state_new.shape[0]-1)
-            beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,j] - G_vec[i-1,j,0]*smooth_state_new[:to, j] - G_vec[i-1,j,1]*smooth_state_new[:to,j]  - B_vec[i,0]) ** 2) + w_beta[j]
-            w[i,j] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
+        # for j in range(2):
+        #     alpha_w_tmp = T_obs[j]/2.0 + w_alpha[j]
+        #     to = (smooth_state_new.shape[0]-1)
+        #     beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,j] - G_vec[i-1,j,0]*smooth_state_new[:to,0] - G_vec[i-1,j,1]*smooth_state_new[:to,1]  - B_vec[i,j]) ** 2) + w_beta[j]
+        #     w[i,j] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
         # w[i,0] = w[i-1,0]
+
+        alpha_w_tmp = T/2.0 + w_alpha[0]
+        to = (smooth_state_new.shape[0]-1)
+        beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i-1,0,0]*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1]  - B_vec[i,0]) ** 2) + w_beta[0]
+        w[i,0] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
+
+        alpha_w_tmp = T/2.0 + w_alpha[1]
+        to = (smooth_state_new.shape[0]-1)
+        beta_w_tmp = 0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - G_vec[i-1,1,1]*smooth_state_new[:to,1]  - B_vec[i,1]) ** 2) + w_beta[1]
+        w[i,1] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
 
 
         cnt = 0
@@ -663,32 +664,32 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
             # 0,0
             proposal = np.random.uniform(G_vec[i-1,0,0]-mh_width, G_vec[i-1,0,0]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,0] - proposal*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha[0,0], b = G_beta[0,0])
-            current_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i-1,0,0]*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0,0], a = G_alpha[0,0], b = G_beta[0,0])
+            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,0] - proposal*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
+            current_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i-1,0,0]*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
             G_vec[i,0,0] = np.random.choice([proposal, G_vec[i-1,0, 0]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
             # 0,1
             proposal = np.random.uniform(G_vec[i-1,0,1]-mh_width, G_vec[i-1,0,1]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i,0,0]*smooth_state_new[:to,0] - proposal*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha[0,1], b = G_beta[0,1])
-            current_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i,0,0]*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0,1], a = G_alpha[0,1], b = G_beta[0,1])
+            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i,0,0]*smooth_state_new[:to,0] - proposal*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(proposal, a = G_alpha[0,1], b = G_beta[0,1], loc = -1, scale = 2)
+            current_post = -0.5 * np.nansum((smooth_state_new[1:,0] - G_vec[i,0,0]*smooth_state_new[:to,0] - G_vec[i-1,0,1]*smooth_state_new[:to,1] - B_vec[i,0]) ** 2)/w[i,0] +  beta_dist.logpdf(G_vec[i-1,0,1], a = G_alpha[0,1], b = G_beta[0,1], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
             G_vec[i,0,1] = np.random.choice([proposal, G_vec[i-1,0,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
             # 1,1
             proposal = np.random.uniform(G_vec[i-1,1,1]-mh_width, G_vec[i-1,1,1]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,1] - proposal*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,0]) ** 2)/w[i,1] +  beta_dist.logpdf(proposal, a = G_alpha[1,1], b = G_beta[1,1])
-            current_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i-1,1,1]*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,0]) ** 2)/w[i,1] +  beta_dist.logpdf(G_vec[i-1,1,1], a = G_alpha[1,1], b = G_beta[1,1])
+            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,1] - proposal*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,0]) ** 2)/w[i,1] +  beta_dist.logpdf(proposal, a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            current_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i-1,1,1]*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,0]) ** 2)/w[i,1] +  beta_dist.logpdf(G_vec[i-1,1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
             G_vec[i,1,1] = np.random.choice([proposal, G_vec[i-1,1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
             # 1,0
             proposal = np.random.uniform(G_vec[i-1,1,0]-mh_width, G_vec[i-1,1,0]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i,1,1]*smooth_state_new[:to,1] - proposal*smooth_state_new[:to,0] - B_vec[i,1]) ** 2)/w[i,1] +  beta_dist.logpdf(proposal, a = G_alpha[1,0], b = G_beta[1,0])
-            current_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i,1,1]*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,1]) ** 2)/w[i,1] +  beta_dist.logpdf(G_vec[i-1,1,0], a = G_alpha[1,0], b = G_beta[1,0])
+            proposal_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i,1,1]*smooth_state_new[:to,1] - proposal*smooth_state_new[:to,0] - B_vec[i,1]) ** 2)/w[i,1] +  beta_dist.logpdf(proposal, a = G_alpha[1,0], b = G_beta[1,0], loc = -1, scale = 2)
+            current_post = -0.5 * np.nansum((smooth_state_new[1:,1] - G_vec[i,1,1]*smooth_state_new[:to,1] - G_vec[i-1,1,0]*smooth_state_new[:to,0] - B_vec[i,1]) ** 2)/w[i,1] +  beta_dist.logpdf(G_vec[i-1,1,0], a = G_alpha[1,0], b = G_beta[1,0], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
             G_vec[i,1,0] = np.random.choice([proposal, G_vec[i-1,1,0]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
@@ -712,196 +713,196 @@ def local_level_pair(N, y, init_params, mh_width, shock = None, verbose = True, 
 
 
 
-def local_level_trend(N, y, init_params, verbose = True, cov_step_ceiling = None):
-    """
-    Calculate Kalman Smoother
-    y_t = a + beta x_t + v
-    x_t = x_{t-1} + eta + W
+# def local_level_trend(N, y, init_params, verbose = True, cov_step_ceiling = None):
+#     """
+#     Calculate Kalman Smoother
+#     y_t = a + beta x_t + v
+#     x_t = x_{t-1} + eta + W
 
-    :param N: Number of Gibbs iterations
-    :param y: np.array of data n times p
-    :param init_params: dict with the prior parameters and initial guess 
-    """
+#     :param N: Number of Gibbs iterations
+#     :param y: np.array of data n times p
+#     :param init_params: dict with the prior parameters and initial guess 
+#     """
 
-    n_stock = 1
-    T = y.shape[0]
-    T_obs = np.sum(~np.isnan(y[:,0]))
+#     n_stock = 1
+#     T = y.shape[0]
+#     T_obs = np.sum(~np.isnan(y[:,0]))
 
-    # Priors
-    beta_mean = init_params['beta_mean']
-    beta_var = init_params['beta_var']
+#     # Priors
+#     beta_mean = init_params['beta_mean']
+#     beta_var = init_params['beta_var']
 
-    alpha_mean = init_params['alpha_mean']
-    alpha_var = init_params['alpha_var']
+#     alpha_mean = init_params['alpha_mean']
+#     alpha_var = init_params['alpha_var']
 
-    eta_mean = init_params['eta_mean']
-    eta_var = init_params['eta_var']
+#     eta_mean = init_params['eta_mean']
+#     eta_var = init_params['eta_var']
 
-    v_alpha = init_params['v_alpha']
-    v_beta = init_params['v_beta']
+#     v_alpha = init_params['v_alpha']
+#     v_beta = init_params['v_beta']
 
-    w_alpha = init_params['w_alpha']
-    w_beta = init_params['w_beta']
+#     w_alpha = init_params['w_alpha']
+#     w_beta = init_params['w_beta']
 
 
-    # initial gibbs
-    beta_init = init_params['beta_init']
-    alpha_init = init_params['alpha_init']
-    eta_init = init_params['eta_init']
-    w_init = init_params['w_init']
-    v_init = init_params['v_init']
+#     # initial gibbs
+#     beta_init = init_params['beta_init']
+#     alpha_init = init_params['alpha_init']
+#     eta_init = init_params['eta_init']
+#     w_init = init_params['w_init']
+#     v_init = init_params['v_init']
 
-    # init kalman
-    init_x = init_params['init_x']
-    init_c = init_params['init_c']
+#     # init kalman
+#     init_x = init_params['init_x']
+#     init_c = init_params['init_c']
 
-    # Define vector to store Gibbs values
-    B_vec = np.zeros((N+1,1 ))
-    B_vec[0] = eta_init
+#     # Define vector to store Gibbs values
+#     B_vec = np.zeros((N+1,1 ))
+#     B_vec[0] = eta_init
 
-    w = np.zeros((N+1,1 ))
-    w[0] = w_init
+#     w = np.zeros((N+1,1 ))
+#     w[0] = w_init
 
-    beta_vec = np.ones((N+1,n_stock))
-    #beta_vec[0] = beta_init
+#     beta_vec = np.ones((N+1,n_stock))
+#     #beta_vec[0] = beta_init
 
-    A_vec = np.zeros((N+1,n_stock))
-    A_vec[0] = alpha_init
+#     A_vec = np.zeros((N+1,n_stock))
+#     A_vec[0] = alpha_init
 
-    v = np.zeros((N+1, n_stock))
-    v[0] = v_init
+#     v = np.zeros((N+1, n_stock))
+#     v[0] = v_init
 
-    w = np.zeros((N+1, 2))
-    w[0] = w_init
+#     w = np.zeros((N+1, 2))
+#     w[0] = w_init
 
-    states_store = np.zeros((N, T, 2 ))
+#     states_store = np.zeros((N, T, 2 ))
 
-    G = np.identity(2 )
-    G[0,1] = 1
+#     G = np.identity(2 )
+#     G[0,1] = 1
 
-    # constraints, For single this will always be 1
-    #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+#     # constraints, For single this will always be 1
+#     #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
 
-    if verbose:
-            pbar = tqdm.tqdm(disable=(verbose is False), total= N)
+#     if verbose:
+#             pbar = tqdm.tqdm(disable=(verbose is False), total= N)
 
-    for i in range(1,N+1):
+#     for i in range(1,N+1):
 
-        F = np.zeros((n_stock,  2))
-        F[:,0] = beta_vec[i-1]
+#         F = np.zeros((n_stock,  2))
+#         F[:,0] = beta_vec[i-1]
 
         
-        smooth_state, R_cond = FFBS(y, G, B_vec[i-1], np.diag(w[i-1]), F, A_vec[i-1],  np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
+#         smooth_state, R_cond = FFBS(y, G, B_vec[i-1], np.diag(w[i-1]), F, A_vec[i-1],  np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
 
-        # Constraint
-        smooth_state_new = smooth_state[1:]# - np.mean(smooth_state[1:] , axis = 0)
-        # print(smooth_state_new.shape)
-        states_store[i-1] = smooth_state_new
-
-
-
-        # sample alpha
-        var = 1.0 / ((T_obs / v[i-1,0]) + (1 / alpha_var[0]))
-        avg = np.nansum(y[:, 0] - beta_vec[i,0]*smooth_state_new[:, 0]   )/v[i-1,0]
-        avg += alpha_mean[0]/alpha_var[0]
-
-        avg *= var
-        A_vec[i,0] = np.random.normal(avg, np.sqrt(var))
-
-        # sample variance of observation
-
-        alpha = (T_obs/2.0) + v_alpha
-        beta = 0.5 * np.nansum((y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
-        v[i,0] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
-
-
-        # state equation  
-        x_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
-        # var = 1.0 / ((y.shape[0] / w[i-1,0]) + (1.0 / eta_var[0]))
-        # smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]
-        # avg = np.nansum(x_no_missing[1:] - x_no_missing[:(len(x_no_missing)-1)]) / w[i-1,0]
-        # avg += (eta_mean[0]/eta_var[0])
-        # avg *= var
-        # B_vec[i,0] = np.random.normal(avg, np.sqrt(var))
-
-        alpha_w_tmp = T_obs/2.0 + w_alpha[0]
-        # - B_vec[i, 0]
-        x1_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
-        x2_no_missing = smooth_state_new[~np.isnan(y[:, 0]),1]
-        beta_w_tmp = 0.5 * np.nansum((x1_no_missing[1:] - x1_no_missing[:(len(x_no_missing)-1)] - x2_no_missing[:(len(x_no_missing)-1)]  - B_vec[i,0]) ** 2) + w_beta[0]
-        w[i,0] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
-
-
-        alpha_w2_tmp = T_obs/2.0 + w_alpha[1]
-        # - B_vec[i, 0]
-        x1_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
-        x2_no_missing = smooth_state_new[~np.isnan(y[:, 0]),1]
-        beta_w2_tmp = 0.5 * np.nansum((x2_no_missing[1:] - x2_no_missing[:(len(x_no_missing)-1)]) ** 2) + w_beta[1]
-        w[i,1] = invgamma.rvs(a = alpha_w2_tmp, loc = 0, scale = beta_w2_tmp)
-
-        if verbose:
-                    pbar.update()
-
-    if verbose:
-        pbar.close()
+#         # Constraint
+#         smooth_state_new = smooth_state[1:]# - np.mean(smooth_state[1:] , axis = 0)
+#         # print(smooth_state_new.shape)
+#         states_store[i-1] = smooth_state_new
 
 
 
-    return w, v, beta_vec, A_vec, B_vec, states_store
+#         # sample alpha
+#         var = 1.0 / ((T_obs / v[i-1,0]) + (1 / alpha_var[0]))
+#         avg = np.nansum(y[:, 0] - beta_vec[i,0]*smooth_state_new[:, 0]   )/v[i-1,0]
+#         avg += alpha_mean[0]/alpha_var[0]
+
+#         avg *= var
+#         A_vec[i,0] = np.random.normal(avg, np.sqrt(var))
+
+#         # sample variance of observation
+
+#         alpha = (T_obs/2.0) + v_alpha
+#         beta = 0.5 * np.nansum((y[:,0] - A_vec[i,0] - beta_vec[i,0]*smooth_state_new[:, 0] ) ** 2) + v_beta
+#         v[i,0] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
+
+
+#         # state equation  
+#         x_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
+#         # var = 1.0 / ((y.shape[0] / w[i-1,0]) + (1.0 / eta_var[0]))
+#         # smooth_state_new[1:, 0] - smooth_state_new[:(smooth_state_new.shape[0]-1), 0]
+#         # avg = np.nansum(x_no_missing[1:] - x_no_missing[:(len(x_no_missing)-1)]) / w[i-1,0]
+#         # avg += (eta_mean[0]/eta_var[0])
+#         # avg *= var
+#         # B_vec[i,0] = np.random.normal(avg, np.sqrt(var))
+
+#         alpha_w_tmp = T_obs/2.0 + w_alpha[0]
+#         # - B_vec[i, 0]
+#         x1_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
+#         x2_no_missing = smooth_state_new[~np.isnan(y[:, 0]),1]
+#         beta_w_tmp = 0.5 * np.nansum((x1_no_missing[1:] - x1_no_missing[:(len(x_no_missing)-1)] - x2_no_missing[:(len(x_no_missing)-1)]  - B_vec[i,0]) ** 2) + w_beta[0]
+#         w[i,0] = invgamma.rvs(a = alpha_w_tmp, loc = 0, scale = beta_w_tmp)
+
+
+#         alpha_w2_tmp = T_obs/2.0 + w_alpha[1]
+#         # - B_vec[i, 0]
+#         x1_no_missing = smooth_state_new[~np.isnan(y[:, 0]),0]
+#         x2_no_missing = smooth_state_new[~np.isnan(y[:, 0]),1]
+#         beta_w2_tmp = 0.5 * np.nansum((x2_no_missing[1:] - x2_no_missing[:(len(x_no_missing)-1)]) ** 2) + w_beta[1]
+#         w[i,1] = invgamma.rvs(a = alpha_w2_tmp, loc = 0, scale = beta_w2_tmp)
+
+#         if verbose:
+#                     pbar.update()
+
+#     if verbose:
+#         pbar.close()
+
+
+
+#     return w, v, beta_vec, A_vec, B_vec, states_store
 
 
 
 
-def local_level_freq(params, y):
-    """
-    Function for frequentist Estimation of a local tren level model
-    """
+# def local_level_freq(params, y):
+#     """
+#     Function for frequentist Estimation of a local tren level model
+#     """
 
-    eta = 0.0
-    w = np.array([params[0]])
-    beta = 1
-    a = np.array([params[1]])
-    v = np.array([params[2]])
+#     eta = 0.0
+#     w = np.array([params[0]])
+#     beta = 1
+#     a = np.array([params[1]])
+#     v = np.array([params[2]])
 
-    F = np.array(beta)
-
-
-    init_x = np.array([0])
-    init_c = np.array([1])
-
-    (state, 
-    state_cov, 
-    state_one_step, 
-    state_cov_one_step, 
-    R,
-    R_inv,
-    y_est_single, 
-    error_single,
-    neglik_single,
-    R_cond) = KalmanFilter(y, np.identity(1), eta, np.diag(w),F, a, np.diag(v), init_x, init_c )
+#     F = np.array(beta)
 
 
-    smooth, smooth_cov_ = KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, np.identity(1), eta, np.diag(w))
+#     init_x = np.array([0])
+#     init_c = np.array([1])
 
-    y_est_smooth = np.zeros(y.shape[0])
-    for i in range(y.shape[0]):
-        y_est_smooth[i] = np.dot(F, smooth[i+1]) + a
+#     (state, 
+#     state_cov, 
+#     state_one_step, 
+#     state_cov_one_step, 
+#     R,
+#     R_inv,
+#     y_est_single, 
+#     error_single,
+#     neglik_single,
+#     R_cond) = KalmanFilter(y, np.identity(1), eta, np.diag(w),F, a, np.diag(v), init_x, init_c )
 
 
-    # calculate negative log likelihood
+#     smooth, smooth_cov_ = KalmanSmooth(state, state_one_step, state_cov, state_cov_one_step, np.identity(1), eta, np.diag(w))
 
-    neglik = 0
-    for i in range(y.shape[0]):
-        if np.isnan(y[i,0]):
-            continue
+#     y_est_smooth = np.zeros(y.shape[0])
+#     for i in range(y.shape[0]):
+#         y_est_smooth[i] = np.dot(F, smooth[i+1]) + a
 
-        error = y[i,0]- y_est_smooth[i]
-        d1 = np.abs(R_inv[i])
-        d2 = np.dot(error, R_inv[i]).dot(error)
-        neglik += 0.5* d1 + 0.5 * d2
 
-    print(neglik)
-    return neglik
+#     # calculate negative log likelihood
+
+#     neglik = 0
+#     for i in range(y.shape[0]):
+#         if np.isnan(y[i,0]):
+#             continue
+
+#         error = y[i,0]- y_est_smooth[i]
+#         d1 = np.abs(R_inv[i])
+#         d2 = np.dot(error, R_inv[i]).dot(error)
+#         neglik += 0.5* d1 + 0.5 * d2
+
+#     print(neglik)
+#     return neglik
 
 
 
