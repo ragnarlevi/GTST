@@ -1,4 +1,6 @@
 
+from pickle import TRUE
+from re import I
 import networkx as nx
 import numpy as np
 import grakel as gk
@@ -293,8 +295,6 @@ class BoostrapMethods():
         idx = np.concatenate(perm_1 + perm_2)
 
         return K[np.ix_(idx, idx)], idx
-
-
 
 
     def Bootstrap(self, K, function_arguments,B:int, method:str = "PermutationScheme", check_symmetry:bool = False, boot_arg:dict = None) -> None:
@@ -951,6 +951,37 @@ class BinomialGraphs(DegreeGraphs):
             self.Gs.append(G)
 
 
+class TemporalBinomialGraphs(DegreeGraphs):
+    """
+    Class that generates tvo samples of binomial graphs and compares them.
+    """
+    def __init__(self,  n, nnode, k, ar, l = None,  a = None,**kwargs):
+        super().__init__( n, nnode, k, l ,  a, **kwargs )
+        self.p = k/float(nnode-1)
+        self.ar = ar
+
+    def simpleArima(self, var):
+        from statsmodels.tsa.arima_process import ArmaProcess
+
+        ar1 = np.array([1, -self.ar])
+        ma1 = np.array([np.sqrt(var)])
+        AR_object1 = ArmaProcess(ar1, ma1)
+        return AR_object1.generate_sample(nsample=self.n)
+
+    def Generate(self) -> None:
+        """
+        :return: list of networkx graphs
+        """
+
+        self.Gs = []
+        p_x = self.simpleArima( 0.25 ** 2)
+
+        for i in range(len(p_x)):
+            g1 = BinomialGraphs(n = 1, nnode = self.nnode, k = self.k + p_x[i], l = self.l, a = self.a, fullyConnected = self.kwargs.get('fullyConnected', True)) 
+            g1.Generate()
+            self.Gs.append(g1.Gs[0])
+
+
 
 class SBMGraphs():
     """
@@ -1237,6 +1268,197 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
             mmd_samples[key][sample] = kernel_hypothesis.sample_test_statistic[key]
 
     return dict(Kmax = Kmax, p_values = p_values, mmd_samples = mmd_samples)
+
+
+
+def iteration_K(N:int, kernel:dict, normalize:bool, bg1, bg2, kernel_library="Grakel", node_labels_tag='label', edge_labels_tag = None, label_list = None, edge_labels = None, rw_attributes = False):
+    """
+    Function calculates kernel matrix for N samples, and returns them all
+
+
+    """
+
+    K_dict = dict()
+    K_dict['K'] = np.zeros((N, bg1.n + bg2.n, bg1.n + bg2.n))
+    K_dict['Kmax'] = np.zeros(N)
+
+
+    for sample in range(N):
+
+        #if sample % 10 == 0:
+        print(f'{sample} ')
+    
+        # sample binomial graphs
+        bg1.Generate()
+        bg2.Generate()
+        Gs = bg1.Gs + bg2.Gs
+        graph_list = gk.graph_from_networkx(Gs, node_labels_tag = node_labels_tag, edge_labels_tag = edge_labels_tag)
+
+        # calculate label_list
+        if (kernel_library == 'randomwalk') and (label_list is None) and (kernel['calc_type'] == 'ARKL'):
+            label_list = []
+            for G in Gs:
+                label_list.append(np.unique(list(nx.get_node_attributes(G, 'label').values())))
+            label_list = np.unique(np.concatenate(label_list))       
+
+        # if we are using attributes and random walk
+        if rw_attributes and (kernel_library == 'randomwalk'):
+            p = [np.array([i[1][0] for i in G.nodes('attr') ]) for G in Gs ]
+        else:
+            p = None
+
+        
+        # Kernel hypothesis testing
+        # Fit a kernel, Note the Grakel uses graph_list while myKernels use Gs
+        if kernel_library == "Grakel":
+            init_kernel = gk.GraphKernel(kernel= kernel, normalize=normalize)
+            K = init_kernel.fit_transform(graph_list)
+        elif kernel_library == "randomwalk":
+            import myKernels.RandomWalk as rw
+            init_kernel = rw.RandomWalk(Gs, c = kernel['c'], p = p)
+            K = init_kernel.fit(calc_type = kernel['calc_type'], 
+                                r = kernel['r'], 
+                                k = kernel['k'],
+                                mu_vec = kernel['mu_vec'],
+                                normalize_adj = kernel.get('normalize_adj',False), 
+                                row_normalize_adj = kernel.get('row_normalize_adj',False),
+                                label_list = label_list,
+                                edge_labels=edge_labels,
+                                verbose = False
+                                )
+        elif kernel_library == "deepkernel":
+            import myKernels.DeepKernel as dk
+            init_kernel = dk.DK(params = kernel)
+            K = init_kernel.fit_transform(Gs)
+        elif kernel_library == "wwl":
+            import myKernels.WWL as wl
+            #import myKernels.hashkernel as hk
+            init_kernel = wl.WWL(param = {'discount':kernel['discount'],'h':kernel['h'], 'sinkhorn':kernel['sinkhorn'], 'normalize':kernel['normalize']})
+            K = init_kernel.fit_transform(Gs)
+        elif kernel_library == "gik":
+            import myKernels.GraphInvariant as gi
+            init_kernel = gi.GIK(local = True, label_name = 'label', attr_name= 'attr', params = {'wl_itr':kernel['wl_itr'], 
+                                                                                            'distances':kernel['distances'],  
+                                                                                            'c':kernel['c'],
+                                                                                            'normalize':kernel['normalize']})
+            K = init_kernel.fit_transform(Gs)
+        elif kernel_library == 'hash':
+            import myKernels.hashkernel as hashkernel
+            init_kernel = hashkernel.HashKernel(base_kernel = kernel['base_kernel'], param = {'iterations':kernel['iterations'],
+                                                                                         'lsh_bin_width':kernel['lsh_bin_width'], 
+                                                                                         'sigma':kernel['sigma'],
+                                                                                         'normalize':kernel['normalize'],
+                                                                                         'scale_attributes':kernel['scale_attributes'],
+                                                                                         'attr_name': 'attr',
+                                                                                         'label_name':'label',
+                                                                                         'wl_iterations':kernel['wl_iterations'],
+                                                                                         'normalize':kernel['normalize']})
+            K = init_kernel.fit_transform(Gs)
+        else:
+            raise ValueError(f"{kernel_library} not defined")
+
+        # print(K)
+        K_dict['K'][sample] = K
+        K_dict['Kmax'][sample] = K.max()
+        if np.all((K == 0)):
+            warnings.warn("all element in K zero")
+
+
+    return K_dict
+
+
+def testfunction(parts, kernel_hypothesis, n,m, block_lengths, Ks, B):
+    # print(parts)
+
+
+
+    p_val_block_mmdu = {str(i):np.array([-1.0] * len(parts)) for i in block_lengths }
+    p_val_block_mmdb = {str(i):np.array([-1.0] * len(parts)) for i in block_lengths }
+    p_val_perm_mmdu = np.array([-1.0] * len(parts))
+    p_val_perm_mmdb = np.array([-1.0] * len(parts))
+
+    mmd_samples_mmdu = np.array([-1.0] * len(parts))
+    mmd_samples_mmdb = np.array([-1.0] * len(parts))
+
+    #print("asdf")
+    #print(f'{parts} {p_val_block_mmdu}')
+    #print("af")
+    function_arguments=[dict(n = n, m = m ), dict(n = n, m = n )]
+    for i, sample in enumerate(parts):
+        print(i)
+        #print(f'{sample} {Ks[sample].shape}')
+        # block bootstrap
+        for block_length in block_lengths:
+            # print(block_length)
+            kernel_hypothesis.Bootstrap(Ks[sample], function_arguments, B = B, method = 'NBB', boot_arg = {'n':n, 'm':m, 'l':block_length} )
+            #print(f'{parts} {p_val_block_mmdu[str(block_length)]} {block_length}')
+            p_val_block_mmdu[str(block_length)][i] = kernel_hypothesis.p_values['MMD_u']
+            p_val_block_mmdb[str(block_length)][i] = kernel_hypothesis.p_values['MMD_b']
+        # Permutation
+        kernel_hypothesis.Bootstrap(Ks[sample], function_arguments, B = B )
+        p_val_perm_mmdu[i] = kernel_hypothesis.p_values['MMD_u']
+        p_val_perm_mmdb[i] = kernel_hypothesis.p_values['MMD_b']
+
+        mmd_samples_mmdu[i] = kernel_hypothesis.sample_test_statistic['MMD_u']
+        mmd_samples_mmdb[i] = kernel_hypothesis.sample_test_statistic['MMD_b']
+
+    
+    return dict(p_val_block_mmdu = p_val_block_mmdu, p_val_block_mmdb = p_val_block_mmdb,p_val_perm_mmdu=p_val_perm_mmdu,p_val_perm_mmdb=p_val_perm_mmdb,mmd_samples_mmdu=mmd_samples_mmdu,mmd_samples_mmdb = mmd_samples_mmdb)
+
+
+
+def WildBootstrap(K, ln, n_x, n_y, B):
+
+    """
+
+    :param ln: Wild bootstran
+    :param n_x: number of samples in sample 1
+    :param n_y: number of samples in sample 2
+    """
+
+    def simpleArima(ar, var, nsamples):
+        from statsmodels.tsa.arima_process import ArmaProcess
+
+        ar1 = np.array([1, -ar])
+        ma1 = np.array([np.sqrt(var)])
+        AR_object1 = ArmaProcess(ar1, ma1)
+        return AR_object1.generate_sample(nsample=nsamples)
+
+
+    def WildSeries(ln:float, nsamples):
+        ln = float(ln)
+        # print(isinstance(ln, float))
+
+        ar = np.exp(-1.0/ln)
+        var = 1.0-np.exp(-2.0/ln)
+
+        return simpleArima(ar, var, nsamples)
+        
+    # Center Matrix
+    H = np.identity(n_x + n_y) - (1.0/(n_x + n_y))*np.ones((n_x + n_y, n_x + n_y))
+    K = np.dot(H,K).dot(H)
+    K_xx = K[:n_x, :n_x]
+    K_yy = K[n_x:, n_x:]
+    K_xy = K[:n_x, n_x:]
+
+    statistic_sample = np.mean(K_xx) + np.mean(K_yy) - 2.0*np.mean(K_xy)
+    #statistic_sample = 1.0 / (n_x ** 2) * K_xx.sum() + 1.0 / (n_x * n_y) * K_yy.sum() - 2.0 / (n_y ** 2) * K_xy.sum()
+
+    test = np.zeros(B)
+
+    for b in range(B):
+        w_x = WildSeries(ln, n_x)
+        w_y = WildSeries(ln, n_y)
+        #print(w_x.shape)
+        #print(w_y.shape)
+        #print(K_xy.shape)
+        w_x = w_x - np.mean(w_x)
+        w_y = w_y - np.mean(w_y)
+        test[b] = (1.0/n_x ** 2)*np.dot(w_x, K_xx).dot(w_x) + (1.0/n_y ** 2)*np.dot(w_y, K_yy).dot(w_y) - (2.0/(n_x * n_y))*np.dot(w_x, K_xy).dot(w_y) #np.multiply(K, WW)
+        
+
+    return (test > statistic_sample).sum()/B, test,statistic_sample#, K_p
+
 
 
 if __name__ == '__main__':

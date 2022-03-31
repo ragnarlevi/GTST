@@ -158,9 +158,6 @@ if __name__ == "__main__":
     alphas = np.linspace(0.001, 0.99, 999)
 
 
-
-
-
     now = datetime.now()
     time = pd.Timestamp(now)
     print(time)

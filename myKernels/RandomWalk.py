@@ -131,18 +131,18 @@ class RandomWalk():
                     U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(W_row_normalize.T, n_components= r)
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
@@ -208,18 +208,18 @@ class RandomWalk():
 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
@@ -320,18 +320,18 @@ class RandomWalk():
 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
@@ -415,18 +415,18 @@ class RandomWalk():
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
@@ -527,18 +527,18 @@ class RandomWalk():
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
@@ -678,18 +678,18 @@ class RandomWalk():
                 
 
                 if (self.p is None) and (self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 elif (self.p is None) and ~(self.q is None):
-                    p1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    p2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     q1 = self.q[i]
                     q2 = self.q[j]
                 elif ~(self.p is None) and (self.q is None):
-                    q1 = np.ones((self.X[i].number_of_nodes()))# / float(self.X[i].number_of_nodes())
-                    q2 = np.ones((self.X[j].number_of_nodes()))# / float(self.X[j].number_of_nodes())
+                    q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
+                    q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                     p1 = self.p[i]
                     p2 = self.p[j] 
                 else:
