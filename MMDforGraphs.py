@@ -3,7 +3,7 @@ from pickle import TRUE
 from re import I
 import networkx as nx
 import numpy as np
-import grakel as gk
+# import grakel as gk
 import warnings
 from scipy.stats import norm
 
