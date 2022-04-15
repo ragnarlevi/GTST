@@ -2,11 +2,15 @@
 from xml.dom import ValidationErr
 from matplotlib.pyplot import axis
 import numpy as np
-from scipy.stats import invgamma, norm
+from scipy.stats import invgamma, norm, invwishart, multivariate_normal
 from scipy.stats import beta as beta_dist
 import tqdm
 import matplotlib.pyplot as plt
 import scipy
+from statsmodels.tsa.stattools import acf 
+import statsmodels.api as sm
+from scipy import signal
+import pandas as pd
 # from sklearn.covariance import LedoitWolf
 
 
@@ -947,54 +951,89 @@ def local_level_pair_variance(N, y, init_params, mh_width, mh_width_w1, mh_width
             # avg *= var
             B_vec[i,j] = 0# np.random.normal(avg, np.sqrt(var))
 
-    
-        proposal = np.random.uniform(w[i-1,0,0]-mh_width_w1, w[i-1,0,0]+mh_width_w1)
+        
         to = (smooth_state_new.shape[0]-1)
         # print(G_vec[i-1])
         delta = (smooth_state_new[1:].T - np.dot(G_vec[i-1],smooth_state_new[:to].T))
+
+        mean_prop = np.array([w[i-1][0,0], w[i-1][1,1], w[i-1][0,1]])
+
+        cov_w = np.array([[1, 0, 0], [0,1,0], [0.,0., 1]])*mh_width_w1
+
+
+
+        proposal = multivariate_normal.rvs(mean_prop, cov_w)
         W_old = w[i-1].copy()
-        W_new = W_old.copy()
-        W_new[0,0] = proposal
+        W_new = np.array([[proposal[0], proposal[2]], [proposal[2], proposal[1]]])
+        proposal_post = (-delta.shape[1]*0.5*log_det_p(W_new) - 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +
+                    invgamma.logpdf(proposal[0], a = w_alpha[0,0], scale = w_beta[0,0]) +
+                    invgamma.logpdf(proposal[1], a = w_alpha[1,1], scale = w_beta[1,1]) +
+                    beta_dist.logpdf(proposal[2], a = w_alpha[0,1], b = w_beta[0,1], loc = -2, scale = 4)
+                    )
 
-        proposal_post = -delta.shape[1]*0.5*log_det_p(W_new)- 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  invgamma.logpdf(proposal, a = w_alpha[0,0], scale = w_beta[0,0])
-        current_post = -delta.shape[1]*0.5*log_det_p(W_old)- 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  invgamma.logpdf(W_old[0,0], a = w_alpha[0,0], scale = w_beta[0,0])
+        current_post = (-delta.shape[1]*0.5*log_det_p(W_old) - 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +
+                    invgamma.logpdf(W_old[0,0], a = w_alpha[0,0], scale = w_beta[0,0]) +
+                    invgamma.logpdf(W_old[1,1], a = w_alpha[1,1], scale = w_beta[1,1]) +
+                    beta_dist.logpdf(W_old[0,1], a = w_alpha[0,1], b = w_beta[0,1], loc = -2, scale = 4)
+                    )
+
         alpha = np.min((0, proposal_post -current_post))
-        w[i,0,0] =  np.random.choice([proposal, W_old[0,0]], p = [np.exp(alpha), 1-np.exp(alpha)])
+        # print(alpha)
 
-        proposal = np.random.uniform(w[i-1,1,1]-mh_width_w2, w[i-1,1,1]+mh_width_w2)
-        W_old = w[i-1].copy()
-        W_old[0,0] = w[i,0,0]
-        W_new = W_old.copy()
-        W_new[1,1] = proposal
-        proposal_post = -delta.shape[1]*0.5*log_det_p(W_new) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  invgamma.logpdf(proposal, a = w_alpha[1,1], scale = w_beta[1,1])
-        current_post = -delta.shape[1]*0.5*log_det_p(W_old) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  invgamma.logpdf(W_old[1,1], a = w_alpha[1,1], scale = w_beta[1,1])
-        alpha = np.min((0, proposal_post -current_post))
-        w[i,1,1] = np.random.choice([proposal, W_old[1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
+        if np.random.uniform()< np.exp(alpha):
+            w[i] = W_new.copy()
+        else:
+            w[i] = W_old
 
 
-        proposal = np.random.uniform(w[i-1,1,0]-mh_width_w_off, w[i-1,1,0]+mh_width_w_off)
-        #print("sf")
-        #print(proposal)
-        W_old = w[i-1].copy()
-        W_old[0,0] = w[i,0,0]
-        W_old[1,1] = w[i,1,1]
-        W_new = W_old.copy()
-        W_new[0,1] = proposal
-        W_new[1,0] = proposal
+    
+        # proposal = np.random.uniform(w[i-1,0,0]-mh_width_w1, w[i-1,0,0]+mh_width_w1)
+        # to = (smooth_state_new.shape[0]-1)
+        # # print(G_vec[i-1])
+        # delta = (smooth_state_new[1:].T - np.dot(G_vec[i-1],smooth_state_new[:to].T))
+        # W_old = w[i-1].copy()
+        # W_new = W_old.copy()
+        # W_new[0,0] = proposal
 
-        #print(invgamma.logpdf(proposal, a = w_alpha[0,1], scale = w_beta[0,1]))
-        proposal_post = -delta.shape[1]*0.5*log_det_p(W_new) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  beta_dist.logpdf(proposal, a = w_alpha[0,1], b = w_beta[0,1], loc = -1, scale = 2)
-        current_post = -delta.shape[1]*0.5*log_det_p(W_old) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  beta_dist.logpdf(W_old[0,1], a = w_alpha[0,1], b = w_beta[0,1], loc = -1, scale = 2)
-        alpha = np.min((0, proposal_post -current_post))
-        w[i,0,1] = np.random.choice([proposal, W_old[0,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
-        w[i,1,0] = w[i,0,1]
+        # proposal_post = -delta.shape[1]*0.5*log_det_p(W_new)- 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  invgamma.logpdf(proposal, a = w_alpha[0,0], scale = w_beta[0,0])
+        # current_post = -delta.shape[1]*0.5*log_det_p(W_old)- 0.5*np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  invgamma.logpdf(W_old[0,0], a = w_alpha[0,0], scale = w_beta[0,0])
+        # alpha = np.min((0, proposal_post -current_post))
+        # w[i,0,0] =  np.random.choice([proposal, W_old[0,0]], p = [np.exp(alpha), 1-np.exp(alpha)])
+
+        # proposal = np.random.uniform(w[i-1,1,1]-mh_width_w2, w[i-1,1,1]+mh_width_w2)
+        # W_old = w[i-1].copy()
+        # W_old[0,0] = w[i,0,0]
+        # W_new = W_old.copy()
+        # W_new[1,1] = proposal
+        # proposal_post = -delta.shape[1]*0.5*log_det_p(W_new) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  invgamma.logpdf(proposal, a = w_alpha[1,1], scale = w_beta[1,1])
+        # current_post = -delta.shape[1]*0.5*log_det_p(W_old) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  invgamma.logpdf(W_old[1,1], a = w_alpha[1,1], scale = w_beta[1,1])
+        # alpha = np.min((0, proposal_post -current_post))
+        # w[i,1,1] = np.random.choice([proposal, W_old[1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
+
+
+        # proposal = np.random.uniform(w[i-1,1,0]-mh_width_w_off, w[i-1,1,0]+mh_width_w_off)
+        # #print("sf")
+        # #print(proposal)
+        # W_old = w[i-1].copy()
+        # W_old[0,0] = w[i,0,0]
+        # W_old[1,1] = w[i,1,1]
+        # W_new = W_old.copy()
+        # W_new[0,1] = proposal
+        # W_new[1,0] = proposal
+
+        # #print(invgamma.logpdf(proposal, a = w_alpha[0,1], scale = w_beta[0,1]))
+        # proposal_post = -delta.shape[1]*0.5*log_det_p(W_new) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_new), delta)) +  beta_dist.logpdf(proposal, a = w_alpha[0,1], b = w_beta[0,1], loc = -2, scale = 4)
+        # current_post = -delta.shape[1]*0.5*log_det_p(W_old) -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta, np.linalg.inv(W_old), delta)) +  beta_dist.logpdf(W_old[0,1], a = w_alpha[0,1], b = w_beta[0,1], loc = -2, scale = 4)
+        # alpha = np.min((0, proposal_post -current_post))
+        # w[i,0,1] = np.random.choice([proposal, W_old[0,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
+        # w[i,1,0] = w[i,0,1]
 
         signal_to_noise[i,0] = w[i,0,0]/v[i,0]
         signal_to_noise[i,1] = w[i,1,1]/v[i,1]
 
 
         if np.linalg.det(w[i])<= 10e-12:
-            print("non psd")
+            # print("non psd")
             continue
 
         
@@ -1050,6 +1089,8 @@ def local_level_pair_variance(N, y, init_params, mh_width, mh_width_w1, mh_width
 
     if verbose:
         pbar.close()
+
+
 
 
 
@@ -1134,9 +1175,7 @@ def plot_gibbs_clean(Gibbs_out, state_from = 10):
     w_gibbs_pair = Gibbs_out['w']
     G_gibbs_pair = Gibbs_out['G']
     v_gibbs_pair = Gibbs_out['v']
-    beta_gibbs_pair = Gibbs_out['beta']
-    B_gibbs_pair = Gibbs_out['B_gibbs']
-    A_gibbs_pair = Gibbs_out['A']
+
     states_gibbs_pair = Gibbs_out['states']
 
 
@@ -1148,9 +1187,9 @@ def plot_gibbs_clean(Gibbs_out, state_from = 10):
 
 
     fig, ax = plt.subplots(1,2, figsize = (20,10))
-    ax[0].plot(range(len(B_gibbs_pair[10:,0])),w_gibbs_pair[10:,0], color='b')
+    ax[0].plot(range(len(w_gibbs_pair[10:,0])),w_gibbs_pair[10:,0])
     ax[0].set_title(f'latent process variance {0+1}')
-    ax[1].plot(range(len(B_gibbs_pair[10:,1])),w_gibbs_pair[10:,1], color='b')
+    ax[1].plot(range(len(w_gibbs_pair[10:,1])),w_gibbs_pair[10:,1])
     ax[1].set_title(f'latent process variance {1+1}')
 
 
@@ -1181,19 +1220,16 @@ def plot_gibbs_clean_real(Gibbs_out, real_param, state_from = 10):
     w_gibbs_pair = Gibbs_out['w']
     G_gibbs_pair = Gibbs_out['G']
     v_gibbs_pair = Gibbs_out['v']
-    beta_gibbs_pair = Gibbs_out['beta']
-    B_gibbs_pair = Gibbs_out['B_gibbs']
-    A_gibbs_pair = Gibbs_out['A']
+
+
     states_gibbs_pair = Gibbs_out['states']
 
-    a_pair = real_param['a']
-    beta_pair = real_param['beta']
     v_pair =  real_param['v']
 
-    eta_pair = real_param['b']
+
     w_pair = real_param['w']
     G_pair = real_param['G']
-    x_pair = real_param['x']
+
 
 
 
@@ -1207,11 +1243,12 @@ def plot_gibbs_clean_real(Gibbs_out, real_param, state_from = 10):
 
 
     fig, ax = plt.subplots(1,2, figsize = (20,10))
-    ax[0].plot(range(len(B_gibbs_pair[10:,0])),w_gibbs_pair[10:,0], color='b')
+    ax[0].plot(range(len(v_gibbs_pair[10:,0])),w_gibbs_pair[10:,0])
     ax[0].axhline(y=w_pair[0,0], color='r', linestyle='-')
     ax[0].axhline(y=w_pair[0,1], color='r', linestyle='-')
     ax[0].set_title(f'latent process variance {0+1}')
-    ax[1].plot(range(len(B_gibbs_pair[10:,1])),w_gibbs_pair[10:,1], color='b')
+    ax[1].plot(range(len(v_gibbs_pair
+    [10:,1])),w_gibbs_pair[10:,1])
     ax[1].axhline(y=w_pair[1,0], color='r', linestyle='-')
     ax[1].axhline(y=w_pair[1,1], color='r', linestyle='-')
     ax[1].set_title(f'latent process variance {1+1}')
@@ -1346,7 +1383,6 @@ def plot_gibbs_test(Gibbs_out, real_param, state_from = 10):
 
 
 def plot_corr(path, fr = 200, type = "pearson", ret = False):
-    import pandas as pd
     Gibbs_out = pd.read_pickle(path)
     
     fig, ax = plt.subplots(1,1, figsize = (20,10))
@@ -1371,16 +1407,316 @@ def plot_corr(path, fr = 200, type = "pearson", ret = False):
         return None
         
 
+def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = True, cov_step_ceiling = None):
+    """
+    Calculate Kalman Smoother
+    y_t = a + F x_t + v
+    x_t = G x_{t-1} + eta + W
+
+    Parameters
+    ------------------------------------
+    :param N: Number of Gibbs iterations
+    :param y: np.array of data n times p:
+    :param shock: tuple, index when the shift occurred and the index of the previous observed value . if None no shocks
+    :param init_params: dict with the prior parameters and initial guess 
+
+    """
+
+
+    T = y.shape[0]
+    T_obs = [np.sum(~np.isnan(y[:,0])), np.sum(~np.isnan(y[:,1]))]
+    print(T_obs)
+    #print(n_stock)
+
+
+
+    v_alpha = init_params['v_alpha']
+    v_beta = init_params['v_beta']
+
+    w_alpha = init_params['w_alpha']
+    w_beta = init_params['w_beta']
+
+    G_alpha = init_params['G_alpha']
+    G_beta = init_params['G_beta']
+
+    # initial gibbs
+    w_init = init_params['w_init']
+    v_init = init_params['v_init']
+    G_init = init_params['G_init']
+
+    # init kalman
+    init_x = init_params['init_x']
+    init_c = init_params['init_c']
+
+    # Define vector to store Gibbs values
+
+    w = np.zeros((N+1,2,2))
+    w[0] = w_init
+
+
+    v = np.zeros((N+1, 2))
+    v[0] = v_init
+
+
+    signal_to_noise = np.zeros((N+1, 2))
+    signal_to_noise[0] = w_init[0]/v_init[0]
+
+    states_store = np.zeros((N, T+1, 2))
+
+    G_vec = np.zeros((N+1,2,2))
+    G_vec[0] = G_init
+
+    # constraints, For single this will always be 1
+    #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+
+    if verbose:
+        pbar = tqdm.tqdm(disable=(verbose is False), total= N)
 
     
-        # if type == 'pearson':
-        #     ok.append(np.corrcoef(Gibbs_out['states'][fr:,i, 0], Gibbs_out['states'][fr:, i, 1])[0,1])
-        # elif type == 'spearman':
-        #     ok.append(scipy.stats.spearmanr(Gibbs_out['states'][fr:,i, 0], Gibbs_out['states'][fr:, i, 1])[0])
-        # elif type == 'kendall':
-        #     ok.append(scipy.stats.kendalltau(Gibbs_out['states'][500:,i, 0], Gibbs_out['states'][500:, i, 1])[0])
-        # else:
-        #     ValueError("correlation not defined")
+    i = 1
+    while i < N+1:
+    #for i in range(1,N+1):
+
+        F = np.identity(2)
+
+        
+        a = np.zeros(2)
+        eta =np.zeros(2)
+        
+        smooth_state_draws, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G_vec[i-1], eta, w[i-1] , F, a, np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
+
+        # Constraint
+        smooth_state_new = smooth_state_draws[:]# - np.mean(smooth_state[1:] , axis = 0)
+        # print(smooth_state_new.shape)
+        states_store[i-1] = smooth_state_new
+
+    
+
+
+        # print("alpha")
+
+        # Sample variance
+        for j in range(2):
+            alpha = (T_obs[j]/2.0) + v_alpha[j]
+            beta = 0.5 * np.nansum((y[:,j] - 0 - smooth_state_new[1:, j] ) ** 2) + v_beta[j]
+            v[i,j] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
+
+
+
+        alpha = T + w_alpha
+        to = (smooth_state_new.shape[0]-1)
+        delta = (smooth_state_new[1:].T - np.dot(G_vec[i-1],smooth_state_new[:to].T))
+        beta = np.dot(delta, delta.T) + w_beta
+        w[i] = invwishart.rvs(df = alpha, scale = beta)
+
+
+
+        signal_to_noise[i,0] = w[i,0,0]/v[i,0]
+        signal_to_noise[i,1] = w[i,1,1]/v[i,1]
+
+
+        if np.linalg.det(w[i])<= 10e-12:
+            continue
+
+
+        cnt = 0
+        roots_abs = np.abs(np.roots([G_vec[i,0,0]*G_vec[i,1,1]-G_vec[i,1,0]*G_vec[i,0,1], -(G_vec[i,0,0] +G_vec[i,1,1]), 1]))
+        #print("going G")
+        while (np.any(roots_abs <= 1) and (cnt < 100)) or cnt == 0:
+            # Sample G using Metropolis hasting
+            # 0,0
+            proposal = np.random.uniform(G_vec[i-1,0,0]-mh_width, G_vec[i-1,0,0]+mh_width)
+            to = (smooth_state_new.shape[0]-1)
+            G_old = G_vec[i-1].copy()
+            G_new = G_old.copy()
+            G_new[0,0] = proposal
+            delta_new = (smooth_state_new[1:].T - np.dot(G_new,smooth_state_new[:to].T) )
+            delta_old = (smooth_state_new[1:].T - np.dot(G_old,smooth_state_new[:to].T) )
+            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w[i]), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
+            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w[i]), delta_old)) +  beta_dist.logpdf(G_vec[i-1,0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
+            alpha = np.min((0, proposal_post -current_post))
+            G_vec[i,0,0] = np.random.choice([proposal, G_vec[i-1,0, 0]], p = [np.exp(alpha), 1-np.exp(alpha)])
+
+            # 1,1
+            proposal = np.random.uniform(G_vec[i-1,1,1]-mh_width, G_vec[i-1,1,1]+mh_width)
+            to = (smooth_state_new.shape[0]-1)
+            G_old = G_vec[i-1].copy()
+            G_old[0,0] = G_vec[i,0,0]
+            G_new = G_old.copy()
+            G_new[1,1] = proposal
+            delta_new = (smooth_state_new[1:].T - np.dot(G_new,smooth_state_new[:to].T))
+            delta_old = (smooth_state_new[1:].T - np.dot(G_old,smooth_state_new[:to].T) )
+            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w[i]), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w[i]), delta_old)) +  beta_dist.logpdf(G_vec[i-1,1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            alpha = np.min((0, proposal_post -current_post))
+            G_vec[i,1,1] =  np.random.choice([proposal, G_vec[i-1,1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
+
+            G_vec[i,0,1] = 0
+            G_vec[i,1,0] = 0
+            cnt += 1
+            roots_abs = np.abs(np.roots([G_vec[i,0,0]*G_vec[i,1,1]-G_vec[i,1,0]*G_vec[i,0,1], -(G_vec[i,0,0] +G_vec[i,1,1]), 1]))
+
+
+
+        assert cnt <= 100, "Accept error"
+
+        i+=1
+
+        if verbose:
+            pbar.update()
+
+    if verbose:
+        pbar.close()
+
+
+    Gibbs_out = dict()
+    Gibbs_out['w'] = w
+    Gibbs_out['v'] = v
+    Gibbs_out['G'] = G_vec
+    Gibbs_out['states'] = states_store
+    Gibbs_out['signal_to_noise'] = signal_to_noise
+    Gibbs_out['init_params'] = init_params
+
+    return Gibbs_out
+    
+
+def neff(arr, N):
+    n = len(arr)
+    acf_vec = acf(arr, nlags=n, fft=True)
+    sums = 0
+    for k in range(1, len(acf_vec)):
+        sums = sums + (n-k)*acf_vec[k]/n
+
+    return N/(1+2*sums)
+
+
+def plot_acf(v1,v2,G11,G22,w11,w22,w12):
+
+    fig, ax = plt.subplots(4,2, figsize = (20, 20))
+    sm.graphics.tsa.plot_acf(v1, ax = ax[0,0])
+    ax[0,0].set_title("v1")
+    sm.graphics.tsa.plot_acf(v2, ax = ax[0,1])
+    ax[0,1].set_title("v2")
+
+    sm.graphics.tsa.plot_acf(G11, ax = ax[1,0])
+    ax[1,0].set_title("G11")
+    sm.graphics.tsa.plot_acf(G22, ax = ax[1,1])
+    ax[1,1].set_title("G22")
+
+    sm.graphics.tsa.plot_acf(w11, ax = ax[2,0])
+    ax[2,0].set_title("w11")
+    sm.graphics.tsa.plot_acf(w22, ax = ax[2,1])
+    ax[2,1].set_title("w22")
+    sm.graphics.tsa.plot_acf(w12, ax = ax[3,0])
+    ax[3,0].set_title("w12")
+
+
+
+def my_geweke(x, start, to, by):
+    import rpy2.robjects as robjects
+    from rpy2.robjects.packages import importr
+    import rpy2.robjects.numpy2ri
+    rpy2.robjects.numpy2ri.activate()
+    coda = importr('coda')
+
+
+    z = []
+    for end_len in np.arange(start, to, by):
+        v1 = x[:end_len]
+        # T = len(v1)
+        # T1 = int(0.1*T)
+        # T2 = int(0.5*T)
+        # T_star = T-T2+1
+
+        # mean1 = np.mean(v1[:T1])
+        # f1, Pxx_den1 = signal.welch(v1[:T1], 1/len(v1[:T1]), window="hanning")
+
+        # mean2 = np.mean(v1[T_star:])
+        # f2, Pxx_den2 = signal.welch(v1[T_star:], 1/len(v1[T_star:]), window="hanning")
+
+        # nominator = mean1 - mean2
+        # denominator = Pxx_den1[0]/T1 + Pxx_den2[0]/T2
+
+    
+        # acf_vec1 = acf(v1[:T1], nlags=len(v1[:T1]), fft=True)
+        # std1 =np.std(v1[:T1])**2 /(1 - np.sum(acf_vec1[1:]))**2
+        # acf_vec2 = acf(v1[T_star:], nlags=len(v1[T_star:]), fft=True)
+        # std2 =np.std(v1[T_star:])**2 /(1 - np.sum(acf_vec2[1:]))**2 
+        # # denominator = np.sqrt(std1/T1 + std2/T2)
+        # z.append(nominator/denominator)
+        
+        z_obj = coda.geweke_diag(v1)
+        z.append(z_obj[0])
+    
+
+    return z
+
+def plot_geweke(x, start, to, by):
+
+    time = np.arange(start, to, by)
+    z = dict()
+
+    for k,v in x.items():
+        z[k] = my_geweke(v, start, to, by)
+
+    
+    fig, ax = plt.subplots(1,1, figsize = (20, 10))
+
+    for k,v in z.items():
+        ax.plot(time, v, label = k)
+
+    ax.axhline(y = -2, color = 'r')
+    ax.axhline(y = 2, color = 'r')
+    ax.legend()
+
+
+def Gelman_rubin(chains, burnin):
+    """
+    Parameters
+    -----------
+
+    x- chain dictionary 
+
+    """
+
+    M = len(chains)
+
+    param_names = list(chains[0].keys())
+    
+
+    for k in param_names:
+        if k == "init_params":
+            continue
+
+        chain_means = []
+        chain_vars = []
+    
+
+
+        for i in range(M):
+            chain_vars.append(np.std(chains[i][k][burnin:])**2)
+            chain_means.append(np.mean(chains[i][k][burnin:]))
+            N = len(chains[i][k][burnin:])
+
+
+        chain_means = np.array(chain_means)
+        chain_vars = np.array(chain_vars)
+        W = np.mean(chain_vars)
+
+        B = (N/(M-1))*np.sum((chain_means - np.mean(chain_means))**2)
+
+        var = (1-1/N)*W + B/N
+
+        R = np.sqrt(var/W)
+
+        print(f'R for {k} is {R}')
+
+
+
+
+
+
+
 
 
 # def local_level_trend(N, y, init_params, verbose = True, cov_step_ceiling = None):
