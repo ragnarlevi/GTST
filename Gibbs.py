@@ -1407,7 +1407,7 @@ def plot_corr(path, fr = 200, type = "pearson", ret = False):
         return None
         
 
-def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = True, cov_step_ceiling = None):
+def local_level_pair_variance_wishart(N, y, init_params, mh_width, thinning_step = 1, verbose = True, cov_step_ceiling = None):
     """
     Calculate Kalman Smoother
     y_t = a + F x_t + v
@@ -1422,6 +1422,10 @@ def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = Tru
 
     """
 
+    if N % thinning_step != 0:
+        raise ValueError("N should be a integer multiply of N ")
+
+    nr_store = int(N/thinning_step)
 
     T = y.shape[0]
     T_obs = [np.sum(~np.isnan(y[:,0])), np.sum(~np.isnan(y[:,1]))]
@@ -1450,21 +1454,38 @@ def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = Tru
 
     # Define vector to store Gibbs values
 
-    w = np.zeros((N+1,2,2))
-    w[0] = w_init
+    w11 = np.zeros((nr_store))
+    w22 = np.zeros((nr_store))
+    w12 = np.zeros((nr_store))
+    w11_prev = w_init[0,0]
+    w22_prev = w_init[1,1]
+    w12_prev = w_init[0,1]
+
+    w_prev = np.zeros((2,2))
+    w_prev[0,0] = w11_prev
+    w_prev[1,1] = w22_prev
+    w_prev[0,1] = w12_prev
+    w_prev[1,0] = w12_prev
+
+    v = np.zeros((nr_store, 2))
+    v_prev = v_init
 
 
-    v = np.zeros((N+1, 2))
-    v[0] = v_init
+    #signal_to_noise = np.zeros((nr_store, 2))
+    #signal_to_noise[0] = w_init[0]/v_init[0]
 
+    states_store = np.zeros((nr_store, T+1, 2))
 
-    signal_to_noise = np.zeros((N+1, 2))
-    signal_to_noise[0] = w_init[0]/v_init[0]
+    G11 = np.zeros((nr_store))
+    G22 = np.zeros((nr_store))
 
-    states_store = np.zeros((N, T+1, 2))
+    G11_prev = G_init[0,0]
+    G22_prev = G_init[1,1]
 
-    G_vec = np.zeros((N+1,2,2))
-    G_vec[0] = G_init
+    G_prev = np.identity(2)
+    G_prev[0,0] = G11_prev
+    G_prev[1,1] = G22_prev
+
 
     # constraints, For single this will always be 1
     #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
@@ -1472,7 +1493,9 @@ def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = Tru
     if verbose:
         pbar = tqdm.tqdm(disable=(verbose is False), total= N)
 
-    
+    G11_accept = 0
+    G22_accept = 0
+
     i = 1
     while i < N+1:
     #for i in range(1,N+1):
@@ -1483,82 +1506,141 @@ def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = Tru
         a = np.zeros(2)
         eta =np.zeros(2)
         
-        smooth_state_draws, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G_vec[i-1], eta, w[i-1] , F, a, np.diag(v[i-1]), init_x, init_c, cov_step_ceiling)
+        smooth_state_draws, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G_prev, eta, w_prev , F, a, np.diag(v_prev), init_x, init_c, cov_step_ceiling)
 
         # Constraint
         smooth_state_new = smooth_state_draws[:]# - np.mean(smooth_state[1:] , axis = 0)
         # print(smooth_state_new.shape)
-        states_store[i-1] = smooth_state_new
+
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            states_store[idx-1] = smooth_state_new.copy()
+
 
     
 
 
         # print("alpha")
+        v_new = v_prev.copy()
 
         # Sample variance
         for j in range(2):
             alpha = (T_obs[j]/2.0) + v_alpha[j]
             beta = 0.5 * np.nansum((y[:,j] - 0 - smooth_state_new[1:, j] ) ** 2) + v_beta[j]
-            v[i,j] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
-
+            v_new[j] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
+        
+        v_prev = v_new.copy()
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            v[idx-1] = v_new.copy()
 
 
         alpha = T + w_alpha
         to = (smooth_state_new.shape[0]-1)
-        delta = (smooth_state_new[1:].T - np.dot(G_vec[i-1],smooth_state_new[:to].T))
+        delta = (smooth_state_new[1:].T - np.dot(G_prev,smooth_state_new[:to].T))
         beta = np.dot(delta, delta.T) + w_beta
-        w[i] = invwishart.rvs(df = alpha, scale = beta)
+
+        w_new = invwishart.rvs(df = alpha, scale = beta)
+        w_prev = w_new.copy()
+
+        if i % thinning_step == 0:
+            w11[idx-1] = w_new[0,0]
+            w22[idx-1] = w_new[1,1]
+            w12[idx-1] = w_new[0,1]
+            idx = int(i/thinning_step)
 
 
+        #signal_to_noise[i,0] = w_new[0,0]/v_[i,0]
+        #signal_to_noise[i,1] = w_new[1,1]/v[i,1]
 
-        signal_to_noise[i,0] = w[i,0,0]/v[i,0]
-        signal_to_noise[i,1] = w[i,1,1]/v[i,1]
 
-
-        if np.linalg.det(w[i])<= 10e-12:
+        if np.linalg.det(w_new)<= 10e-12:
             continue
 
 
         cnt = 0
-        roots_abs = np.abs(np.roots([G_vec[i,0,0]*G_vec[i,1,1]-G_vec[i,1,0]*G_vec[i,0,1], -(G_vec[i,0,0] +G_vec[i,1,1]), 1]))
+        roots_abs = np.abs(np.roots([G_prev[0,0]*G_prev[1,1]-G_prev[1,0]*G_prev[0,1], -(G_prev[0,0] +G_prev[1,1]), 1]))
         #print("going G")
         while (np.any(roots_abs <= 1) and (cnt < 100)) or cnt == 0:
             # Sample G using Metropolis hasting
             # 0,0
-            proposal = np.random.uniform(G_vec[i-1,0,0]-mh_width, G_vec[i-1,0,0]+mh_width)
+
+            # proposal = multivariate_normal.rvs(np.diag(G_prev), cov = np.identity(2)*mh_width)
+            # to = (smooth_state_new.shape[0]-1)
+            # G_old = G_prev.copy()
+            # G_new = np.diag(proposal)
+            # delta_new = (smooth_state_new[1:].T - np.dot(G_new,smooth_state_new[:to].T) )
+            # delta_old = (smooth_state_new[1:].T - np.dot(G_old,smooth_state_new[:to].T) )
+            # proposal_post = (-0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w_new), delta_new)) +  
+            # beta_dist.logpdf(G_new[0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2) +
+            # beta_dist.logpdf(G_new[1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            # )
+            # current_post = (-0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w_new), delta_old)) +  
+            # beta_dist.logpdf(G_old[0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2) +
+            # beta_dist.logpdf(G_old[1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            # )
+            # alpha = np.min((0, proposal_post -current_post))
+            # if np.log(np.random.uniform(0,1)) >= alpha:
+            #     G_new = G_old.copy()
+
+
+            proposal = np.random.uniform(G_prev[0,0]-mh_width, G_prev[0,0]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            G_old = G_vec[i-1].copy()
+            G_old = G_prev.copy()
             G_new = G_old.copy()
             G_new[0,0] = proposal
             delta_new = (smooth_state_new[1:].T - np.dot(G_new,smooth_state_new[:to].T) )
             delta_old = (smooth_state_new[1:].T - np.dot(G_old,smooth_state_new[:to].T) )
-            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w[i]), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
-            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w[i]), delta_old)) +  beta_dist.logpdf(G_vec[i-1,0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
+            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w_new), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
+            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w_new), delta_old)) +  beta_dist.logpdf(G_old[0,0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
-            G_vec[i,0,0] = np.random.choice([proposal, G_vec[i-1,0, 0]], p = [np.exp(alpha), 1-np.exp(alpha)])
+            
+
+            if np.log(np.random.uniform()) <= alpha:
+                G_new[0,0] = proposal
+                G11_accept += 1
+            else:
+                G_new[0,0] = G_old[0, 0]
+
+            # G_new[0,0] = np.random.choice([proposal, G_old[0, 0]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
             # 1,1
-            proposal = np.random.uniform(G_vec[i-1,1,1]-mh_width, G_vec[i-1,1,1]+mh_width)
+            proposal = np.random.uniform(G_prev[1,1]-mh_width, G_prev[1,1]+mh_width)
             to = (smooth_state_new.shape[0]-1)
-            G_old = G_vec[i-1].copy()
-            G_old[0,0] = G_vec[i,0,0]
-            G_new = G_old.copy()
+            G_old = G_new.copy()
             G_new[1,1] = proposal
             delta_new = (smooth_state_new[1:].T - np.dot(G_new,smooth_state_new[:to].T))
             delta_old = (smooth_state_new[1:].T - np.dot(G_old,smooth_state_new[:to].T) )
-            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w[i]), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
-            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w[i]), delta_old)) +  beta_dist.logpdf(G_vec[i-1,1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            proposal_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w_new), delta_new)) +  beta_dist.logpdf(proposal, a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
+            current_post = -0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w_new), delta_old)) +  beta_dist.logpdf(G_old[1,1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2)
             alpha = np.min((0, proposal_post -current_post))
-            G_vec[i,1,1] =  np.random.choice([proposal, G_vec[i-1,1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
 
-            G_vec[i,0,1] = 0
-            G_vec[i,1,0] = 0
+            if np.log(np.random.uniform()) <= alpha:
+                G_new[1,1] = proposal
+                G22_accept += 1
+            else:
+                G_new[1,1] = G_old[1, 1]
+
+
+
+            #G_new[1,1] =  np.random.choice([proposal, G_old[1,1]], p = [np.exp(alpha), 1-np.exp(alpha)])
+
             cnt += 1
-            roots_abs = np.abs(np.roots([G_vec[i,0,0]*G_vec[i,1,1]-G_vec[i,1,0]*G_vec[i,0,1], -(G_vec[i,0,0] +G_vec[i,1,1]), 1]))
+            roots_abs = np.abs(np.roots([G_new[0,0]*G_new[1,1]-G_new[1,0]*G_new[0,1], -(G_new[0,0] +G_new[1,1]), 1]))
+            G_prev = G_new.copy()
+
+
+
 
 
 
         assert cnt <= 100, "Accept error"
+
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            G11[idx-1] = G_new[0,0]
+            G22[idx-1] = G_new[1,1]
+
 
         i+=1
 
@@ -1570,12 +1652,17 @@ def local_level_pair_variance_wishart(N, y, init_params, mh_width, verbose = Tru
 
 
     Gibbs_out = dict()
-    Gibbs_out['w'] = w
+    Gibbs_out['w11'] = w11
+    Gibbs_out['w22'] = w22
+    Gibbs_out['w12'] = w12
     Gibbs_out['v'] = v
-    Gibbs_out['G'] = G_vec
+    Gibbs_out['G11'] = G11
+    Gibbs_out['G22'] = G22
     Gibbs_out['states'] = states_store
-    Gibbs_out['signal_to_noise'] = signal_to_noise
+    #Gibbs_out['signal_to_noise'] = signal_to_noise
     Gibbs_out['init_params'] = init_params
+    print(f'G11 {G11_accept}')
+    print(f'G22 {G22_accept}')
 
     return Gibbs_out
     
@@ -1714,7 +1801,242 @@ def Gelman_rubin(chains, burnin):
 
 
 
+def local_level_pair_variance_wishart_h(N, y, init_params, mh_width, L, epsilon, verbose = True, cov_step_ceiling = None, thinning_step = 1):
+    """
+    Calculate Kalman Smoother
+    y_t = a + F x_t + v
+    x_t = G x_{t-1} + eta + W
 
+    Parameters
+    ------------------------------------
+    :param N: Number of Gibbs iterations
+    :param y: np.array of data n times p:
+    :param shock: tuple, index when the shift occurred and the index of the previous observed value . if None no shocks
+    :param init_params: dict with the prior parameters and initial guess 
+
+    """
+
+    if N % thinning_step != 0:
+        raise ValueError("N should be a integer multiply of N ")
+
+    nr_store = int(N/thinning_step)
+
+    T = y.shape[0]
+    T_obs = [np.sum(~np.isnan(y[:,0])), np.sum(~np.isnan(y[:,1]))]
+    print(T_obs)
+    #print(n_stock)
+
+
+
+    v_alpha = init_params['v_alpha']
+    v_beta = init_params['v_beta']
+
+    w_alpha = init_params['w_alpha']
+    w_beta = init_params['w_beta']
+
+    G_alpha = init_params['G_alpha']
+    G_beta = init_params['G_beta']
+
+    # initial gibbs
+    w_init = init_params['w_init']
+    v_init = init_params['v_init']
+    G_init = init_params['G_init']
+
+    # init kalman
+    init_x = init_params['init_x']
+    init_c = init_params['init_c']
+
+    # Define vector to store Gibbs values
+
+    w = np.zeros((nr_store,2,2))
+    w_prev = w_init
+
+
+    v = np.zeros((nr_store, 2))
+    v_prev = v_init
+
+    acceptance = np.zeros(N)
+
+
+    #signal_to_noise = np.zeros((nr_store, 2))
+    #signal_to_noise[0] = w_init[0]/v_init[0]
+
+    states_store = np.zeros((nr_store, T+1, 2))
+
+    G = np.zeros((nr_store,2,2))
+    G_prev = G_init
+    assert G_prev[0,1] == 0
+    assert G_prev[1,0] == 0
+
+    # constraints, For single this will always be 1
+    #beta_vec[0, :n_stock] = beta_vec[0, :n_stock]/np.sum(beta_vec[0, :n_stock])
+
+    if verbose:
+        pbar = tqdm.tqdm(disable=(verbose is False), total= N)
+
+    
+    i = 1
+    while i < N+1:
+    #for i in range(1,N+1):
+
+        F = np.identity(2)
+
+        
+        a = np.zeros(2)
+        eta =np.zeros(2)
+        
+        smooth_state_draws, smooth_state, smooth_state_cov, Js, Rs, R_cond = FFBS(y, G_prev, eta, w_prev , F, a, np.diag(v_prev), init_x, init_c, cov_step_ceiling)
+
+        # Constraint
+        smooth_state_new = smooth_state_draws[:]# - np.mean(smooth_state[1:] , axis = 0)
+        # print(smooth_state_new.shape)
+
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            states_store[idx-1] = smooth_state_new.copy()
+
+
+    
+
+
+        # print("alpha")
+        v_new = v_prev.copy()
+
+        # Sample variance
+        for j in range(2):
+            alpha = (T_obs[j]/2.0) + v_alpha[j]
+            beta = 0.5 * np.nansum((y[:,j] - 0 - smooth_state_new[1:, j] ) ** 2) + v_beta[j]
+            v_new[j] = invgamma.rvs(a = alpha, loc = 0, scale = beta)
+        
+        v_prev = v_new.copy()
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            v[idx-1] = v_new.copy()
+
+
+        alpha = T + w_alpha
+        to = (smooth_state_new.shape[0]-1)
+        delta = (smooth_state_new[1:].T - np.dot(G_prev,smooth_state_new[:to].T))
+        beta = np.dot(delta, delta.T) + w_beta
+
+        w_new = invwishart.rvs(df = alpha, scale = beta)
+        w_prev = w_new.copy()
+
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            w[idx-1] = w_new.copy()
+
+
+        #signal_to_noise[i,0] = w_new[0,0]/v_[i,0]
+        #signal_to_noise[i,1] = w_new[1,1]/v[i,1]
+
+
+        if np.linalg.det(w_new)<= 10e-12:
+            continue
+
+
+        cnt = 0
+        roots_abs = np.abs(np.roots([G_prev[0,0]*G_prev[1,1]-G_prev[1,0]*G_prev[0,1], -(G_prev[0,0] +G_prev[1,1]), 1]))
+        
+
+        # Hamiltonian
+        mass_matrix_inv = np.identity(2)/mh_width
+
+        def dlog_pdf(vec, a = -1, b = 1):
+            G_pair = np.identity(2)
+            G_pair[0,0] = vec[0]
+            G_pair[1,1] = vec[1]
+            to = (smooth_state_new.shape[0]-1)
+            delta_new = (smooth_state_new[1:].T - np.dot(G_pair,smooth_state_new[:to].T) )
+            x_lag = smooth_state_new[:to]
+            lik = -2*np.dot(np.linalg.inv(w_new), delta_new).dot(x_lag)
+            g11_prior = (G_alpha[0,0]-1)/(vec[0]-a) - (G_alpha[0,0]-1)/(b-vec[0])
+            g22_prior = (G_alpha[1,1]-1)/(vec[1]-a) - (G_alpha[1,1]-1)/(b-vec[1])
+
+            out = np.array([lik[0,0] + g11_prior, lik[1,1] + g22_prior])
+            #print(f'lik {out}')
+            return out
+
+        while (np.any(roots_abs <= 1) and (cnt < 100)) or cnt == 0:
+
+            # draw moment
+            moment_old = multivariate_normal.rvs(mean = np.zeros(2), cov = np.identity(2)*mh_width)
+            moment_new = moment_old.copy()
+            G_old = np.diag(G_prev.copy())
+            G_new = G_old.copy()
+            dvdg = dlog_pdf(G_old)
+
+            # leapfrog
+            #print(moment_new)
+            for _ in range(L):
+                #print("L")
+                moment_new += 0.5*epsilon*dlog_pdf(G_new)
+                #print(0.5*epsilon*dlog_pdf(G_new))
+                G_new+=epsilon*np.dot(mass_matrix_inv, moment_new)
+                #print(G_new)
+                moment_new += 0.5*epsilon*dlog_pdf(G_new)
+                #print(moment_new)  
+            
+            #print(G_new)
+
+                
+            delta_new = (smooth_state_new[1:].T - np.dot(np.diag(G_new),smooth_state_new[:to].T) )
+            delta_old = (smooth_state_new[1:].T - np.dot(np.diag(G_old),smooth_state_new[:to].T) )
+            
+            proposal_post = (-0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_new, np.linalg.inv(w_new), delta_new)) +  
+                            beta_dist.logpdf(G_new[0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2) +
+                            beta_dist.logpdf(G_new[1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2) +
+                            multivariate_normal.logpdf(moment_new,mean = np.zeros(2), cov = np.identity(2)*mh_width)
+                            )
+            current_post = (-0.5 * np.sum(np.einsum('jn,jk,kn->n', delta_old, np.linalg.inv(w_new), delta_old)) + 
+                            beta_dist.logpdf(G_old[0], a = G_alpha[0,0], b = G_beta[0,0], loc = -1, scale = 2) + 
+                            beta_dist.logpdf(G_old[1], a = G_alpha[1,1], b = G_beta[1,1], loc = -1, scale = 2) + 
+                            multivariate_normal.logpdf(moment_old,mean = np.zeros(2), cov = np.identity(2)*mh_width))
+            
+            
+            alpha = np.min((0, proposal_post -current_post))
+            # print(alpha)
+
+            if np.log(np.random.uniform(0,1)) <= alpha:
+                acceptance[i-1] = 1
+                G_new = np.diag(G_new).copy()
+            else:
+                acceptance[i-1] = 0
+                G_new = np.diag(G_old).copy()
+
+            cnt += 1
+            roots_abs = np.abs(np.roots([G_new[0,0]*G_new[1,1]-G_new[1,0]*G_new[0,1], -(G_new[0,0] +G_new[1,1]), 1]))
+            G_prev = G_new.copy()
+
+
+
+        assert cnt <= 100, "Accept error"
+
+        if i % thinning_step == 0:
+            idx = int(i/thinning_step)
+            G[idx-1] = G_new.copy()
+
+
+        i+=1
+
+        if verbose:
+            pbar.update()
+
+    if verbose:
+        pbar.close()
+
+
+    Gibbs_out = dict()
+    Gibbs_out['w'] = w
+    Gibbs_out['v'] = v
+    Gibbs_out['G'] = G
+    Gibbs_out['states'] = states_store
+    #Gibbs_out['signal_to_noise'] = signal_to_noise
+    Gibbs_out['init_params'] = init_params
+    Gibbs_out['acceptance'] = acceptance
+    print(np.sum(acceptance == 1))
+
+    return Gibbs_out
 
 
 

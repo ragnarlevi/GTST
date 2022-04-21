@@ -84,13 +84,15 @@ if __name__ == '__main__':
     # Arguments to script
     parser = argparse.ArgumentParser()
     # Number of Iterations specifics
-    parser.add_argument('-esg1', '--esg1',metavar='', type=str, help='Name of ticker 1')
+    parser.add_argument('-ds', '--datasource',metavar='', type=str, help='Data source')
+    parser.add_argument('-esg1', '--esg1',metavar='', type=str, help='Name of ticker 1, or sector or industry')
     parser.add_argument('-esg2', '--esg2',metavar='', type=str, help='Name of ticker 2')
     parser.add_argument('-c', '--Ncores', type=int,metavar='', help='Number of cores/chains')
     parser.add_argument('-N', '--Niterations', type=int,metavar='', help='Number of iterations')
     parser.add_argument('-gwidth', '--gwidth', type=float,metavar='', help='Width of random walk for MH G matrix')
     parser.add_argument('-p', '--path', type=str,metavar='', help='Path to save')
     parser.add_argument('-id', '--id', type=str,metavar='', help='Run identity')
+    parser.add_argument('-ts', '--thinning', type=int,metavar='', help='Thinning')
 
 
     args = parser.parse_args()
@@ -102,10 +104,18 @@ if __name__ == '__main__':
     gwidth = args.gwidth
     path = args.path
     id = args.id
+    ds = args.datasource
+    ts = args.thinning
 
 
     # Load Data 
-    esg_pivot_shifted_refined_diff = pd.read_pickle('Yahoo/refined.pkl')
+
+    if ds == "company":
+        esg_pivot_shifted_refined_diff = pd.read_pickle('Yahoo/refined.pkl')
+    elif ds == "sector":
+        esg_pivot_shifted_refined_diff = pd.read_pickle('Yahoo/sector_index.pkl')
+    else:
+        raise ValueError("Wrong data source")
 
     # Extract pair
     y_obs = np.array(esg_pivot_shifted_refined_diff[[esg1, esg2]])
@@ -126,12 +136,12 @@ if __name__ == '__main__':
     init_params['v_alpha'] = np.array([4, 4])
     init_params['v_beta'] = np.array([4,4])
     # w is wishart
-    init_params['w_alpha'] = 4
-    init_params['w_beta'] = covariance*4
+    init_params['w_alpha'] = 50
+    init_params['w_beta'] = covariance*53
                                     
 
     # G prior
-    ag, bg = beta_param(0.5, 0.1)
+    ag, bg = beta_param(0.5, 0.001)
 
     init_params['G_alpha'] = np.array([[ag,4],
                                     [4,ag]])
@@ -146,7 +156,7 @@ if __name__ == '__main__':
 
     # init kalman
     init_params['init_x'] = np.array([0, 0] * (1))
-    init_params['init_c'] = np.identity(2) * 1
+    init_params['init_c'] = np.identity(2) * 0.2
 
     importlib.reload(sys.modules['Gibbs'])
     importlib.reload(sys.modules['tqdm'])
@@ -154,7 +164,7 @@ if __name__ == '__main__':
     chains = defaultdict(dict)
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(Gibbs.local_level_pair_variance_wishart, n, y_obs, init_params, gwidth) for n in [N] * c]
+        results = [executor.submit(Gibbs.local_level_pair_variance_wishart, n, y_obs, init_params, gwidth, thinning_step = ts) for n in [N] * c]
 
         # For loop that takes the output of each process and concatenates them together
         cnt = 0
