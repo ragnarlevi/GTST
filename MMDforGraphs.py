@@ -491,7 +491,7 @@ class DegreeGraphs():
     Wrapper for a graph generator. Defines the labels and attribute generation. Used as a parent class.
     """
 
-    def __init__(self, n, nnode, k = None, l = None,  a = None, fullyConnected = False, **kwargs) -> None:
+    def __init__(self, n, nnode, k = None, l = None,  a = None, e=None, fullyConnected = False, **kwargs) -> None:
         """
         :param kernel: Dictionary with kernel information
         :param n: Number of samples
@@ -507,6 +507,7 @@ class DegreeGraphs():
         self.k = k
         self.l = l
         self.a = a
+        self.e = e
         self.kwargs = kwargs
         self.fullyConnected = fullyConnected
 
@@ -610,6 +611,13 @@ class DegreeGraphs():
 
         return dict(( (i, ''.join(map(str,sorted([ info[2] for info in G.edges(i, data = 'sign')]))) ) for i in range(len(G))))
 
+    def random_edge_weights(self, G):
+        edge_w = dict()
+        for e in G.edges():
+            edge_w[e] = self.kwargs['edge_dist']()
+
+        return edge_w
+
 
 def scale_free(n, exponent):
     """
@@ -639,7 +647,7 @@ class ScaleFreeGraph(DegreeGraphs):
     Generate a powerlaw graph
     """
 
-    def __init__(self,  n, nnode, exponent, l = None,  a = None, **kwargs):
+    def __init__(self,  n, nnode, exponent, l = None,  a = None, e = None, **kwargs):
         """
         Parameters:
         ---------------------
@@ -652,7 +660,7 @@ class ScaleFreeGraph(DegreeGraphs):
 
         
         """
-        super().__init__( n = n, nnode = nnode, l = l ,  a = a, **kwargs )
+        super().__init__( n = n, nnode = nnode, l = l ,  a = a, e=e, **kwargs )
 
         self.exponent = exponent
 
@@ -662,8 +670,15 @@ class ScaleFreeGraph(DegreeGraphs):
         self.Gs = []
 
         for _ in range(self.n):
+
+            if self.fullyConnected:
+                while True:
+                    G = scale_free(self.nnode, self.exponent)
+                    if nx.is_connected(G):
+                        break
+            else:
+                G = scale_free(self.nnode, self.exponent)
             
-            G = scale_free(self.nnode, self.exponent)
 
             if (not self.l is None) and (not self.a is None):
                 label = getattr(self, self.l)
@@ -680,6 +695,11 @@ class ScaleFreeGraph(DegreeGraphs):
                 attributes = getattr(self, self.a)
                 attribute_dict = attributes(G)
                 nx.set_node_attributes(G, attribute_dict, 'attr')
+
+            if not self.e is None:
+                edge_weight = getattr(self, self.e)
+                edge_weight_dict = edge_weight(G)
+                nx.set_edge_attributes(G, values = edge_weight_dict, name = 'weight')
 
             self.Gs.append(G)
 

@@ -14,6 +14,7 @@ import argparse
 from collections import defaultdict
 import os
 import pickle
+import arviz
 
 
 # Define help function
@@ -136,8 +137,8 @@ if __name__ == '__main__':
     init_params['v_alpha'] = np.array([4, 4])
     init_params['v_beta'] = np.array([4,4])
     # w is wishart
-    init_params['w_alpha'] = 50
-    init_params['w_beta'] = covariance*53
+    init_params['w_alpha'] = 80
+    init_params['w_beta'] = covariance*83
                                     
 
     # G prior
@@ -170,7 +171,7 @@ if __name__ == '__main__':
         cnt = 0
         for f in concurrent.futures.as_completed(results):
             for k,v in f.result().items():
-                print(k)
+                
                 chains[cnt][k] = v
                 # chains[cnt]['v'] = k[1]
                 # chains[cnt]['states'] = k[2]
@@ -190,6 +191,30 @@ if __name__ == '__main__':
 
     with open(newpath + "\\"+ id+ ".pkl", 'wb') as f:
         pickle.dump(chains, f)
+
+
+    burnin = 50
+    step = 1
+    v1 = np.hstack([ chains[i]['v'][burnin::step,0] for i in range(len(chains))])
+    v2 = np.hstack([ chains[i]['v'][burnin::step,1] for i in range(len(chains))])
+    w11 =np.hstack([ chains[i]['w11'][burnin::step] for i in range(len(chains))])
+    w22 =np.hstack([ chains[i]['w22'][burnin::step] for i in range(len(chains))])
+    w12 =np.hstack([ chains[i]['w12'][burnin::step] for i in range(len(chains))])
+    G11 = np.hstack([ chains[i]['G11'][burnin::step] for i in range(len(chains))])
+    G22 = np.hstack([ chains[i]['G22'][burnin::step] for i in range(len(chains))])
+    states = np.concatenate([ chains[i]['states'][burnin::step,:] for i in range(len(chains))], axis = 0)
+
+    N = len(v1)
+    print("")
+    # Effective sample size
+    print(f"{esg1} {esg2}")
+    print(f"v1:  {arviz.ess(v1)/N}")
+    print(f"v2:  {arviz.ess(v2)/N}")
+    print(f"w11:  {arviz.ess(w11)/N}")
+    print(f"w22:  {arviz.ess(w22)/N}")
+    print(f"w12:  {arviz.ess(w12)/N}")
+    print(f"G11:  {arviz.ess(G11)/N}")
+    print(f"G22:  {arviz.ess(G22)/N}")
 
 
 

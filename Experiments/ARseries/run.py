@@ -30,6 +30,8 @@ parser.add_argument('-n1', '--NrSamples1', type=int,metavar='', help='Number of 
 parser.add_argument('-n2', '--NrSamples2', type=int,metavar='', help='Number of graphs in sample 2')
 parser.add_argument('-ar1', '--ar1', type=float,metavar='', help='Autocorrelation 1')
 parser.add_argument('-ar2', '--ar2', type=float,metavar='', help='Autocorrelation 2')
+parser.add_argument('-sd1', '--sd1', type=float,metavar='', help='sd 1')
+parser.add_argument('-sd2', '--sd2', type=float,metavar='', help='sd 2')
 
 args = parser.parse_args()
 # Number of Bootstraps
@@ -43,6 +45,8 @@ n1 = args.NrSamples1
 n2 = args.NrSamples2
 ar1 = args.ar1
 ar2 = args.ar2
+sd1 = args.sd1
+sd2 = args.sd2
 
 
 
@@ -58,7 +62,7 @@ def simpleArima(ar, var, nsamples):
     return AR_object1.generate_sample(nsample=nsamples)
 
 
-wild_ln = [10, 50, 100, 500]
+wild_ln = [1, 2, 5]
 p_val_wild = {str(i):np.array([-1.0] * N) for i in wild_ln }
 
 
@@ -74,8 +78,8 @@ if verbose:
 
 for i in range(N):
 
-    p_x = simpleArima(ar1, 1 ** 2, n1)
-    p_y = simpleArima(ar2, 1 ** 2, n2)
+    p_x = simpleArima(ar1, sd1 ** 2, n1)
+    p_y = simpleArima(ar2, sd2 ** 2, n2)
 
 
     Z = np.expand_dims(np.r_[p_x, p_y], axis=1)
@@ -142,8 +146,8 @@ for alpha in alphas:
                     'normalize':0,
                     'ar1':ar1,
                     'ar2':ar2,
-                    'var1':1**2,
-                    'var2':1**2,
+                    'var1':sd1**2,
+                    'var2':sd2**2,
                     'n':n1,
                     'm':n2,
                     'B':B,

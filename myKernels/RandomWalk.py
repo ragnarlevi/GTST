@@ -98,7 +98,7 @@ class RandomWalk():
 
     
 
-    def fit_ARKU(self, r, verbose = True):
+    def fit_ARKU(self, r, edge_attr = None, verbose = True):
         """
         Approximate random walk kernel for unlabeled nodes and asymmetric W where W is the (weighted) adjacency matrix.
 
@@ -123,11 +123,11 @@ class RandomWalk():
                 
                 # Row normalize the adjacency matrix
                 if U_list[i] is None:
-                    W_row_normalize = self._row_normalized_adj(self.X[i])
+                    W_row_normalize = self._row_normalized_adj(self.X[i], edge_attr = edge_attr)
                     U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(W_row_normalize.T, n_components= r)
 
                 if U_list[j] is None:
-                    W_row_normalize = self._row_normalized_adj(self.X[j])
+                    W_row_normalize = self._row_normalized_adj(self.X[j], edge_attr = edge_attr)
                     U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(W_row_normalize.T, n_components= r)
 
                 if (self.p is None) and (self.q is None):
@@ -278,7 +278,7 @@ class RandomWalk():
 
         return np.inner(q1,p1)*np.inner(q2,p2) + self.c*np.dot(L, Lamda).dot(R)
 
-    def fit_ARKU_plus(self, r, normalize_adj = False, verbose = True):
+    def fit_ARKU_plus(self, r, normalize_adj = False, edge_attr = None, verbose = True):
         """
         Approximate random walk kernel for unlabeled nodes and asymmetric W where W is the (weighted) adjacency matrix.
 
@@ -305,17 +305,17 @@ class RandomWalk():
 
                 if normalize_adj:
                     if all_A[i] is None:
-                        all_A[i] = self._normalized_adj(self.X[i])
+                        all_A[i] = self._normalized_adj(self.X[i], edge_attr = edge_attr)
                         Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
-                        all_A[j] = self._normalized_adj(self.X[j])
+                        all_A[j] = self._normalized_adj(self.X[j], edge_attr = edge_attr)
                         Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
                 else:
                     if all_A[i] is None:
-                        all_A[i] = self._get_adj_matrix(self.X[i])
+                        all_A[i] = self._get_adj_matrix(self.X[i], edge_attr = edge_attr)
                         Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
-                        all_A[j] = self._get_adj_matrix(self.X[j])
+                        all_A[j] = self._get_adj_matrix(self.X[j], edge_attr = edge_attr)
                         Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
 
 
@@ -357,7 +357,7 @@ class RandomWalk():
         return K
 
 
-    def fit_ARKL(self, r, label_list, normalize_adj = False, row_normalize_adj = False, verbose = True, label_name = 'label'):
+    def fit_ARKL(self, r, label_list, normalize_adj = False, row_normalize_adj = False, edge_attr =None, verbose = True, label_name = 'label'):
         """
         Fit approximate label node random walk kernel.
 
@@ -400,17 +400,17 @@ class RandomWalk():
 
                 if row_normalize_adj:
                     if all_A[i] is None:
-                        all_A[i] = self._row_normalized_adj(self.X[i])
+                        all_A[i] = self._row_normalized_adj(self.X[i], edge_attr = edge_attr)
                         U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
                     if all_A[j] is None:
-                        all_A[j] = self._row_normalized_adj(self.X[j])
+                        all_A[j] = self._row_normalized_adj(self.X[j], edge_attr = edge_attr)
                         U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
                 else:
                     if all_A[i] is None:
-                        all_A[i] = self._get_adj_matrix(self.X[i])
+                        all_A[i] = self._get_adj_matrix(self.X[i], edge_attr = edge_attr)
                         U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
                     if all_A[j] is None:
-                        all_A[j] = self._get_adj_matrix(self.X[j])
+                        all_A[j] = self._get_adj_matrix(self.X[j], edge_attr = edge_attr)
                         U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
                 
 
@@ -450,7 +450,7 @@ class RandomWalk():
 
         return K
 
-    def fit_exponential(self, r = None, normalize_adj = False, row_normalize_adj = False, verbose = True):
+    def fit_exponential(self, r = None, normalize_adj = False, row_normalize_adj = False, edge_attr = None, verbose = True):
         """
         Perform an infnite exponential random walk. Does not work for labelled graphs
 
@@ -485,39 +485,39 @@ class RandomWalk():
                 
                 if normalize_adj:
                     if all_A[i] is None:
-                        all_A[i] = self._normalized_adj(self.X[i])
+                        all_A[i] = self._normalized_adj(self.X[i], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
                         else:
                             Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
-                        all_A[j] = self._normalized_adj(self.X[j])
+                        all_A[j] = self._normalized_adj(self.X[j], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
                         else:
                             Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
                 elif row_normalize_adj:
                     if all_A[i] is None:
-                        all_A[i] = self._row_normalized_adj(self.X[i])
+                        all_A[i] = self._row_normalized_adj(self.X[i], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
                         else:
                             Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
-                        all_A[j] = self._row_normalized_adj(self.X[j])
+                        all_A[j] = self._row_normalized_adj(self.X[j], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
                         else:
                             Lamda_list[j], U_list[j] = eigsh(all_A[j].T, k = r)
                 else:
                     if all_A[i] is None:
-                        all_A[i] = self._get_adj_matrix(self.X[i])
+                        all_A[i] = self._get_adj_matrix(self.X[i], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[i], U_list[i] = eigh(np.array(all_A[i].T.todense()))
                         else:
                             Lamda_list[i], U_list[i] = eigsh(all_A[i].T, k = r)
                     if all_A[j] is None:
-                        all_A[j] = self._get_adj_matrix(self.X[j])
+                        all_A[j] = self._get_adj_matrix(self.X[j], edge_attr = edge_attr)
                         if r is None:
                             Lamda_list[j], U_list[j] = eigh(np.array(all_A[j].T.todense()))
                         else:
@@ -837,7 +837,7 @@ class RandomWalk():
 
         return np.inner(q1,p1)*np.inner(q2,p2) + self.c*np.dot(L, Lamda).dot(R)
 
-    def _row_normalized_adj(self, G):
+    def _row_normalized_adj(self, G,  edge_attr = None):
         """
         Get row normalized adjacency matrix
 
@@ -852,7 +852,7 @@ class RandomWalk():
         """
 
         # A = nx.linalg.adjacency_matrix(G, dtype = float)
-        A = scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
+        A = scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
         if type(self.X[0]) == nx.classes.digraph.DiGraph:
             D_inv = scipy.sparse.dia_matrix(([1/float(d[1]) for d in G.out_degree()], 0), shape = (A.shape[0], A.shape[0]))
         else:
@@ -875,7 +875,7 @@ class RandomWalk():
 
 
 
-    def _normalized_adj(self, G):
+    def _normalized_adj(self, G, edge_attr = None):
         """
         Get normalized adjacency matrix
 
@@ -885,12 +885,12 @@ class RandomWalk():
 
         """
 
-        A = scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
+        A = scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
         D_sq_inv = scipy.sparse.dia_matrix(([1/ np.sqrt(float(d[1])) for d in G.degree()], 0), shape = (A.shape[0], A.shape[0]))
 
         return D_sq_inv.dot(A).dot(D_sq_inv)
 
-    def _get_adj_matrix(self, G):
+    def _get_adj_matrix(self, G, edge_attr = None):
         """
         Get adjacency matrix
 
@@ -900,7 +900,7 @@ class RandomWalk():
 
         """
 
-        return scipy.sparse.csr_matrix(nx.linalg.adjacency_matrix(G), dtype=np.float64)
+        return scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
 
     def _get_node_label_vectors(self, G, label_list, label_name = 'label'):
         """

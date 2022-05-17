@@ -28,6 +28,7 @@ library(spectralGraphTopology)
 library(fingraph)
 library(reticulate)
 library(Holidays)
+library(RQuantLib)
 ```
 
 
@@ -337,10 +338,6 @@ Clearly, leptokurtic. Next, we can test for serial correlation using the Ljung-B
 
 
 
-
-
-
-
 ```{r}
 log_returns_serial <- list()
 log_returns_serial_sq <- list()
@@ -454,7 +451,6 @@ Perform median regression, and remove market affect via median regression. Consi
 ```{r}
 
 order_tickers <- unlist(asset_profiles[asset_profiles$ticker %in% names(log_returns),] %>% arrange(sector, industry) %>% select(ticker))
-
 
 log_returns_median_regresion <- list()
 # log_returns_ald_regresion <- list()
@@ -1994,7 +1990,7 @@ for(sector in names(sector_classification)){
   graph_list[[sector]] <- lapply(seq(from = 1, to = n-250, by = 5), function(x){
     
                                           data_log_retuns <- log_returns[x:(250 + x-1), names(log_returns) %in% sector_classification[[sector]]]
-                                          nu <- fit_mvt(scale(data_log_retuns),nu="MLE-diag-resample")$nu
+                                          nu <- 4 #fit_mvt(scale(data_log_retuns),nu="MLE-diag-resample")$nu
                                           out_spectral_heavy <- learn_regular_heavytail_graph(scale(data_log_retuns), 
                                                                                           heavy_type = "student",
                                                                                           nu = nu, verbose = FALSE)
