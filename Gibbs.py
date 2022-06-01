@@ -1243,15 +1243,21 @@ def plot_gibbs_clean_real(Gibbs_out, real_param, state_from = 10):
 
 
     fig, ax = plt.subplots(1,2, figsize = (20,10))
-    ax[0].plot(range(len(v_gibbs_pair[10:,0])),w_gibbs_pair[10:,0])
+    ax[0].plot(range(len(v_gibbs_pair[10:,0])),w_gibbs_pair[10:,0], label = (r"$w_{11}$", r"$w_{12}$"))
     ax[0].axhline(y=w_pair[0,0], color='r', linestyle='-')
     ax[0].axhline(y=w_pair[0,1], color='r', linestyle='-')
     ax[0].set_title(f'latent process variance {0+1}')
-    ax[1].plot(range(len(v_gibbs_pair
-    [10:,1])),w_gibbs_pair[10:,1])
+    ax[0].legend()
+
+    w_gibbs_pair_tmp = w_gibbs_pair.copy()
+    #w_gibbs_pair_tmp[:,1,1] = w_gibbs_pair[:,1,0]
+    #w_gibbs_pair_tmp[:,1,0] = w_gibbs_pair[:,1,1]
+
+    ax[1].plot(range(len(v_gibbs_pair[10:,1])),w_gibbs_pair_tmp[10:,1], label = (r"$w_{22}$", r"$w_{12}$"))
     ax[1].axhline(y=w_pair[1,0], color='r', linestyle='-')
     ax[1].axhline(y=w_pair[1,1], color='r', linestyle='-')
     ax[1].set_title(f'latent process variance {1+1}')
+    ax[1].legend()
 
 
     fig, ax = plt.subplots(2,2, figsize = (20,10))

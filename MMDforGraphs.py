@@ -3,7 +3,7 @@ from pickle import TRUE
 from re import I
 import networkx as nx
 import numpy as np
-# import grakel as gk
+import grakel as gk
 import warnings
 from scipy.stats import norm
 
@@ -16,6 +16,7 @@ from numba import njit
 from scipy.sparse.sputils import validateaxis
 
 import MONK
+import tqdm
 
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n: int, m: int):
@@ -612,9 +613,13 @@ class DegreeGraphs():
         return dict(( (i, ''.join(map(str,sorted([ info[2] for info in G.edges(i, data = 'sign')]))) ) for i in range(len(G))))
 
     def random_edge_weights(self, G):
+        def edge_dist():
+            from scipy.stats import uniform
+            return uniform.rvs(size=1,  loc = self.kwargs['ul'] , scale = self.kwargs['uu'])[0]
+
         edge_w = dict()
         for e in G.edges():
-            edge_w[e] = self.kwargs['edge_dist']()
+            edge_w[e] = edge_dist()
 
         return edge_w
 
@@ -968,6 +973,13 @@ class BinomialGraphs(DegreeGraphs):
                 attributes = getattr(self, self.a)
                 attribute_dict = attributes(G)
                 nx.set_node_attributes(G, attribute_dict, 'attr')
+
+            if not self.e is None:
+                edge_weight = getattr(self, self.e)
+                edge_weight_dict = edge_weight(G)
+                nx.set_edge_attributes(G, values = edge_weight_dict, name = 'weight')
+
+
             self.Gs.append(G)
 
 
@@ -1191,7 +1203,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
 
 
     # Store K max for acceptance region
-    Kmax = np.array([0] * N, dtype = np.float64)
+    Kmax = np.array([0.0] * N, dtype = np.float64)
 
     for sample in range(N):
 
@@ -1264,11 +1276,17 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
                                                                                          'wl_iterations':kernel['wl_iterations'],
                                                                                          'normalize':kernel['normalize']})
             K = init_kernel.fit_transform(Gs)
+        elif kernel_library == "gntk":
+            import myKernels.GNTK as GNTK
+            gntk = GNTK.GNTK(num_layers=kernel['num_layers'], num_mlp_layers= kernel['num_mlp_layers'], 
+                            jk=kernel['jk'], scale=kernel['scale'], normalize=kernel['normalize'])
+            gntk.preprocess(Gs, degree_as_tag = kernel['degree_as_tag'], features= kernel['features'])
+            K = gntk.fit_all(verbose=False)
         else:
             raise ValueError(f"{kernel_library} not defined")
 
         # print(K)
-        Kmax[sample] = K.max()
+        Kmax[sample] = np.max(K)
         if np.all((K == 0)):
             warnings.warn("all element in K zero")
 
@@ -1479,6 +1497,78 @@ def WildBootstrap(K, ln, n_x, n_y, B):
 
     return (test > statistic_sample).sum()/B, test,statistic_sample#, K_p
 
+
+
+def gen_fullyconnected_threshold(A, thresholds, dist_from_disconnection_point = 1):
+
+    np.fill_diagonal(A,0)
+    G = nx.from_numpy_matrix(A)
+    cnt = 0
+    while nx.is_connected(G):
+        Ai = A.copy()
+
+
+        Ai[np.abs(Ai) < thresholds[cnt]] = 0
+        Ai[np.abs(Ai) > thresholds[cnt]] = 1
+        G = nx.from_numpy_matrix(Ai)
+        cnt +=1 
+
+
+    Ai = A.copy()
+
+    Ai[np.abs(Ai) < thresholds[np.min([len(thresholds)-1, np.max([0, cnt-1-dist_from_disconnection_point])])]] = 0
+    np.fill_diagonal(Ai, 0)
+    G = nx.from_numpy_matrix(Ai.copy())
+    
+    return G
+
+
+
+def run_samples_threshold(N, B, n1, nnode1, k1, n2, nnode2, k2):
+    import myKernels.RandomWalk as rw
+    test_info = pd.DataFrame()
+    thresholds = np.linspace(0.8, 1, 20)
+    for sample in tqdm.tqdm(range(N)):
+
+        g1 = BinomialGraphs(n1, nnode1, k1, fullyConnected = True, e = 'random_edge_weights', ul = 0.8, uu =0.2)
+        g2 = BinomialGraphs(n2, nnode2, k2, fullyConnected = True, e = 'random_edge_weights', ul = 0.8, uu =0.2)
+        g1.Generate()
+        g2.Generate()
+        Gs = g1.Gs + g2.Gs
+        for dist_from_disconnection_point in [-1, 0,1,2,3, 20]:
+            new_Gs = []
+            isconnected = []
+
+            for i in range(len(Gs)):
+                A = nx.attr_matrix(Gs[i], edge_attr= 'weight')[0]
+                G = gen_fullyconnected_threshold(A, thresholds=thresholds, dist_from_disconnection_point= 0)
+                isconnected.append(nx.is_connected(G))
+
+                new_Gs.append(G.copy())
+
+
+            rw_kernel = rw.RandomWalk(new_Gs, c = 0.01, normalize=0)
+            K = rw_kernel.fit_ARKU_plus(r = 6, normalize_adj=False,   edge_attr= None, verbose=False)
+
+            MMD_functions = [MMD_b, MMD_u]
+
+            kernel_hypothesis = BoostrapMethods(MMD_functions)
+            function_arguments=[dict(n = g1.n, m = g2.n ), dict(n = g1.n, m = g2.n )]
+            kernel_hypothesis.Bootstrap(K, function_arguments, B = B)
+            #print(f'p_value {kernel_hypothesis.p_values}')
+            #print(f"MMD_u {kernel_hypothesis.sample_test_statistic['MMD_u']}")
+
+            test_info = pd.concat((test_info, pd.DataFrame({
+                'p_val':kernel_hypothesis.p_values['MMD_u'],
+                'dist_from_critical': dist_from_disconnection_point,
+                'sample':sample
+
+
+            }, index = [0])), ignore_index=True)
+
+
+
+    return test_info
 
 
 if __name__ == '__main__':

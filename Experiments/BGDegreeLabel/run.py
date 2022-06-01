@@ -202,6 +202,10 @@ if __name__ == "__main__":
         kernel = {"type":kernel_specific_params['type'], 'wl_it':kernel_specific_params.get('nitr', 4),'normalize':normalize}
     elif kernel_name == 'wwl':
         kernel = {'discount':kernel_specific_params['discount'],'h':kernel_specific_params['nitr'], 'sinkhorn':kernel_specific_params['sinkhorn'],'normalize':normalize }
+    elif kernel_name == "gntk":
+        kernel = {'num_layers':kernel_specific_params['L'],'num_mlp_layers':kernel_specific_params['dim'], 
+                  'jk':bool(kernel_specific_params['sinkhorn']), 'scale': kernel_specific_params['type'],
+                  'normalize':normalize,'degree_as_tag':True, 'features':None}
     else:
         raise ValueError(f'No kernel names {kernel_name}')
     
@@ -236,6 +240,8 @@ if __name__ == "__main__":
         kernel_library = 'wwl'
     elif kernel_name == 'rw':
         kernel_library = 'randomwalk'
+    elif kernel_name == 'gntk':
+        kernel_library = 'gntk'
     else:
         kernel_library = "Grakel"
 
@@ -322,7 +328,7 @@ if __name__ == "__main__":
 
 
         # add to the main data frame
-        df = df.append(tmp, ignore_index=True)
+        df = pd.concat((df, tmp), ignore_index=True)
 
     # Save the dataframe at each iteration each such that if out-of-memory or time-out happen we at least have some of the information.
     with open(path, 'wb') as f:

@@ -852,7 +852,7 @@ class RandomWalk():
         """
 
         # A = nx.linalg.adjacency_matrix(G, dtype = float)
-        A = scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
+        A = nx.adjacency_matrix(G ,weight=edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
         if type(self.X[0]) == nx.classes.digraph.DiGraph:
             D_inv = scipy.sparse.dia_matrix(([1/float(d[1]) for d in G.out_degree()], 0), shape = (A.shape[0], A.shape[0]))
         else:
@@ -885,7 +885,7 @@ class RandomWalk():
 
         """
 
-        A = scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
+        A = scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
         D_sq_inv = scipy.sparse.dia_matrix(([1/ np.sqrt(float(d[1])) for d in G.degree()], 0), shape = (A.shape[0], A.shape[0]))
 
         return D_sq_inv.dot(A).dot(D_sq_inv)
@@ -899,8 +899,7 @@ class RandomWalk():
         G - networkx graph
 
         """
-
-        return scipy.sparse.csr_matrix(np.array(nx.attr_matrix(G, edge_attr=edge_attr)[0]), dtype=np.float64)
+        return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
 
     def _get_node_label_vectors(self, G, label_list, label_name = 'label'):
         """
