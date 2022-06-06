@@ -206,6 +206,8 @@ if __name__ == "__main__":
         kernel = {'num_layers':kernel_specific_params['L'],'num_mlp_layers':kernel_specific_params['dim'], 
                   'jk':bool(kernel_specific_params['sinkhorn']), 'scale': kernel_specific_params['type'],
                   'normalize':normalize,'degree_as_tag':True, 'features':None}
+    elif kernel_name == 'graphstat':
+        kernel = {'type':kernel_specific_params['type'], 'normalize':normalize,'degree_as_tag':True}
     else:
         raise ValueError(f'No kernel names {kernel_name}')
     
@@ -242,6 +244,8 @@ if __name__ == "__main__":
         kernel_library = 'randomwalk'
     elif kernel_name == 'gntk':
         kernel_library = 'gntk'
+    elif kernel_name == 'graphstat':
+        kernel_library = 'graphstat'
     else:
         kernel_library = "Grakel"
 

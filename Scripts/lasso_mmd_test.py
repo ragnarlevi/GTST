@@ -45,7 +45,7 @@ warnings.filterwarnings("ignore")
 
 
 
-def run_samples_lasso(N, B, alpha, theta1, theta2, same):
+def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2):
     import myKernels.RandomWalk as rw
     test_info = pd.DataFrame()
     k = theta1.shape[0]
@@ -88,8 +88,12 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, same):
 
 
         try:
-            rw_kernel = rw.RandomWalk(Gs, c = 0.0001, normalize=0)
-            K = rw_kernel.fit_ARKU_plus(r = 6, normalize_adj=False,   edge_attr= None, verbose=False)
+            #rw_kernel = rw.RandomWalk(Gs, c = 0.0001, normalize=0)
+            #K = rw_kernel.fit_ARKU_plus(r = 6, normalize_adj=False,   edge_attr= None, verbose=False)
+            graph_list = gk.graph_from_networkx(Gs)
+            kernel = [{"name": "SP", "with_labels": 0}]
+            init_kernel = gk.GraphKernel(kernel= kernel, normalize=0)
+            K = init_kernel.fit_transform(graph_list)
         except:
             continue
 
@@ -108,7 +112,8 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, same):
             'mean_error_1':np.mean(error_1),
             'mean_error_2':np.mean(error_2),
             'alpha':alpha,
-            'thetaSame':same,
+            's1':s1,
+            's2':s2
 
 
         }, index = [0])), ignore_index=True)
@@ -149,39 +154,65 @@ def gen_theta(k, sparsity, seed):
 
 if __name__ == '__main__':
 
+
+
+    N = 250
+    B = 10000
+
     s1 = 0.5
     s2 = 0.6
-    same = 0
-
     theta1 = gen_theta(11, s1, 42)
     theta2 = gen_theta(11, s2, 42)
 
     print(np.allclose(theta1, theta2))
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--alpha', type=float,metavar='', help='regularization')
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-a', '--alpha', type=float,metavar='', help='regularization')
 
 
 
-    args = parser.parse_args()
-    alpha = args.alpha
-    N = 250
-    B = 10000
+    #args = parser.parse_args()
+    #alpha = args.alpha
+    
+    for alpha in np.linspace(start = 0, stop = 0.5, num = 20):
+        print(alpha)
+        N = 500
+        B = 10000
 
 
 
-    with Pool() as pool:
-        L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, same), 
-                                                (N, B, alpha, theta1, theta2, same), 
-                                                (N, B, alpha, theta1, theta2, same), 
-                                                (N, B, alpha, theta1, theta2, same)])
-        
+        with Pool() as pool:
+            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2), 
+                                                    (N, B, alpha, theta1, theta2, s1, s2)])
+            
 
-        df = pd.concat(L)
-
-    print(df)
+            df = pd.concat(L)
 
 
-    with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}.pkl', 'wb') as f:
-        pickle.dump(df, f)
+        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}.pkl', 'wb') as f:
+            pickle.dump(df, f)
 
+
+
+    s1 = 0.5
+    s2 = 0.5
+    theta1 = gen_theta(11, s1, 42)
+    theta2 = gen_theta(11, s2, 42)
+
+    for alpha in np.linspace(start = 0, stop = 0.5, num = 20):
+        print(alpha)
+        N = 500
+        B = 10000
+
+
+
+        with Pool() as pool:
+            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2), 
+                                                    (N, B, alpha, theta1, theta2, s1, s2)])
+            
+
+            df = pd.concat(L)
+
+
+        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}.pkl', 'wb') as f:
+            pickle.dump(df, f)

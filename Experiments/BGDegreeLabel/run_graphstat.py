@@ -172,6 +172,7 @@ if __name__ == "__main__":
                         'timestap':time,
                         'B':B,
                         'N':N,
+                        'type':'mean',
                         'run_time':str((datetime.now() - now))}, index = [0])
         # Add power
         if len(power_graph) != 0:

@@ -461,7 +461,7 @@ class BootstrapGraphStatistic():
             for i in range(len(self.list_of_functions)):
                 key = self.list_of_functions[i].__name__
                 statistic_boot = evaluation_method(graph_statistics[key], self.n1, self.n2)
-                boot_test_statistic[key][boot] = np.median(statistic_boot[:self.n1]) - np.median(statistic_boot[self.n1:(self.n1+self.n2)])
+                boot_test_statistic[key][boot] = np.mean(statistic_boot[:self.n1]) - np.mean(statistic_boot[self.n1:(self.n1+self.n2)])
                 
 
         # calculate p-value, it is a two-tailed test
@@ -1282,6 +1282,11 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
                             jk=kernel['jk'], scale=kernel['scale'], normalize=kernel['normalize'])
             gntk.preprocess(Gs, degree_as_tag = kernel['degree_as_tag'], features= kernel['features'])
             K = gntk.fit_all(verbose=False)
+        elif kernel_library == 'graphstat':
+            import myKernels.GraphStatKernel as GSK
+            gstat = GSK.G_stat_kernel()
+            K = gstat.fit(Gs, method=kernel['type'], normalize=kernel['normalize'])
+
         else:
             raise ValueError(f"{kernel_library} not defined")
 
