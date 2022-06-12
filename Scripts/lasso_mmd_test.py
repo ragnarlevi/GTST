@@ -45,7 +45,7 @@ warnings.filterwarnings("ignore")
 
 
 
-def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2):
+def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
     import myKernels.RandomWalk as rw
     test_info = pd.DataFrame()
     k = theta1.shape[0]
@@ -58,28 +58,54 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2):
         n = 50
 
         for i in range(50):
-            x1 = np.random.multivariate_normal(mean = np.zeros(k), cov = theta1, size = 100)
+            if prec:
+                x1 = np.random.multivariate_normal(mean = np.zeros(k), cov = np.linalg.inv(theta1), size = 100)
+            else:
+                x1 = np.random.multivariate_normal(mean = np.zeros(k), cov = theta1, size = 100)
             A1 = np.corrcoef(x1.T)
             if alpha == 0:
-                np.fill_diagonal(A1, 0) 
-                A1[np.abs(A1) < 1e-5] = 0
+                if prec:
+                    A1 = np.linalg.inv(A1)
+                    np.fill_diagonal(A1, 0) 
+                    A1[np.abs(A1) < 1e-5] = 0
+                else:
+                    np.fill_diagonal(A1, 0) 
+                    A1[np.abs(A1) < 1e-5] = 0
             else:
                 gl = graphical_lasso(A1, alpha = alpha, max_iter = 1000)
-                A1 = gl[0]
-                A1[np.abs(A1) < 1e-5] = 0
+                if prec:
+                    A1 = gl[1]
+                    A1[np.abs(A1) < 1e-5] = 0
+                else:
+                    A1 = gl[0]
+                    A1[np.abs(A1) < 1e-5] = 0
                 np.fill_diagonal(A1, 0)
 
             Gs1.append(nx.from_numpy_matrix(A1))
             error_1.append(np.sum(np.logical_xor(np.abs(np.triu(A1,1)) > 0,np.abs(np.triu(theta1,1)) > 0)))
-            x2 = np.random.multivariate_normal(mean = np.zeros(k), cov = theta2, size = 100)
+
+            if prec:
+                x2 = np.random.multivariate_normal(mean = np.zeros(k), cov = np.linalg.inv(theta2), size = 100)
+            else:
+                x2 = np.random.multivariate_normal(mean = np.zeros(k), cov =theta2, size = 100)
+            
             A2 = np.corrcoef(x2.T)
             if alpha == 0:
-                np.fill_diagonal(A2, 0)
-                A2[np.abs(A2) < 1e-5] = 0
+                if prec:
+                    A2 = np.linalg.inv(A2)
+                    np.fill_diagonal(A2, 0) 
+                    A2[np.abs(A2) < 1e-5] = 0
+                else:
+                    np.fill_diagonal(A2, 0) 
+                    A2[np.abs(A2) < 1e-5] = 0
             else:
                 gl = graphical_lasso(A2, alpha = alpha, max_iter = 1000)
-                A2 = gl[0]
-                A2[np.abs(A2) < 1e-5] = 0
+                if prec:
+                    A2 = gl[1]
+                    A2[np.abs(A2) < 1e-5] = 0
+                else:
+                    A2 = gl[0]
+                    A2[np.abs(A2) < 1e-5] = 0
                 np.fill_diagonal(A2, 0)
             Gs2.append(nx.from_numpy_matrix(A2))
             error_2.append(np.sum(np.logical_xor(np.abs(np.triu(A2,1)) > 0,np.abs(np.triu(theta2,1)) > 0)))
@@ -166,13 +192,13 @@ if __name__ == '__main__':
 
     print(np.allclose(theta1, theta2))
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-a', '--alpha', type=float,metavar='', help='regularization')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-prec', '--prec', type=int,metavar='', help='Precision?')
 
 
 
-    #args = parser.parse_args()
-    #alpha = args.alpha
+    args = parser.parse_args()
+    prec = bool(args.prec)
     
     for alpha in np.linspace(start = 0, stop = 0.5, num = 20):
         print(alpha)
@@ -182,14 +208,14 @@ if __name__ == '__main__':
 
 
         with Pool() as pool:
-            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2), 
-                                                    (N, B, alpha, theta1, theta2, s1, s2)])
+            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2, prec), 
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec)])
             
 
             df = pd.concat(L)
 
 
-        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}.pkl', 'wb') as f:
+        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}_{prec}.pkl', 'wb') as f:
             pickle.dump(df, f)
 
 
