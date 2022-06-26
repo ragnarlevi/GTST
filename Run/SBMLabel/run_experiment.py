@@ -8,6 +8,16 @@ print(now)
 noise1 = 0.1
 noise2 = 0.14
 
+# odd
+
+for d in [1,2,3,None]:
+    if d is None:
+        os.system(f"python Experiments/SBMOnlyRandomLabel/run.py -p data/SBMOnlyRandomLabel/ODD/n1_60_n2_60_noise1_{noise1}_noise2_{noise2}_dagh_{d}.pkl -B 3000 -N 3000 -kernel odd -n1 60 -n2 60 -noise1 {noise1} -noise2 {noise2} -d 4 -norm 0 ")
+    else:
+        os.system(f"python Experiments/SBMOnlyRandomLabel/run.py -p data/SBMOnlyRandomLabel/ODD/n1_60_n2_60_noise1_{noise1}_noise2_{noise2}_dagh_{d}.pkl -B 3000 -N 3000 -kernel odd -n1 60 -n2 60 -noise1 {noise1} -noise2 {noise2} -d 4 -norm 0 -dagh {d}")
+
+
+
 # # wl
 # # for nitr in [1,2,4,6, 8]:
 # #     print(f'{nitr}')
@@ -87,7 +97,7 @@ noise2 = 0.14
 #     print(f'dk {n}')
 #     os.system(f"python Experiments/SBMOnlyRandomLabel/run.py -p '../../data/SBMOnlyRandomLabel/DK/n1_{n}_n2_{n}_type_sp_norm_0_noise1_{noise1}_noise2_{noise2}.pkl' -B 3000 -N 3000 -kernel dk -n1 {n} -n2 {n} -noise1 {noise1} -noise2 {noise2} -d 4 -norm 0 -type sp")
 
-for n in [20, 80, 100, 150]:
-    print(f'rw {n}')
-    os.system(f"python Experiments/SBMOnlyRandomLabel/run.py -p '../../data/SBMOnlyRandomLabel/RW/n1_{n}_n2_{n}_c_{0.01}_tmax_{0}_r_{10}_type_{'ARKL'}_norm_0_noise1_{noise1}_noise2_{noise2}_adjnorm_0_rownorm_0.pkl' -B 3000 -N 500 -kernel rw -n1 {n} -n2 {n} -noise1 {noise1} -noise2 {noise2} -d 1 -norm 0 -rwApprox {10} -l {0.01} -type {'ARKL'} -adj_norm {0} -row_norm {0}")
+# for n in [20, 80, 100, 150]:
+#     print(f'rw {n}')
+#     os.system(f"python Experiments/SBMOnlyRandomLabel/run.py -p '../../data/SBMOnlyRandomLabel/RW/n1_{n}_n2_{n}_c_{0.01}_tmax_{0}_r_{10}_type_{'ARKL'}_norm_0_noise1_{noise1}_noise2_{noise2}_adjnorm_0_rownorm_0.pkl' -B 3000 -N 500 -kernel rw -n1 {n} -n2 {n} -noise1 {noise1} -noise2 {noise2} -d 1 -norm 0 -rwApprox {10} -l {0.01} -type {'ARKL'} -adj_norm {0} -row_norm {0}")
 

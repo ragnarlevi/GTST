@@ -110,8 +110,8 @@ print(now)
 
 # graphstat
 for n in [20]:
-    for method in ['sp']:
-        os.system(f"python Experiments/BGDegreeLabel/run.py -p '../../data/BGDegreeLabel/GRAPHSTAT/n1_{n}_n2_{n}_v1_60_v2_60_diff_{0.25}_meth_{method}_norm_0.pkl' -B 10000 -N 10000 -kernel graphstat -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 5 -norm 0 -type {method}")
+    for method in ['sp', 'degree']:
+        os.system(f"python Experiments/BGDegreeLabel/run.py -p data/BGDegreeLabel/GRAPHSTAT/n1_{n}_n2_{n}_v1_60_v2_60_diff_{0.25}_meth_{method}_norm_0.pkl -B 10000 -N 10000 -kernel graphstat -nnode1 60 -nnode2 60 -k1 {4} -k2 {4.25} -n1 {n} -n2 {n} -d 5 -norm 0 -type {method}")
 
 
 # Test multiple samples
