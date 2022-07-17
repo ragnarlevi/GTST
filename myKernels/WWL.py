@@ -10,7 +10,7 @@ import numpy as np
 import copy
 from typing import List
 from collections import defaultdict
-
+from sklearn.metrics import DistanceMetric
 import ot
 
 class WeisfeilerLehman():
@@ -174,8 +174,9 @@ class WWL():
                 labels_2 = label_sequences[graph_index_2 + graph_index_1][:,:n_feat*(h+1)] 
                 # Get cost matrix
                 ground_distance = 'hamming' if self.labelled else 'euclidean'
-                costs = ot.dist(labels_1, labels_2, metric=ground_distance)
-
+                
+                # costs = ot.dist(labels_1, labels_2, metric=ground_distance)
+                costs = DistanceMetric.get_metric(ground_distance).pairwise(labels_1, labels_2)
                 if self.param['sinkhorn']:
                     mat = ot.sinkhorn(np.ones(len(labels_1))/len(labels_1), 
                                         np.ones(len(labels_2))/len(labels_2), costs, self.param['sinkhorn_lambda'], 
@@ -253,7 +254,7 @@ if __name__ == "__main__":
 
     Gs = bg1.Gs + bg2.Gs
     print(len(Gs))
-    kernel = WWL(param = {'discount':10000000000,'h':8, 'sinkhorn':False })
+    kernel = WWL(param = {'discount':1,'h':8, 'sinkhorn':False })
     K = kernel.fit_transform(Gs)
     print(K)
 

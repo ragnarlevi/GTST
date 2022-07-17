@@ -329,7 +329,7 @@ if __name__ == "__main__":
 
 
         # add to the main data frame
-        df = df.append(tmp, ignore_index=True)
+        df = pd.concat((df,tmp), ignore_index=True)
 
     # Save the dataframe at each iteration each such that if out-of-memory or time-out happen we at least have some of the information.
     with open(path, 'wb') as f:

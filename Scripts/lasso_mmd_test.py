@@ -55,6 +55,8 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
         Gs2 = []
         error_1 = []
         error_2 = []
+        error_1_mse = []
+        error_2_mse = []
         n = 50
 
         for i in range(50):
@@ -82,7 +84,8 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
                 np.fill_diagonal(A1, 0)
 
             Gs1.append(nx.from_numpy_matrix(A1))
-            error_1.append(np.sum(np.logical_xor(np.abs(np.triu(A1,1)) > 0,np.abs(np.triu(theta1,1)) > 0)))
+            error_1.append(error_func(theta1, A1))#.append(np.sum(np.logical_xor(np.abs(np.triu(A1,1)) > 0,np.abs(np.triu(theta1,1)) > 0)))
+            error_1_mse.append(np.sum((A1 - theta1) ** 2))
 
             if prec:
                 x2 = np.random.multivariate_normal(mean = np.zeros(k), cov = np.linalg.inv(theta2), size = 100)
@@ -108,7 +111,8 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
                     A2[np.abs(A2) < 1e-5] = 0
                 np.fill_diagonal(A2, 0)
             Gs2.append(nx.from_numpy_matrix(A2))
-            error_2.append(np.sum(np.logical_xor(np.abs(np.triu(A2,1)) > 0,np.abs(np.triu(theta2,1)) > 0)))
+            error_2.append(error_func(theta2, A2))#append(np.sum(np.logical_xor(np.abs(np.triu(A2,1)) > 0,np.abs(np.triu(theta2,1)) > 0)))
+            error_2_mse.append(np.sum((A2 - theta2) ** 2))
 
         Gs = Gs1 + Gs2
 
@@ -137,9 +141,13 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
             'sample':sample,
             'mean_error_1':np.mean(error_1),
             'mean_error_2':np.mean(error_2),
+            'mean_mse_error_1':np.mean(error_1_mse),
+            'mean_mse_error_2':np.mean(error_2_mse),
             'alpha':alpha,
             's1':s1,
-            's2':s2
+            's2':s2,
+            'kernel':'sp',
+            'prec':prec
 
 
         }, index = [0])), ignore_index=True)
@@ -147,6 +155,27 @@ def run_samples_lasso(N, B, alpha, theta1, theta2, s1, s2, prec = False):
 
 
     return test_info
+
+
+def error_func(theta, A):
+
+    theta_vec = theta[np.triu_indices(theta.shape[0], k = 1)]
+    A_vec = A[np.triu_indices(A.shape[0], k = 1)]
+
+    error_count = 0.0
+    for i in range(len(theta_vec)):
+
+        if np.sign(theta_vec[i]) != np.sign(A_vec[i]):
+            error_count += 1.0
+
+        # if (theta_vec[i] > 0) & (A_vec[i] <= 0) :
+        #     error_count += 1.0
+        # elif (theta_vec[i] < 0) & (A_vec[i] >= 0) :
+        #     error_count += 1.0
+        # elif (theta_vec[i] == 0) & (np.abs(A_vec[i]) > 0):
+        #     error_count += 1.0
+
+    return error_count
 
 
 
@@ -182,15 +211,8 @@ if __name__ == '__main__':
 
 
 
-    N = 250
-    B = 10000
 
-    s1 = 0.5
-    s2 = 0.6
-    theta1 = gen_theta(11, s1, 42)
-    theta2 = gen_theta(11, s2, 42)
 
-    print(np.allclose(theta1, theta2))
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-prec', '--prec', type=int,metavar='', help='Precision?')
@@ -199,23 +221,35 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     prec = bool(args.prec)
+
+
+    s1 = 0.5
+    s2 = 0.6
+    theta1 = gen_theta(11, s1, 42)
+    theta2 = gen_theta(11, s2, 42)
+
+    print(np.allclose(theta1, theta2))
     
-    for alpha in np.linspace(start = 0, stop = 0.5, num = 20):
+    for alpha in np.linspace(start = 0, stop = 1, num = 50):
         print(alpha)
-        N = 500
+        N = 150
         B = 10000
 
 
 
         with Pool() as pool:
             L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2, prec), 
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
                                                     (N, B, alpha, theta1, theta2, s1, s2, prec)])
             
 
             df = pd.concat(L)
 
 
-        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}_{prec}.pkl', 'wb') as f:
+        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}_prec_{prec}_kernel_sp.pkl', 'wb') as f:
             pickle.dump(df, f)
 
 
@@ -225,20 +259,25 @@ if __name__ == '__main__':
     theta1 = gen_theta(11, s1, 42)
     theta2 = gen_theta(11, s2, 42)
 
-    for alpha in np.linspace(start = 0, stop = 0.5, num = 20):
+    for alpha in np.linspace(start = 0, stop = 1, num = 50):
         print(alpha)
-        N = 500
+        N = 150
         B = 10000
 
 
 
         with Pool() as pool:
-            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2), 
-                                                    (N, B, alpha, theta1, theta2, s1, s2)])
+            L = pool.starmap(run_samples_lasso, [(N, B, alpha, theta1, theta2, s1, s2, prec), 
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec),
+                                                    (N, B, alpha, theta1, theta2, s1, s2, prec)
+                                                    ])
             
 
             df = pd.concat(L)
 
 
-        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}.pkl', 'wb') as f:
+        with open(f'data/GLasso/alpha_{alpha}_{s1}_{s2}_prec_{prec}_kernel_sp.pkl', 'wb') as f:
             pickle.dump(df, f)

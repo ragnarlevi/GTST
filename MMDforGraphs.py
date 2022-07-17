@@ -49,6 +49,23 @@ def MONK_EST(K, Q, y1, y2):
     mmd =  MONK.MMD_MOM(Q = Q, kernel_type = 'matrix', kernel=K)
     return mmd.estimate(y1, y2)
 
+def MMD_l(K: np.array, n: int, m: int) -> float:
+
+    assert n == m, "n has to be equal to m"
+
+    Kxx = K[:n,:n]
+    Kyy = K[n:,n:]
+    Kxy = K[:n,n:]
+    Kyx = K[n:,:n]
+
+    if n %2 != 0:
+        n = n-1
+
+    
+    return np.mean(Kxx[range(0,n-1,2), range(1,n,2)]) +\
+            np.mean(Kyy[range(0,n-1,2), range(1,n,2)]) -\
+            np.mean(Kxy[range(0,n-1,2), range(1,n,2)]) -\
+            np.mean(Kyx[range(0,n-1,2), range(1,n,2)])
 
 
 def factorial_k(m, k):
@@ -611,6 +628,16 @@ class DegreeGraphs():
         """
 
         return dict(( (i, ''.join(map(str,sorted([ info[2] for info in G.edges(i, data = 'sign')]))) ) for i in range(len(G))))
+    
+    def edge_random_sign(self,G):
+        
+        edge_w = dict()
+        for e in G.edges():
+            edge_w[e] = np.random.choice([1,-1], p=[self.kwargs['p_sign'], 1-self.kwargs['p_sign']])
+
+        return edge_w
+
+
 
     def random_edge_weights(self, G):
         def edge_dist():
@@ -635,7 +662,7 @@ def scale_free(n, exponent):
     while True:  
         s=[]
         while len(s)<n:
-            nextval = int(nx.utils.powerlaw_sequence(1, exponent)[0]) #100 nodes
+            nextval = int(nx.utils.powerlaw_sequence(1, exponent)[0])
             if nextval!=0:
                 s.append(nextval)
         if sum(s)%2 == 0:
@@ -652,7 +679,7 @@ class ScaleFreeGraph(DegreeGraphs):
     Generate a powerlaw graph
     """
 
-    def __init__(self,  n, nnode, exponent, l = None,  a = None, e = None, **kwargs):
+    def __init__(self,  n, nnode, exponent, l = None,  a = None, e = None, e_name = 'weight', **kwargs):
         """
         Parameters:
         ---------------------
@@ -668,6 +695,7 @@ class ScaleFreeGraph(DegreeGraphs):
         super().__init__( n = n, nnode = nnode, l = l ,  a = a, e=e, **kwargs )
 
         self.exponent = exponent
+        self.e_name = e_name
 
 
     def Generate(self):
@@ -683,6 +711,69 @@ class ScaleFreeGraph(DegreeGraphs):
                         break
             else:
                 G = scale_free(self.nnode, self.exponent)
+            
+
+            if not self.e is None:
+                edge_weight = getattr(self, self.e)
+                edge_weight_dict = edge_weight(G)
+                nx.set_edge_attributes(G, values = edge_weight_dict, name = self.e_name)
+
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+
+            self.Gs.append(G)
+
+
+class bipartiteConfiguration(DegreeGraphs):
+
+    def __init__(self,  n, nnode, exponent, nnode_set_1, l = None,  a = None, e = None, **kwargs):
+            """
+            Parameters:
+            ---------------------
+            n - number of samples
+            nnode - number of nodes
+            nnode_set_1: NOT USED number of nodes in set one
+
+
+            balance_target - ratio of balanced triangles to unbalanced ones.
+            exponent - power law exponent
+
+            
+            """
+            super().__init__( n = n, nnode = nnode, l = l ,  a = a, e=e, **kwargs )
+
+            self.exponent = exponent
+            self.nr_set_1 = nnode_set_1
+
+
+    def Generate(self):
+
+        self.Gs = []
+
+        for _ in range(self.n):
+
+            if self.fullyConnected:
+                while True:
+                    degree_seq = np.array(nx.utils.powerlaw_sequence(self.nnode, self.exponent), dtype = int)
+                    G = nx.algorithms.bipartite.configuration_model(degree_seq, degree_seq, create_using=nx.Graph)
+                    if nx.is_connected(G):
+                        break
+            else:
+                degree_seq = np.array(nx.utils.powerlaw_sequence(self.nnode, self.exponent), dtype = int)
+                G = nx.algorithms.bipartite.configuration_model(degree_seq, degree_seq, create_using=nx.Graph)
             
 
             if (not self.l is None) and (not self.a is None):
@@ -709,8 +800,65 @@ class ScaleFreeGraph(DegreeGraphs):
             self.Gs.append(G)
 
 
+class bipartiteRandom(DegreeGraphs):
+
+    def __init__(self,  n, nnode, p, nnode_set_1, l = None,  a = None, e = None, **kwargs):
+            """
+            Parameters:
+            ---------------------
+            n - number of samples
+            nnode - number of nodes
+            nnode_set_1: number of nodes in set one
 
 
+            balance_target - ratio of balanced triangles to unbalanced ones.
+            exponent - power law exponent
+
+            
+            """
+            super().__init__( n = n, nnode = nnode, l = l ,  a = a, e=e, **kwargs )
+
+            self.p = p
+            self.nr_set_1 = nnode_set_1
+
+
+    def Generate(self):
+
+        self.Gs = []
+
+        for _ in range(self.n):
+
+            if self.fullyConnected:
+                while True:
+                    G = nx.algorithms.bipartite.random_graph(self.nnode, self.nr_set_1, self.p)
+                    if nx.is_connected(G):
+                        break
+            else:
+                G = nx.algorithms.bipartite.random_graph(self.nnode, self.nr_set_1, self.p)
+            
+
+            if (not self.l is None) and (not self.a is None):
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+            elif not self.l is None:
+                label = getattr(self, self.l)
+                label_dict = label(G)
+                nx.set_node_attributes(G, label_dict, 'label')
+            elif not self.a is None:
+                attributes = getattr(self, self.a)
+                attribute_dict = attributes(G)
+                nx.set_node_attributes(G, attribute_dict, 'attr')
+
+            if not self.e is None:
+                edge_weight = getattr(self, self.e)
+                edge_weight_dict = edge_weight(G)
+                nx.set_edge_attributes(G, values = edge_weight_dict, name = 'weight')
+
+            self.Gs.append(G)
 
 class SignedGraph(DegreeGraphs):
     """
@@ -1205,10 +1353,10 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
     # Store K max for acceptance region
     Kmax = np.array([0.0] * N, dtype = np.float64)
 
-    for sample in range(N):
+    for sample in tqdm.tqdm(range(N)):
 
         #if sample % 10 == 0:
-        print(f'{sample} ')
+        # print(f'{sample} ')
     
         # sample binomial graphs
         bg1.Generate()
@@ -1300,6 +1448,7 @@ def iteration(N:int, kernel:dict, normalize:bool, MMD_functions, bg1, bg2, B:int
 
         # bootstrap function argument
         function_arguments = [dict(n = bg1.n, m = bg2.n), 
+                       dict(n = bg1.n, m = bg2.n),
                        dict(n = bg1.n, m = bg2.n),
                        dict(Q = 11, y1 = Gs[:bg1.n], y2 = Gs[bg1.n:] )]
         

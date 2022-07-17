@@ -118,21 +118,28 @@ diff = 0.08
 #                     print(datetime.now() - now )
 
 
+# odd
+for d in [1,2,3,None]:
+    if d is None:
+        os.system(f"python Experiments/SBMTopology/run.py -p data/SBMTopology/odd/n1_20_n2_20_norm_0_diff_{diff}_dagh_{d}.pkl -B 10000 -N 10000 -kernel odd -n1 20 -n2 20 -diff {diff} -d 8 -norm 0 ")
+    else:
+        os.system(f"python Experiments/SBMTopology/run.py -p data/SBMTopology/odd/n1_20_n2_20_norm_0_diff_{diff}_dagh_{d}.pkl -B 10000 -N 10000 -kernel odd -n1 20 -n2 20 -diff {diff} -d 8 -norm 0 -dagh {d}")
 
-for n in [100, 150]:
-    #print(f'wl {n}')
-    #os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WL/n1_{n}_n2_{n}_diff_{diff}_nitr_{3}' -B 3000 -N 3000 -kernel wl -n1 {n} -n2 {n} -diff {diff} -d 4 -norm 0 -nitr {3}")
-    #print(f'wloa {n}')
-    #os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WLOA/n1_{n}_n2_{n}_diff_{diff}_nitr_{3}' -B 3000 -N 3000 -kernel wloa -n1 {n} -n2 {n} -diff {diff} -d 4 -norm 0 -nitr {3}")
-    #print(f'sp {n}')
-    #os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/SP/n1_{n}_n2_{n}_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel sp -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -wlab 0")
-    print(f'wwl {n}')
-    os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WWL/n1_{n}_n2_{n}_nitr_{3}_l_{0.1}_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel wwl -diff {diff} -n1 {n} -n2 {n}  -d 4 -norm 0 -nitr {3} -l {0.1}")
-    print(f'prop {n}')
-    os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/PROP/n1_{n}_n2_{n}_tmax_{3}_M_TV_w_{0.01}_norm_0_diff_{diff}.pkl' -B 3000 -N 3000 -kernel prop -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -tmax {3} -w {0.01} -M H")
-    print(f'pyramid {n}')
-    os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/PYRAMID/n1_{n}_n2_{n}_L_{6}_dim_{2}_norm_0_diff_{diff}_wlab_{1}' -B 3000 -N 3000 -kernel pyramid -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -L {6} -dim {2} -wlab 0")
-    # print(f'dk {n}')
-    # os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/DK/n1_{n}_n2_{n}_type_sp_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel dk -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -type sp")
-    #print(f'rw {n}')
-    #os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/RW/n1_{n}_n2_{n}_c_{0.001}_tmax_{0}_r_{4}_type_{'ARKU_plus'}_norm_0_adjnorm_0_rownorm_0_diff_{diff}' -B 3000 -N 3000 -kernel rw -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -rwApprox {4} -l {0.01} -type ARKU_plus -adj_norm {0} -row_norm {0}")
+
+# for n in [100, 150]:
+#     print(f'wl {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WL/n1_{n}_n2_{n}_diff_{diff}_nitr_{3}' -B 3000 -N 3000 -kernel wl -n1 {n} -n2 {n} -diff {diff} -d 4 -norm 0 -nitr {3}")
+#     print(f'wloa {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WLOA/n1_{n}_n2_{n}_diff_{diff}_nitr_{3}' -B 3000 -N 3000 -kernel wloa -n1 {n} -n2 {n} -diff {diff} -d 4 -norm 0 -nitr {3}")
+#     print(f'sp {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/SP/n1_{n}_n2_{n}_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel sp -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -wlab 0")
+#     print(f'wwl {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/WWL/n1_{n}_n2_{n}_nitr_{3}_l_{0.1}_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel wwl -diff {diff} -n1 {n} -n2 {n}  -d 4 -norm 0 -nitr {3} -l {0.1}")
+#     print(f'prop {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/PROP/n1_{n}_n2_{n}_tmax_{3}_M_TV_w_{0.01}_norm_0_diff_{diff}.pkl' -B 3000 -N 3000 -kernel prop -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -tmax {3} -w {0.01} -M H")
+#     print(f'pyramid {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/PYRAMID/n1_{n}_n2_{n}_L_{6}_dim_{2}_norm_0_diff_{diff}_wlab_{1}' -B 3000 -N 3000 -kernel pyramid -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -L {6} -dim {2} -wlab 0")
+#     print(f'dk {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/DK/n1_{n}_n2_{n}_type_sp_norm_0_diff_{diff}' -B 3000 -N 3000 -kernel dk -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -type sp")
+#     print(f'rw {n}')
+#     os.system(f"python Experiments/SBMTopology/run.py -p '../../data/SBMTopology/RW/n1_{n}_n2_{n}_c_{0.001}_tmax_{0}_r_{4}_type_{'ARKU_plus'}_norm_0_adjnorm_0_rownorm_0_diff_{diff}' -B 3000 -N 3000 -kernel rw -diff {diff} -n1 {n} -n2 {n} -d 4 -norm 0 -rwApprox {4} -l {0.01} -type ARKU_plus -adj_norm {0} -row_norm {0}")

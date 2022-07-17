@@ -13,6 +13,7 @@ n2 = 40
 k1 = 2.1
 k2 = 2.2
 
+print(os.getcwd())
 
 # Random Walk
 # for r in [6]: #[2,4,6]:
@@ -44,23 +45,23 @@ k2 = 2.2
 
 
 # WWL
-for l in [0.1, 0.001, 1]:
-    for nitr in [1, 2,4, 6, 8]:
-        print(f'{l} {nitr}')
-        os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/WWL/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_nitr_{nitr}_l_{l}_norm_0_k_{0.25}.pkl -B 10000 -N 3000 -kernel wwl -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -nitr {nitr} -l {l}")
+# for l in [0.1, 0.001, 1]:
+#     for nitr in [1, 2,4, 6, 8]:
+#         print(f'{l} {nitr}')
+#         os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/WWL/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_nitr_{nitr}_l_{l}_norm_0_k_{0.25}.pkl -B 10000 -N 3000 -kernel wwl -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -nitr {nitr} -l {l}")
 
-# # PROP
-for tmax in [1,2,3,4,5]:
-    for w in [0.01, 0.001, 0.0001]:
-        print(f'{tmax} {w}')
-        os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/PROP/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_tmax_{tmax}_M_TV_w_{w}_norm_0_diff_0.1.pkl -B 1000 -N 3000 -kernel prop -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -tmax {tmax} -w {w} -M H")
+# # # PROP
+# for tmax in [1,2,3,4,5]:
+#     for w in [0.01, 0.001, 0.0001]:
+#         print(f'{tmax} {w}')
+#         os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/PROP/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_tmax_{tmax}_M_TV_w_{w}_norm_0_diff_0.1.pkl -B 1000 -N 3000 -kernel prop -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -tmax {tmax} -w {w} -M H")
 
 
-# Pyramid
-for L in [6, 8]:
-    for d in [2, 4, 6]:
-        print(f'{L} {d}')
-        os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/PYRAMID/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_L_{L}_dim_{d}_norm_0_diff_0.1.pkl -B 10000 -N 3000 -kernel pyramid -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 4 -norm 0 -L {L} -dim {d} -wlab 1")
+# # Pyramid
+# for L in [6, 8]:
+#     for d in [2, 4, 6]:
+#         print(f'{L} {d}')
+#         os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/PYRAMID/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_L_{L}_dim_{d}_norm_0_diff_0.1.pkl -B 10000 -N 3000 -kernel pyramid -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 4 -norm 0 -L {L} -dim {d} -wlab 1")
 
 # # DK
 # print('dk')
@@ -83,8 +84,8 @@ for L in [6, 8]:
 
 
 # Graph Stats
-for method in ['sp', 'degree']:
-    os.system(f"python Experiments/ScaleFree/run_graphstat.py -p data/ScaleFree/GRAPHSTATS/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_N_1000_m_{method}_norm_0.pkl -B 10000 -N 3000 -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -type {method} ")
+for method in ['degree']:
+    os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/GRAPHSTATS/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_N_1000_m_{method}_norm_0.pkl -B 10000 -N 1200 -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -type {method} -kernel graphstat -norm 0  ")
 
 # # odd
 # # for n in [150]:
@@ -98,12 +99,12 @@ for method in ['sp', 'degree']:
 
 # gntk
 
-for nl in [6, 8]:
-    for mlp in [nl]:
-        for s in ['uniform']:
-            for jk in [1]:
-                print(f'{nl} {mlp} {s} {jk}')
-                os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/GNTK/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_diff_{0.25}_L_{nl}_mlp_{mlp}_s_{s}_jk_{jk}_k1_{k1}_k2_{k2}_norm_0.pkl -B 10000 -N 3000 -kernel gntk -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -L {nl} -dim {mlp} -sk {jk} -type {s}")
+# for nl in [6, 8]:
+#     for mlp in [nl]:
+#         for s in ['uniform']:
+#             for jk in [1]:
+#                 print(f'{nl} {mlp} {s} {jk}')
+#                 os.system(f"python Experiments/ScaleFree/run.py -p data/ScaleFree/GNTK/n1_{n1}_n2_{n2}_v1_{v1}_v2_{v2}_diff_{0.25}_L_{nl}_mlp_{mlp}_s_{s}_jk_{jk}_k1_{k1}_k2_{k2}_norm_0.pkl -B 10000 -N 3000 -kernel gntk -nnode1 {v1} -nnode2 {v2} -k1 {k1} -k2 {k2} -n1 {n1} -n2 {n2} -d 6 -norm 0 -L {nl} -dim {mlp} -sk {jk} -type {s}")
 
 
 # graphstat
