@@ -93,6 +93,12 @@ parser.add_argument('-adj_norm', '--adj_norm', type=int, metavar='', help='Norma
 # Gik
 parser.add_argument('-distances', '--distances', type=int,metavar='', help='node neigbourhood depth')
 
+# GNTK
+parser.add_argument('-L', '--histogramlevel', type=int,metavar='', help='Pyramid histogram level.')
+parser.add_argument('-dim', '--dim', type=int,metavar='', help='The dimension of the hypercube.')
+parser.add_argument('-sk', '--sinkhorn', type=int,metavar='', help='sinkhorn?')
+
+
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-v', '--verbose', action='store_false', help = 'print verbose')
 
@@ -128,6 +134,16 @@ if __name__ == "__main__":
     mean21 = args.mean21
     mean22 = args.mean22
     mean23 = args.mean23
+
+    print(n1)
+    print(n2)
+    print(nnode1)
+    print(mean11)
+    print(mean12)
+    print(mean13)
+    print(mean21)
+    print(mean22)
+    print(mean23)
 
     # number of cores
     d = args.division
@@ -175,9 +191,12 @@ if __name__ == "__main__":
     kernel_specific_params['row_normalize_adj'] = args.row_norm
 
 
+    kernel_specific_params['sinkhorn'] = bool(args.sinkhorn)
+    kernel_specific_params['L'] = args.histogramlevel
+    kernel_specific_params['dim'] = args.dim
     
     # functions used for kernel testing
-    MMD_functions = [mg.MMD_b, mg.MMD_u]
+    MMD_functions = [mg.MMD_b, mg.MMD_u, mg.MMD_l]
     
     # initialize bootstrap class, we only want this to be initalized once so that numba njit
     # only gets compiled once (at first call)
@@ -193,13 +212,13 @@ if __name__ == "__main__":
     noise2 = noise2/2.0
 
     # Initialize Graph generator class
-    probs_1 = np.array([[0.1, 0.01, 0.01], [0.01, 0.08, 0.01], [0.01, 0.01, 0.09]])
-    sizes_1 = np.int32(np.array([50, 40, 40]))
+    probs_1 = np.array([[0.2, 0.05, 0.05],  [0.05, 0.25, 0.03], [0.05, 0.03, 0.3]])# np.array([[0.1, 0.01, 0.01], [0.01, 0.08, 0.01], [0.01, 0.01, 0.09]])
+    sizes_1 = np.int32(np.array([10, 10, 10]))
     label_pmf_1 = np.array([[block_label_probability1, noise1, noise1], [noise1, block_label_probability1, noise1], [noise1, noise1, block_label_probability1]])
     bg1 = mg.SBMGraphs(n = n1, sizes = sizes_1, P = probs_1, a = 'blockmean2', l = 'degreelabels', params= {'block_mean':np.array([mean11, mean12, mean13]), 'label_pmf':label_pmf_1}, fullyConnected=True)
     
-    probs_2 = np.array([[0.1, 0.01, 0.01], [0.01, 0.08, 0.01], [0.01, 0.01, 0.09]])
-    sizes_2 = np.int32(np.array([50, 40, 40]))
+    probs_2 = np.array([[0.2, 0.05, 0.05],  [0.05, 0.25, 0.03], [0.05, 0.03, 0.3]])
+    sizes_2 = np.int32(np.array([10, 10, 10]))
     label_pmf_2 = np.array([[block_label_probability2, noise2, noise2], [noise2, block_label_probability2, noise2], [noise2, noise2, block_label_probability2]])
     bg2 = mg.SBMGraphs(n = n2, sizes = sizes_2, P = probs_2, a = 'blockmean2', l = 'degreelabels', params= {'block_mean':np.array([mean21, mean22, mean23]), 'label_pmf':label_pmf_2}, fullyConnected=True)
 
@@ -257,6 +276,10 @@ if __name__ == "__main__":
                     "normalize_adj": kernel_specific_params['normalize_adj'],
                     "row_normalize_adj": kernel_specific_params['row_normalize_adj'],
                     }
+    elif kernel_name == "gntk":
+        kernel = {'num_layers':kernel_specific_params['L'],'num_mlp_layers':kernel_specific_params['dim'], 
+                  'jk':bool(kernel_specific_params['sinkhorn']), 'scale': kernel_specific_params['type'],
+                  'normalize':normalize,'degree_as_tag':True, 'features':'attr'}
         
     else:
         raise ValueError(f'No kernel names {kernel_name}')
@@ -296,6 +319,8 @@ if __name__ == "__main__":
         kernel_library = 'gik'
     elif kernel_name == 'rw':
         kernel_library = 'randomwalk'
+    elif kernel_name == 'gntk':
+        kernel_library = 'gntk'
     else:
         kernel_library = "Grakel"
 
@@ -387,7 +412,7 @@ if __name__ == "__main__":
 
 
         # add to the main data frame
-        df = df.append(tmp, ignore_index=True)
+        df = pd.concat((df,tmp), ignore_index=True)
 
     # Save the dataframe at each iteration each such that if out-of-memory or time-out happen we at least have some of the information.
     with open(path, 'wb') as f:

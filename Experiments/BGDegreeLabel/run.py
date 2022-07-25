@@ -29,6 +29,8 @@ print(os.getcwd())
 # Load module which
 import MMDforGraphs as mg
 
+from multiprocessing import Pool, freeze_support
+
 
 parser = argparse.ArgumentParser()
 # Where to save results
@@ -135,6 +137,7 @@ if __name__ == "__main__":
 
     kernel_specific_params['dagh'] = args.DAGHeight
     kernel_specific_params['sinkhorn'] = bool(args.sinkhorn)
+    
 
     # rw approximation
     kernel_specific_params['r'] = args.rwApprox
@@ -208,6 +211,8 @@ if __name__ == "__main__":
                   'normalize':normalize,'degree_as_tag':True, 'features':None}
     elif kernel_name == 'graphstat':
         kernel = {'type':kernel_specific_params['type'], 'normalize':normalize,'degree_as_tag':True}
+    elif kernel_name == 'graphlet_sampling':
+        kernel = [{"name": "graphlet_sampling", "k": kernel_specific_params['tmax'], 'sampling':{'epsilon':kernel_specific_params['discount']}}]
     else:
         raise ValueError(f'No kernel names {kernel_name}')
     
@@ -252,9 +257,10 @@ if __name__ == "__main__":
     with concurrent.futures.ProcessPoolExecutor() as executor:
         results = [executor.submit(mg.iteration, n , kernel, normalize, MMD_functions, bg1,bg2, B, kernel_hypothesis, kernel_library) for n in [part] * d]
 
-        # For loop that takes the output of each process and concatenates them together
+
         cnt = 0
         for f in concurrent.futures.as_completed(results):
+        # for f in results:
             
             for k,v in f.result().items():
                 if k == "Kmax":
