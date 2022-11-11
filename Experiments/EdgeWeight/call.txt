@@ -1,1 +1,0 @@
-python Experiments/EdgeWeight/run.py -p '../../data/EdgeWeight/RW/k1_2.1_k2_2.1_u1l_0.4_u1u_0.7_u2l_0.4_u2u_0.5_N_10000_B_5000_n1_60_n2_60_nnode1_100_nnode2_100_r_6_c_0.01.pkl' -N 10000 -B 5000 -n1 60 -n2 60 -nnode1 100 -nnode2 100 -u1l 0.4 -u1u 0.6 -u2l 0.4 -u2u 0.5 -k1 2.1 -k2 2.1 -d 4 -kernel rw -norm 0 -l 0.01 -type ARKU_plus -rwApprox 6 -row_norm 0 -adj_norm 0
