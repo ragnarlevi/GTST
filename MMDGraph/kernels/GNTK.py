@@ -188,7 +188,6 @@ class GNTK(object):
         if degree_as_tag:
             for g in g_list:
                 g.node_tags = list(dict(g.g.degree(range(len(g.g)))).values())
-
         if features is None:
             #Extracting unique tag labels   
             tagset = set([])
@@ -207,6 +206,7 @@ class GNTK(object):
                 g.node_features = np.array([i[1] for i in g.g.nodes(features)])
                 if g.node_features[0] is None:
                     raise ValueError(f' Node features are None, is {g.node_features} definitely a vild feature?')
+
 
 
         self.g_list = g_list

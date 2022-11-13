@@ -183,6 +183,8 @@ class RandomWalk():
 
 
 
+
+
     def fit_ARKU_plus_ij(self, i,j, pbar:tqdm.tqdm = None) -> None:
         """
         Cacluate kernel value at index i,j
@@ -207,16 +209,16 @@ class RandomWalk():
                 self.p[i] = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
                 self.q[i] = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
             else:
-                self.p[i] = [(k[0]) for k in nx.get_node_attributes(self.X[i], self.node_attr).values()]
-                self.q[i] = [(k[0]) for k in nx.get_node_attributes(self.X[i], self.node_attr).values()]
+                self.p[i] = np.array([(k[0]) for k in nx.get_node_attributes(self.X[i], self.node_attr).values()])
+                self.q[i] = np.array([(k[0]) for k in nx.get_node_attributes(self.X[i], self.node_attr).values()])
         
         if self.p[j] is None:
             if self.node_attr is None:
                 self.p[j] = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
                 self.q[j] = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
             else:
-                self.p[j] = [(k[0]) for k in nx.get_node_attributes(self.X[j], self.node_attr).values()]
-                self.q[j] = [(k[0]) for k in nx.get_node_attributes(self.X[j], self.node_attr).values()]
+                self.p[j] = np.array([(k[0]) for k in nx.get_node_attributes(self.X[j], self.node_attr).values()])
+                self.q[j] = np.array([(k[0]) for k in nx.get_node_attributes(self.X[j], self.node_attr).values()])
 
 
         value = self.ARKU_plus(self.U_list[i], self.Lamda_list[i], self.U_list[j], self.Lamda_list[j], self.r, self.p[i], self.p[j], self.q[i], self.q[j])

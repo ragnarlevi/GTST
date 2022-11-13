@@ -7,11 +7,11 @@ import warnings
 import networkx as nx
 import grakel as gk
 
-import MONK
+from MMDGraph.MONK import MMD_MONK
 import tqdm
 
-from kernels import RandomWalk, WWL, GNTK, DeepKernel
-import glasso
+from MMDGraph.kernels import RandomWalk, WWL, GNTK, DeepKernel
+import MMDGraph.glasso as glasso
 
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n1: int, n2: int):
@@ -102,7 +102,7 @@ def MONK_EST(K, Q, n1, n2):
 
     """
 
-    mmd =  MONK.MMD_MONK(Q = Q,  K=K)
+    mmd =  MMD_MONK(Q = Q,  K=K)
     return mmd.estimate(n1, n2)
 
 def MMD_l(K: np.array, n1: int, n2: int) -> float:
@@ -342,13 +342,9 @@ class MMD():
         # store if attributes, labels are being set
         if set_attributes is not None:
             self.node_attr = 'attr'
-        else:
-            self.node_attr = None
         
         if set_labels is not None:
             self.node_label = 'label'
-        else:
-            self.node_label = None
 
         # weight names are set with this method
         self.weight_name = 'weight'
@@ -365,43 +361,60 @@ class MMD():
         self.G1 = []
         self.G2 = []
 
-        for i in range(window_size,X1.shape[0],window_size):
+         # Estimate precision 1
+        for i in range(window_size,X1.shape[0]+1,window_size):
             # Extract data points used to estimate a precision matrix
             tmp_X1= X1[(i-window_size):(i)].copy()
-            tmp_X2= X2[(i-window_size):(i)].copy()
 
-            # Estimate precision 1
+            if tmp_X1.shape[0] != window_size:
+                break
+        
             info_G1 = glasso.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X1)
             precision1 = info_G1.precision_.copy()
             np.fill_diagonal(precision1,0)
             G1i = nx.from_numpy_array(precision1)
-            if set_attributes is not None:
+            if callable(set_attributes):
                 attributes_i = set_attributes(tmp_X1)
-                nx.set_node_attributes(G1i, {k:attributes_i[k] for k in range(X1.shape[1])})
+                nx.set_node_attributes(G1i, {k:attributes_i[k] for k in range(len(attributes_i))}, 'attr')
             if set_labels is not None:
                 if type(set_labels) == str:
                     labels1 = self.label_fun(G1i, set_labels)
                     nx.set_node_attributes(G1i, labels1, 'label')
-                else:
-                    labels1 = set_labels(G1i)
+                elif callable(set_labels):
+                    labels1 = set_labels(tmp_X1)
                     nx.set_node_attributes(G1i, labels1, 'label')
+                elif type(set_labels) == dict:
+                    nx.set_node_attributes(G1i, set_labels['1'], 'label')
+                else:
+                    raise ValueError(f"labelling not defined for type {type(set_labels)}")
             self.G1.append(G1i)
 
-            # Estimate precision2
+        # Estimate Precision 2
+        for i in range(window_size,X2.shape[0]+1,window_size):
+            # Extract data points used to estimate a precision matrix
+            tmp_X2= X2[(i-window_size):(i)].copy()
+
+            if tmp_X2.shape[0] != window_size:
+                break
+             # Estimate precision2
             info_G2 = glasso.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X2)
             precision2 = info_G2.precision_.copy()
             np.fill_diagonal(precision2,0)
             G2i = nx.from_numpy_array(precision2)
-            if set_attributes is not None:
+            if callable(set_attributes):
                 attributes_i = set_attributes(tmp_X2)
                 nx.set_node_attributes(G2i, {k:attributes_i[k] for k in range(X2.shape[1])}, 'attr')
             if set_labels is not None:
                 if type(set_labels) == str:
                     labels2 = self.label_fun(G2i, set_labels)
                     nx.set_node_attributes(G2i, labels2, 'label')
-                else:
-                    labels2 = set_labels(G2i)
+                elif callable(set_labels):
+                    labels2 = set_labels(tmp_X2)
                     nx.set_node_attributes(G2i, labels2, 'label')
+                elif type(set_labels) == dict:
+                    nx.set_node_attributes(G2i, set_labels['2'], 'label')
+                else:
+                    raise ValueError(f"labelling not defined for type {type(set_labels)}")
             self.G2.append(G2i)
 
         return self
@@ -460,8 +473,8 @@ class MMD():
             self.G2 = G2
 
         
-        self.n1 = len(G1)
-        self.n2 = len(G2)
+        self.n1 = len(self.G1)
+        self.n2 = len(self.G2)
 
         if self.n1 <2:
             raise ValueError("length of G1 has to be bigger than or equal to 2")
@@ -484,7 +497,10 @@ class MMD():
 
         # Caluclate kernel
         if kernel == "RW_ARKU_plus":
-            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], edge_attr=getattr(self, 'edge_attr', None), normalize=kwargs.get('normalize',False))
+            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+                                                edge_attr=getattr(self, 'edge_attr', None), 
+                                                normalize=kwargs.get('normalize',False), 
+                                                node_attr= getattr(self, 'node_attr', None))
             rw_kernel.fit(calc_type = "ARKU_plus",  
                             verbose = kwargs.get('verbose',False), 
                             check_psd = kwargs.get('check_psd',True))
@@ -504,16 +520,22 @@ class MMD():
                                     label_name=self.node_label)
             self.K = wwl_kernel.fit_transform(self.G1+self.G2)
             del wwl_kernel
-
+        elif kernel == 'DK':
+            dk_kernel = DeepKernel.DK(type = kwargs['type'], wl_it = kwargs.get('wl_it',2),opt_type= kwargs.get('opt_type',None),
+                                      vector_size= kwargs.get('vector_size',2), window=kwargs.get('window',2), min_count=kwargs.get('min_count',0), 
+                                      normalize = kwargs.get('normalize',False), nodel_label=self.node_label)
+            self.K = dk_kernel.fit_transform(self.G1+self.G2)
+            del dk_kernel
         elif type(kernel) == list:
             # Grakel kernels
             # if there are attributes they will overwrite label_name
-            if hasattr(self, 'node_attr'):
-                node_labels_tag = self.node_attr
+            if getattr(self, 'node_attr', None) is not None: 
+                    node_labels_tag = self.node_attr
             elif hasattr(self, 'node_label'):
                 node_labels_tag = self.node_label
             else:
                 node_labels_tag = None
+            print(node_labels_tag)
             init_kernel = gk.GraphKernel(kernel= kernel, normalize=kwargs.get('normalize',False))
             graph_list = gk.graph_from_networkx(self.G1+self.G2, node_labels_tag=node_labels_tag, 
                                                     edge_weight_tag=getattr(self, 'edge_attr', None), 
@@ -528,6 +550,7 @@ class MMD():
 
         pval.Bootstrap(self.K, kwargs.get('B',1000))
         self.p_values = pval.p_values
+        self.sample_mmd = pval.sample_test_statistic
 
 
 

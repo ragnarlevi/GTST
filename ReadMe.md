@@ -1,77 +1,474 @@
-This repository contains code for kernel two-sample tests for graphs.
+# MMDGraph
 
-To clone the repository use `git clone https://github.com/ragnarlevi/MMDGraph.git`.
+## What is this package for?
 
-This repository depends on
-
-* `numpy` - `pip install numpy`
-* `pandas` - `pip install pandas`
-* `networkx` - `pip install networkx`
-* `grakel` - `pip install grakel`
-* `matplotlib` - `pip install matplotlib`
-* `numba` - `pip install numba`
-* `ot` - `pip install pot` (only used in the WWL kernel)
-
-The experiments available are under the folder [Experiments](https://github.com/ragnarlevi/MMDGraph/tree/master/Experiments). Each folder contains a single `run.py` and which take the same input parser. Why input parser? Because I wanted to run the scripts on a cluster where I can not use a notebook/gui to change the variables. So to run an experiment one has to use a terminal. The general input is as follows:
-
-`python Experiments/{Experiment Name}/run.py -B {int} -N {int} -p {string} -d {int} -[Kernel specifics, see below] -[Experiment specifics, see below]`
-
-* -N number of iterations used to estimate the power
-* -B number of bootstraps used in the permutation test, estimates the p_value of each iteration
-* -p the path to where the pandas dataframe (containing ROC curve for each test) should be saved
-* -d Number of processes used to simulate the iterations. Each core will process N/d simulations. Preferably, we should have the relationship $d*i = N$, where $i$ is an integer
-
-The kernel specifics depends on the kernel that is used. If the kernel of choice does not use a specific parameter, simply omit it.
-
-* -kernel The name of the kernel to be used:
-  * wl for the Weisfeiler-Lehman subtree kernel (Grakel package)
-  * sp for the shortest path kernel (Grakel package)
-  * pyramid for the pyramid kernel (Grakel package)
-  * prop for the Propagation kernel (Grakel package)
-  * wloa for the Weisfeiler-Lehman optimal assignment (Grakel package)
-  * vh for the vertex histogram kernel (Grakel package)
-  * rw for the random walk kernel (Grakel package)
-  * odd for the ODD-STh kernel (Grakel package)
-  * dk for the Deep Graph kernel (Under [myKernel](https://github.com/ragnarlevi/MMDGraph/tree/master/myKernels))
-  * WWL for the Wasserstein Weisfeiler-Lehman kernel (Under [myKernel](https://github.com/ragnarlevi/MMDGraph/tree/master/myKernels))
-* -norm int, Should the kernel be normalized, 0 gives False.
-* -nitr int, Number of WL iterations. Used in wl, wloa, dl and WWL
-* -wlab int, Should the kernel consider labels? Used in sp and rw. 0 gives False
-* -type str, Type of kernel. Used in rw where the argument can be exponential or geometric and the dk where the argument can be sp (shortest path similarity) or wl (wl similarity)
-* -l float, Discount used in rw and wwl
-* -tmax, int or omitted, Number of steps used in prop and rw. It has to be given for the prop kernel but can be omitted in the rw kernel. If omitted the number of walks is infinite
-* -L int, Histogram level used in the pyramid kernel.
-* -dim int, The dimension of the hypercube used in the pyramid kernel (number of eigenvector embeddings)
-* -w float, The binwidth of the local sensitive hashing. Used in the prop and hash kernel
-* -M str The preserved distance metric (on local sensitive hashing) used in prop. Vales are TV (Total Variation) and H (Hellinger)
-* -dagh int, Maximum (single) dag height. If omitted there is no restriction. Used in ODD
-* -sk int. Should the Wasserstein calculation be approximated with the sinkhorn method? Used in wwl. if 0 then False
-
-The Experiment specifics are the following:
-
-* BGDegreeLabel. Graphs generated using a binomial graph model. The nodes are labeled according to their degree.
-  * -n1 number of samples in sample 1
-  * -n2 number of samples in sample 2
-  * -nnode1 number of nodes of each graph in sample 1
-  * -nnode2 number of nodes of each graph in sample 2
-  * -k1 average degree of the nodes in the graphs in sample 1
-  * -k2 average degree of the nodes in the graphs in sample 2
-* SBMOnlyRandomLabel. Graphs generated according to a SBM model with 3 blocks. Both samples have graphs with the same topology but the nodes are labeled slightly differently.
-  * -n1 number of samples in sample 1
-  * -n2 number of samples in sample 2
-  * -noise how much noise is in the label generation in each block. Example: One sample labels node according to their block membership, that is, nodes in block 1 get the label 1. The other sample has some noise. The nodes in block 1 can get the label 2 with probability noise/2 or label 3 with probability noise/2
-  
-An example of a command running an Binomial Graph experiment using a propagation kernel:
-`python Experiments/BGDegreeLabel/run.py -B 1000 -N 10 -p 'data/test.pkl' -n1 20 -n2 20 -nnode1 20 -nnode2 20 -k1 4 -k2 5 -d 4 -norm 0 -kernel prop -w 0.01 -M TV -tmax 4` 
+This package contains code to perform kernel two-sample hypothesis testing on samples of graphs. The code additionally allows for estimation of graphs from a real data matrix.
 
 
-Most experiments run pretty quickly. But some kernels take longer, those are the shortest path kernel, the ODD kernel and the RW kernel. The RW kernel is especially slow.
+## How to install
 
-In this repository you can also find the folder [Analysis](https://github.com/ragnarlevi/MMDGraph/tree/master/Analysis). This folder contains notebooks which takes data from the folder [data](https://github.com/ragnarlevi/MMDGraph/tree/master/data) (a folder that contains experiments that have already been simulated, a lot of files) and plots some graphs. The notebooks use functions from [mmdutils.py](https://github.com/ragnarlevi/MMDGraph/blob/master/mmdutils.py)
-
-Another folder is [_Workbench](https://github.com/ragnarlevi/MMDGraph/tree/master/_Workbench) which contains notebooks where I do some testing before doing experiments or before writing "production" code. The notebooks use functions/classes from [MMDforGraphs.py](https://github.com/ragnarlevi/MMDGraph/blob/master/MMDforGraphs.py)
-
-There is also the folder [Yahoo](https://github.com/ragnarlevi/MMDGraph/tree/master/Yahoo) which contains contains notebooks scraping yahoo data and creating financial clique graph.
+## Usage
 
 
+```python
+import numpy as np
+import networkx as nx
+import seaborn as sns
+import matplotlib.pyplot as plt
+import MMDGraph as mg
+```
 
+### Fit when H1 true, different edge probability
+
+
+```python
+
+n1 = n2 = 50
+g1 = [nx.fast_gnp_random_graph(30,0.3,seed = 42) for _ in range(n1)]
+g2 = [nx.fast_gnp_random_graph(30,0.2,seed = 50) for _ in range(n2)]
+for j in range(len(g1)):
+    nx.set_node_attributes(g1[j],  {key: str(value) for key, value in dict(g1[j].degree).items()} , 'label')
+for j in range(len(g2)):
+    nx.set_node_attributes(g2[j], {key: str(value) for key, value in dict(g2[j].degree).items()}, 'label')
+
+```
+
+
+```python
+# Random Walk
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001)
+print(f" RW_ARKU_plus {MMD_out.p_values}")
+```
+
+   FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+    
+
+     RW_ARKU_plus {'MMD_u': 0.0}
+    
+
+
+```python
+# GNTK kernel
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_layers = 2, num_mlp_lauers = 2, jk = True, scale = 'uniform')
+print(f" GNTK {MMD_out.p_values}")
+```
+
+    100%|███████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:05<00:00, 998.41it/s]
+
+     GNTK {'MMD_u': 0.0}
+    
+
+    
+    
+
+
+```python
+# WWL kernel
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'WWL', mmd_estimators = 'MMD_u', discount = 0.1, h = 2, node_label = 'label')
+print(f" WWL {MMD_out.p_values}")
+```
+
+    Using label as node labels
+     WWL {'MMD_u': 0.0}
+    
+
+
+```python
+# Deep Kernel without the deepness
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, node_label = 'label')
+print(f" ML DK {MMD_out.p_values}")
+```
+
+    Using label as node labels
+     ML DK {'MMD_u': 0.0}
+    
+
+
+```python
+
+# Deep kernel with deepness, user has to install gensim, this might take some time, can try to increase number of workers
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, opt_type = 'word2vec', node_label = 'label', workers = 10)
+print(f" Deep DK {MMD_out.p_values}")
+```
+
+    Using label as node labels
+     Deep DK {'MMD_u': 0.0}
+    
+
+
+```python
+# Grakel kernel example
+kernel = [{"name": "weisfeiler_lehman", "n_iter": 1}, {"name": "vertex_histogram"}]
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
+print(f" WL {MMD_out.p_values}")
+```
+
+    Using label as node labels
+    label
+     WL {'MMD_u': 0.0}
+    
+
+
+```python
+# Grakel propagation
+kernel = [ {"name":"propagation", 't_max':5, 'w':0.1, 'M':"TV"}]
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
+print(f" propagation {MMD_out.p_values}")
+
+```
+
+    Using label as node labels
+    label
+     propagation {'MMD_u': 0.0}
+    
+
+### H1 true different weights
+
+
+```python
+n1 = n2 = 50
+g1_weights = [nx.fast_gnp_random_graph(30,0.3, seed = 42) for _ in range(n1)]
+g2_weight = [nx.fast_gnp_random_graph(30,0.3, seed = 50) for _ in range(n2)]
+
+
+for j in range(len(g1_weights)):
+    nx.set_node_attributes(g1_weights[j],  {key: str(value) for key, value in dict(g1_weights[j].degree).items()} , 'label')
+for j in range(len(g2_weight)):
+    nx.set_node_attributes(g2_weight[j], {key: str(value) for key, value in dict(g2_weight[j].degree).items()}, 'label')
+
+
+def edge_dist(loc, scale ):
+    from scipy.stats import uniform
+    return np.random.normal(loc = loc, scale = scale)# uniform.rvs(size=1,  loc = loc , scale = scale)[0]
+def add_weight(G, loc, scale ):
+    edge_w = dict()
+    for e in G.edges():
+        edge_w[e] = edge_dist(loc, scale)
+    return edge_w
+
+
+for G in g1_weights:
+    nx.set_edge_attributes(G, add_weight(G, loc = 0.5, scale = 1), "weight")
+for G in g2_weight:
+    nx.set_edge_attributes(G, add_weight(G, loc = 0.5, scale = 4), "weight")
+
+```
+
+
+```python
+# Random Walk
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_weights, G2 = g2_weight, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001, edge_attr = 'weight')
+print(f" RW_ARKU_plus {MMD_out.p_values}")
+```
+
+    Using weight as edge attributes
+    
+
+   FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+    
+
+     RW_ARKU_plus {'MMD_u': 0.0}
+    
+
+
+```python
+# Random Walk weights ignored, should not reject
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_weights, G2 = g2_weight, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001, edge_attr = None)
+print(f" propagation {MMD_out.p_values}")
+```
+
+     propagation {'MMD_u': 0.0}
+    
+
+
+```python
+# Grakel pyramid
+kernel = [{"name": "pyramid_match", "L": 6, "d":6, 'with_labels':False}]
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_weights, G2 = g2_weight, kernel = kernel, mmd_estimators = 'MMD_u', edge_attr = 'weight')
+print(f" pyramid_match {MMD_out.p_values}")
+```
+
+    Using weight as edge attributes
+    None
+     pyramid_match {'MMD_u': 0.0}
+    
+
+
+```python
+# propagation, needs node attribute or label 
+kernel = [ {"name":"propagation", 't_max':5, 'w':0.01, 'M':"TV"}]
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_weights, G2 = g2_weight, kernel = kernel, mmd_estimators = 'MMD_u', edge_attr = 'weight', node_label = 'label')
+print(f" propagation {MMD_out.p_values}")
+```
+
+    Using weight as edge attributes
+    Using label as node labels
+    label
+     propagation {'MMD_u': 0.0}
+    
+
+ ### H1 true different attributes
+
+
+```python
+
+n1 = n2 = 50
+g1_attr = [nx.fast_gnp_random_graph(30,0.2,seed=42) for _ in range(n1)]
+g2_attr = [nx.fast_gnp_random_graph(30,0.2,seed=50) for _ in range(n2)]
+for j in range(len(g1_attr)):
+    nx.set_node_attributes(g1_attr[j], dict( ( (i, np.random.normal(loc = 0, scale = 0.1, size = (1,))) for i in range(len(g1_attr[j])) ) ), 'attr')
+for j in range(len(g2_attr)):
+    nx.set_node_attributes(g2_attr[j], dict( ( (i, np.random.normal(loc = 0.1, scale = 0.1, size = (1,))) for i in range(len(g2_attr[j])) ) ), 'attr')
+
+```
+
+
+```python
+# Random Walk with weights and node attributes
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 4, c = 0.01, node_attr = 'attr')
+print(f" RW_ARKU_plus {MMD_out.p_values}")
+```
+
+    Using attr as node attributes
+     RW_ARKU_plus {'MMD_u': 0.0}
+    
+
+
+```python
+# GNTK with node attributes
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_layers = 2, num_mlp_lauers = 2, jk = True, scale = 'uniform', node_attr = 'attr')
+print(f" GNTK {MMD_out.p_values}")
+```
+
+    Using attr as node attributes
+    
+
+    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:03<00:00, 1265.67it/s]
+    
+
+     GNTK {'MMD_u': 0.0}
+    
+
+
+```python
+# Grakel propagation
+kernel = [ {"name":"propagation", 't_max':5, 'w':0.1, 'M':"L1",'with_attributes':True}]
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = kernel, mmd_estimators = 'MMD_u', discount = 0.1, h = 2, node_attr = 'attr')
+print(f" Propagation {MMD_out.p_values}")
+```
+
+    Using attr as node attributes
+    attr
+     Propagation {'MMD_u': 0.0}
+    
+
+### Two data matrices different structure
+It is possible to estimate graphs from data matrices
+
+
+```python
+G = nx.fast_gnp_random_graph(11, 0.25, seed = 42)
+assert nx.is_connected(G)
+
+for e in G.edges():
+    if np.random.uniform() <0.1:
+        w = np.random.uniform(low = 0.1, high = 0.3)
+        G.edges[e[0], e[1]]['weight'] = -w
+    else:
+        w = np.random.uniform(low = 0.1, high = 0.3)
+        G.edges[e[0], e[1]]['weight'] = w
+
+A = np.array(nx.adjacency_matrix(G).todense())
+np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
+
+A_s = A.copy()
+A_s[7,4] = 0
+A_s[4,7] = 0
+A_s[5,2] = 0
+A_s[2,5] = 0
+
+
+X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 5000)
+X2 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A_s), size = 5000)
+```
+
+     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      A = np.array(nx.adjacency_matrix(G).todense())
+    
+
+
+```python
+# window size = 200 so 5000/200 = 25 graphs in each sample
+# Random Walk
+MMD_out = mg.MMD()
+MMD_out.estimate_graphs(X1,X2,window_size=200, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False)
+MMD_out.fit( kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight')
+print(MMD_out.p_values)
+
+
+```
+
+    Using weight as edge attributes
+    
+
+     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+    
+
+    {'MMD_u': 0.258}
+    
+
+
+```python
+# We can set node labels as degree (or define our own labelling, see below)
+MMD_out = mg.MMD()
+kernel = [{"name": "weisfeiler_lehman", "n_iter": 2}, {"name": "vertex_histogram"}]
+MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels="degree")
+MMD_out.fit( kernel = kernel, mmd_estimators = 'MMD_u',  edge_attr = 'weight')
+print(MMD_out.p_values)
+```
+
+    Using weight as edge attributes
+    Using label as node labels
+    label
+    {'MMD_u': 0.487}
+    
+
+
+```python
+np.fill_diagonal(A_s,0)
+fig, ax = plt.subplots(2,2,figsize = (10,10))
+pos = nx.kamada_kawai_layout(G, weight = None)
+nx.draw(G, pos = pos, ax = ax[0,0])
+nx.draw(nx.from_numpy_array(A_s), pos = pos, ax = ax[0,1])
+nx.draw(MMD_out.G1[3], pos = pos, ax = ax[1,0])
+nx.draw(MMD_out.G2[3], pos = pos, ax = ax[1,1])
+ax[0,0].set_title("Sample 1 true precision structure")
+ax[0,1].set_title("Sample 2 true precision structure")
+ax[1,0].set_title("One estimated precision structure from sample 1")
+ax[1,1].set_title("One estimated precision structure from sample 2")
+```
+
+
+
+
+
+    
+![png](README_files/README_29_1.png)
+    
+
+
+### Two data matrices same structure different attributes
+It is possible to estimate the graphs beforehand and apply a function to get node attributes
+
+
+```python
+G = nx.fast_gnp_random_graph(11, 0.25, seed = 42)
+assert nx.is_connected(G)
+
+for e in G.edges():
+    if np.random.uniform() <0.1:
+        w = np.random.uniform(low = 0.1, high = 0.3)
+        G.edges[e[0], e[1]]['weight'] = -w
+    else:
+        w = np.random.uniform(low = 0.1, high = 0.3)
+        G.edges[e[0], e[1]]['weight'] = w
+
+A = np.array(nx.adjacency_matrix(G).todense())
+np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
+
+
+X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
+X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
+```
+
+     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      A = np.array(nx.adjacency_matrix(G).todense())
+    
+
+
+```python
+# Random Walk, with attributes, should reject. , the class will use the node label name 'attr'
+def attr_function(X):
+    return np.expand_dims(np.mean(X,axis = 0),axis=1)
+
+MMD_out = mg.MMD()
+MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_attributes = attr_function)
+MMD_out.fit( kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight', node_attr = 'attr')
+print(MMD_out.p_values)
+```
+
+    Using weight as edge attributes
+    Using attr as node attributes
+    
+
+     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+    
+
+    {'MMD_u': 0.0}
+    
+
+
+```python
+# If we do not give attributes in this case the test should not reject
+MMD_out_no_attr = mg.MMD()
+MMD_out_no_attr.fit(G1= MMD_out.G1, G2 = MMD_out.G2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight')
+print(MMD_out_no_attr.p_values)
+```
+
+    Using weight as edge attributes
+    {'MMD_u': 0.753}
+    
+
+
+```python
+# We can also try to make a label function, has to be a dictionary, the class will use the node label name 'label'
+def label_function(X):
+    m = np.mean(X,axis = 0)
+    return {i:str(np.round(m[i],1)) for i in range(len(m))}
+
+kernel = [{"name": "weisfeiler_lehman", "n_iter": 2}, {"name": "vertex_histogram"}]
+MMD_out = mg.MMD()
+MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels= label_function)
+MMD_out.fit(kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
+print(MMD_out.p_values)
+```
+
+    Using label as node labels
+    label
+    {'MMD_u': 0.0}
+    
+
+
+```python
+# We can also define labels using a dict
+label_dict = {'1':{j:i for j,i in enumerate(['a']*6 + ['b']*5)}, 
+              '2':{j:i for j,i in enumerate(['a']*4 + ['b']*7)}}
+kernel = [{"name": "weisfeiler_lehman", "n_iter": 2}, {"name": "vertex_histogram"}]
+MMD_out = mg.MMD()
+MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels= label_dict)
+MMD_out.fit(kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
+print(MMD_out.p_values)
+```
+
+    Using label as node labels
+    label
+    {'MMD_u': 0.0}
+    
