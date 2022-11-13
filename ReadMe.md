@@ -9,6 +9,8 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 
 ## Usage
 
+We will go through the case when the user has it own networkx graphs, and when they are estimated from data matricies. We will go thorugh multiple scenariros
+
 
 ```python
 import numpy as np
@@ -19,6 +21,8 @@ import MMDGraph as mg
 ```
 
 ### Fit when H1 true, different edge probability
+
+Start by creating sample graphs
 
 
 ```python
@@ -33,6 +37,8 @@ for j in range(len(g2)):
 
 ```
 
+Performd mmd test using various kernels
+
 
 ```python
 # Random Walk
@@ -41,7 +47,7 @@ MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u',
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
 
-   FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:937: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
@@ -56,7 +62,7 @@ MMD_out.fit(G1 = g1, G2 = g2, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_lay
 print(f" GNTK {MMD_out.p_values}")
 ```
 
-    100%|███████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:05<00:00, 998.41it/s]
+    100%|███████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:05<00:00, 969.28it/s]
 
      GNTK {'MMD_u': 0.0}
     
@@ -173,7 +179,7 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
     Using weight as edge attributes
     
 
-   FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:937: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
@@ -258,10 +264,12 @@ print(f" GNTK {MMD_out.p_values}")
     Using attr as node attributes
     
 
-    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:03<00:00, 1265.67it/s]
-    
+    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:03<00:00, 1274.32it/s]
 
      GNTK {'MMD_u': 0.0}
+    
+
+    
     
 
 
@@ -308,7 +316,7 @@ X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 5000)
 X2 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A_s), size = 5000)
 ```
 
-     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\AppData\Local\Temp\ipykernel_16868\3751381554.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       A = np.array(nx.adjacency_matrix(G).todense())
     
 
@@ -327,11 +335,11 @@ print(MMD_out.p_values)
     Using weight as edge attributes
     
 
-     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:937: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
-    {'MMD_u': 0.258}
+    {'MMD_u': 0.059}
     
 
 
@@ -347,7 +355,7 @@ print(MMD_out.p_values)
     Using weight as edge attributes
     Using label as node labels
     label
-    {'MMD_u': 0.487}
+    {'MMD_u': 0.036}
     
 
 
@@ -368,9 +376,13 @@ ax[1,1].set_title("One estimated precision structure from sample 2")
 
 
 
+    Text(0.5, 1.0, 'One estimated precision structure from sample 2')
+
+
+
 
     
-![png](README_files/README_29_1.png)
+![png](README_files/README_32_1.png)
     
 
 
@@ -398,7 +410,7 @@ X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 ```
 
-     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\AppData\Local\Temp\ipykernel_16868\3274406453.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       A = np.array(nx.adjacency_matrix(G).todense())
     
 
@@ -418,7 +430,7 @@ print(MMD_out.p_values)
     Using attr as node attributes
     
 
-     FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:937: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
@@ -434,7 +446,7 @@ print(MMD_out_no_attr.p_values)
 ```
 
     Using weight as edge attributes
-    {'MMD_u': 0.753}
+    {'MMD_u': 0.66}
     
 
 
