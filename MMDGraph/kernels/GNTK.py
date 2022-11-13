@@ -2,10 +2,6 @@ import math
 import numpy as np
 import scipy as sp
 import tqdm
-from multiprocessing import Pool
-
-
-
 
 
 class GNTK(object):

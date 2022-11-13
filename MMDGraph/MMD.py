@@ -5,8 +5,6 @@
 import numpy as np
 import warnings
 import networkx as nx
-import grakel as gk
-
 from MMDGraph.MONK import MMD_MONK
 import tqdm
 
@@ -527,6 +525,7 @@ class MMD():
             self.K = dk_kernel.fit_transform(self.G1+self.G2)
             del dk_kernel
         elif type(kernel) == list:
+            import grakel as gk
             # Grakel kernels
             # if there are attributes they will overwrite label_name
             if getattr(self, 'node_attr', None) is not None: 

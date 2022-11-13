@@ -11,8 +11,6 @@ import scipy
 import networkx as nx
 import tqdm
 
-from multiprocessing import Pool, Manager
-
 
 def zero_div(x, y):
     return float(y) and float(x)/ float(y) or 0.0
