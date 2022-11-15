@@ -11,7 +11,7 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 
 ## Usage
 
-We will go through the case when the user has it own networkx graphs, and when they are estimated from data matricies. We will go thorugh multiple scenariros
+We will go thorugh multiple scenariros: The case when the user has it own networkx graphs, when they are estimated from data matricies, using different kernels and using different MMD estimators.
 
 
 ```python
@@ -30,8 +30,8 @@ Start by creating sample graphs
 ```python
 
 n1 = n2 = 50
-g1 = [nx.fast_gnp_random_graph(30,0.3,seed = 42) for _ in range(n1)]
-g2 = [nx.fast_gnp_random_graph(30,0.2,seed = 50) for _ in range(n2)]
+g1 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n1)]
+g2 = [nx.fast_gnp_random_graph(30,0.4) for _ in range(n2)]
 for j in range(len(g1)):
     nx.set_node_attributes(g1[j],  {key: str(value) for key, value in dict(g1[j].degree).items()} , 'label')
 for j in range(len(g2)):
@@ -45,15 +45,29 @@ Performd mmd test using various kernels
 ```python
 # Random Walk
 MMD_out = mg.MMD()
-MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001)
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 6, c = 0.001)
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
 
-    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:935: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
      RW_ARKU_plus {'MMD_u': 0.0}
+    
+
+
+```python
+# RW kernel with labels, we just need to find the unique labels first
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKL', mmd_estimators = 'MMD_u', r = 4, c = 1e-3,node_label = 'label',
+                                    unique_node_labels= set(np.concatenate([list(nx.get_node_attributes(g, 'label').values())for g in g1+g2])))
+print(f" RW_ARKL {MMD_out.p_values}")
+
+```
+
+    Using label as node labels
+     RW_ARKL {'MMD_u': 0.0}
     
 
 
@@ -64,12 +78,10 @@ MMD_out.fit(G1 = g1, G2 = g2, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_lay
 print(f" GNTK {MMD_out.p_values}")
 ```
 
-    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:05<00:00, 1000.25it/s]
+    100%|███████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:11<00:00, 457.40it/s]
+    
 
      GNTK {'MMD_u': 0.0}
-    
-
-    
     
 
 
@@ -139,6 +151,7 @@ print(f" propagation {MMD_out.p_values}")
     
 
 ### Using different MMD estimators
+
 We can also use other MMD estimators
 
 
@@ -148,7 +161,7 @@ MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = ['MMD_u'
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
 
-    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:935: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
@@ -221,7 +234,7 @@ print(f" pyramid_match {MMD_out.p_values}")
 
     Using weight as edge attributes
     None
-     pyramid_match {'MMD_u': 0.0}
+     pyramid_match {'MMD_u': 0.001}
     
 
 
@@ -277,7 +290,7 @@ print(f" GNTK {MMD_out.p_values}")
     Using attr as node attributes
     
 
-    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:03<00:00, 1284.62it/s]
+    100%|██████████████████████████████████████████████████████████████████████████| 5050/5050.0 [00:03<00:00, 1274.23it/s]
     
 
      GNTK {'MMD_u': 0.0}
@@ -295,6 +308,104 @@ print(f" Propagation {MMD_out.p_values}")
     Using attr as node attributes
     attr
      Propagation {'MMD_u': 0.0}
+    
+
+### Different edge labels
+
+The RW kernel can take different edge labels
+
+
+```python
+n1 = n2 = 50
+g1_edge = [nx.fast_gnp_random_graph(30,0.2,seed=42) for _ in range(n1)]
+g2_edge = [nx.fast_gnp_random_graph(30,0.2,seed=50) for _ in range(n2)]
+for j in range(len(g1_edge)):
+    nx.set_edge_attributes(g1_edge[j], {(i,k):np.random.choice(['a','b'], p = [0.6,0.4]) for i,k in g1_edge[j].edges }, 'edge_label')
+for j in range(len(g2_edge)):
+    nx.set_edge_attributes(g2_edge[j], {(i,k):np.random.choice(['a','b'], p = [0.7,0.3]) for i,k in g2_edge[j].edges }, 'edge_label')
+
+
+for j in range(len(g1_edge)):
+    nx.set_node_attributes(g1_edge[j], {i:np.random.choice(['a','b'], p = [0.6,0.4]) for i in range(g1_edge[j].number_of_nodes()) }, 'label')
+for j in range(len(g2_edge)):
+    nx.set_node_attributes(g2_edge[j], {i:np.random.choice(['a','b'], p = [0.7,0.3]) for i in range(g2_edge[j].number_of_nodes()) }, 'label')
+
+
+
+
+```
+
+
+```python
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_edge, G2 = g2_edge, kernel = 'RW_ARKU_edge', mmd_estimators = 'MMD_u', r = 4, c = 1e-3,edge_label = 'label',
+                                    unique_edge_labels= ['a', 'b'])
+print(f" RW_ARKU_edge {MMD_out.p_values}")
+
+```
+
+    Using label as edge labels
+    
+
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:624: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      A[idx] = scipy.sparse.csr_matrix(nx.adjacency_matrix(G_tmp, weight=edge_attr), dtype=np.float64)
+    
+
+     RW_ARKU_edge {'MMD_u': 0.0}
+    
+
+# Directed Graphs
+
+The RW kernel can take directed graphs
+
+
+
+
+```python
+n1 = n2 = 50
+g1_di = [nx.fast_gnp_random_graph(30,0.2,seed=42) for _ in range(n1)]
+g2_di = [nx.fast_gnp_random_graph(30,0.2,seed=50) for _ in range(n2)]
+
+for j in range(len(g1_di)):
+    nx.set_node_attributes(g1_di[j], {i:np.random.choice(['a','b'], p = [0.6,0.4]) for i in range(g1_di[j].number_of_nodes()) }, 'label')
+for j in range(len(g2_di)):
+    nx.set_node_attributes(g2_di[j], {i:np.random.choice(['a','b'], p = [0.7,0.3]) for i in range(g2_di[j].number_of_nodes()) }, 'label')
+
+for j in range(len(g1_di)):
+    g1_di[j] = nx.DiGraph(g1_di[j])
+for j in range(len(g2_di)):
+    g2_di[j] = nx.DiGraph(g2_di[j])
+
+for j in range(len(g1_di)):
+    edges= list(g1_di[j].edges())
+    for e,u in edges:
+        if np.random.uniform() <0.3:
+            g1_di[j].remove_edge(e,u)
+for j in range(len(g2_di)):
+    edges= list(g2_di[j].edges())
+    for e,u in edges:
+        if np.random.uniform() <0.4:
+            g2_di[j].remove_edge(e,u)
+
+
+
+
+
+```
+
+
+```python
+MMD_out = mg.MMD()
+MMD_out.fit(G1 = g1_di, G2 = g2_di, kernel = 'RW_ARKU', mmd_estimators = 'MMD_u', r = 4, c = 1e-3)
+print(f" RW_ARKU_edge {MMD_out.p_values}")
+
+```
+
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:540: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+      A = nx.adjacency_matrix(G ,weight=self.edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+    
+
+     RW_ARKU_edge {'MMD_u': 0.002}
     
 
 ### Two data matrices different structure
@@ -327,7 +438,7 @@ X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 5000)
 X2 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A_s), size = 5000)
 ```
 
-    C:\Users\User\AppData\Local\Temp\ipykernel_24600\3751381554.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\AppData\Local\Temp\ipykernel_25260\3751381554.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       A = np.array(nx.adjacency_matrix(G).todense())
     
 
@@ -346,11 +457,11 @@ print(MMD_out.p_values)
     Using weight as edge attributes
     
 
-    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:935: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
-    {'MMD_u': 0.589}
+    {'MMD_u': 0.0}
     
 
 
@@ -366,7 +477,7 @@ print(MMD_out.p_values)
     Using weight as edge attributes
     Using label as node labels
     label
-    {'MMD_u': 0.113}
+    {'MMD_u': 0.03}
     
 
 
@@ -393,7 +504,7 @@ ax[1,1].set_title("One estimated precision structure from sample 2")
 
 
     
-![png](README_files/README_34_1.png)
+![png](README_files/README_41_1.png)
     
 
 
@@ -421,7 +532,7 @@ X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 ```
 
-    C:\Users\User\AppData\Local\Temp\ipykernel_24600\3274406453.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\AppData\Local\Temp\ipykernel_25260\3274406453.py:12: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       A = np.array(nx.adjacency_matrix(G).todense())
     
 
@@ -441,7 +552,7 @@ print(MMD_out.p_values)
     Using attr as node attributes
     
 
-    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:935: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
+    C:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
       return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
@@ -457,7 +568,7 @@ print(MMD_out_no_attr.p_values)
 ```
 
     Using weight as edge attributes
-    {'MMD_u': 0.238}
+    {'MMD_u': 0.332}
     
 
 

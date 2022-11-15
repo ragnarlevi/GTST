@@ -454,7 +454,7 @@ class MMD():
         if hasattr(self, 'node_label'):
             print(f'Using {self.node_label} as node labels')
         if hasattr(self, 'edge_label'):
-            print(f'Using {self.edge_label} as node labels')
+            print(f'Using {self.edge_label} as edge labels')
   
         
 
@@ -500,6 +500,41 @@ class MMD():
                                                 normalize=kwargs.get('normalize',False), 
                                                 node_attr= getattr(self, 'node_attr', None))
             rw_kernel.fit(calc_type = "ARKU_plus",  
+                            verbose = kwargs.get('verbose',False), 
+                            check_psd = kwargs.get('check_psd',True))
+
+            self.K = rw_kernel.K
+            del rw_kernel
+        elif kernel == "RW_ARKU":
+            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+                                                edge_attr=getattr(self, 'edge_attr', None), 
+                                                normalize=kwargs.get('normalize',False), 
+                                                node_attr= getattr(self, 'node_attr', None))
+            rw_kernel.fit(calc_type = "ARKU",  
+                            verbose = kwargs.get('verbose',False), 
+                            check_psd = kwargs.get('check_psd',True))
+
+            self.K = rw_kernel.K
+            del rw_kernel
+        elif kernel == "RW_ARKU_edge":
+            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+                                    edge_attr=getattr(self, 'edge_attr', None), 
+                                    normalize=kwargs.get('normalize',False), 
+                                    edge_label = kwargs['edge_label'],
+                                    unique_edge_labels=kwargs['unique_edge_labels'])
+            rw_kernel.fit(calc_type = "ARKU_edge",  
+                            verbose = kwargs.get('verbose',False), 
+                            check_psd = kwargs.get('check_psd',True))
+
+            self.K = rw_kernel.K
+            del rw_kernel
+        elif kernel == "RW_ARKL":
+            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+                                    edge_attr=getattr(self, 'edge_attr', None), 
+                                    normalize=kwargs.get('normalize',False), 
+                                    node_label = kwargs['node_label'],
+                                    unique_node_labels=kwargs['unique_node_labels'])
+            rw_kernel.fit(calc_type = "ARKL",  
                             verbose = kwargs.get('verbose',False), 
                             check_psd = kwargs.get('check_psd',True))
 
