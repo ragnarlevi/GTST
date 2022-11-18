@@ -425,7 +425,12 @@ class MMD():
         Run a MMD test and estimate p-val
         G1, G2: list of networkx graphs or None.
             If None than estimate_graphs has to been called first (which estimates graphs from numpy arrays)
-        mmd_estimators:str or list of strings, MMD_u, MMD_b, MONK,
+        kernel: list, str, np.array,
+            If str then one of kernels provided by the MMDGraph: RW_ARKU_plus, RW_ARKU, RW_ARKU_edge, RW_ARKL, GNTK, WWL, DK
+            If list then a GraKel kernel is used so the list should be formatted as one would do for the GraKel package
+            If np.array then a pre-calculate kernel is used.
+        mmd_estimators:str or list of strings, 
+            example MMD_u, MMD_b, MONK, MMD_l (or own defined function)
         
         **kwargs: Additional argumtens to kernel function and bootstrap function
 
@@ -577,6 +582,9 @@ class MMD():
             self.K = init_kernel.fit_transform(graph_list)
             del init_kernel
 
+
+        elif type(kernel) == np.ndarray:
+            self.K = kernel
         else: 
             raise ValueError(f'{kernel} not defined ')
 
