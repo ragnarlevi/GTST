@@ -39,7 +39,7 @@ It is worth pausing for a moment to inspect the probability spaces more closely.
 
  
 
-  ![The Graph two sample testing scenario. Here we have observed 4 graphs from $\mathbb{P}$ and 3 graphs from $\\mathbbm{Q}$. The sample space of $\mathbbm{P}$ and $\mathbbm{Q}$ is the same $\big(5 \choose 2$ possible edges $\big)$ \label{two_sample_testing}](fig:two_sample_testing.PNG)
+  ![The Graph two sample testing scenario. Here we have observed 4 graphs from $\mathbb{P}$ and 3 graphs from $\\mathbbm{Q}$. The sample space of $\mathbbm{P}$ and $\mathbbm{Q}$ is the same $\big(5 \choose 2$ possible edges $\big)$. \label{fig:two_sample_testing}](fig:two_sample_testing.PNG)
 
 
 
