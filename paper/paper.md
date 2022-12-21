@@ -29,6 +29,7 @@ The workflow is following: 1) Use two data arrays to estimate two sequences/samp
 
 # Brief Introduction to the problem of Graph Two-Sample Testing
 
+Let $G(V,E)$ denote a graph with vertex set $V$ and edge set $E$. 
 
 
 
