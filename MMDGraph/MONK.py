@@ -12,11 +12,9 @@ def my_cholesky(K):
     Cholesky decomposition of matrices, that are ill-conditioned
     """
 
-    #l, u = np.linalg.eigh(K) q
-
     l, u = eigh(K)
     l[ l<=0] = 0
-    q, r = np.linalg.qr(np.dot(u, np.diag(np.sqrt(l))).T)
+    _, r = np.linalg.qr(np.dot(u, np.diag(np.sqrt(l))).T)
 
     return r.T
 
