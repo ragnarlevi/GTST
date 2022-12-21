@@ -48,7 +48,15 @@ $$
 $$
 
 
+<!-- The test statistic used in this case is the largest distance between expectation of some function w.r.t. to the two probability distributions. Let $\mathcal{H}_B$ be a class of functions $f: \Omega \to R$. The maximum mean discrepancy (MMD) is defined as:
 
+$$\text{MMD}[\mathcal{H}_B,P, Q] := \sup_{f \in \mathcal{H}_B} \big( E_{G \sim P}[f(G)] - E_{G' \sim Q}[f(G')] \big).$$
+
+When the class of function, $\mathcal{H}_B$, is the unit ball in a RKHS, denoted as $\mathcal{H}_B$, then the squared population MMD becomes:
+
+$$\text{MMD}^2[\mathcal{H}_1, {P}, {Q}] =E_{P, P}[k(G,G)] - 2E_{P, Q}[k(G,G')] + E_{Q, Q}[k(G',G')], $$
+
+where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {P}, {Q}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012][@MONK]. -->
 
 
 
