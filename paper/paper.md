@@ -27,7 +27,7 @@ In many practical applications, one needs to draw inference from a sample of net
 
 The workflow is following: 1) Use two data arrays to estimate two sequences/samples of graphs using the graphical lasso [@friedman2008sparse], This step can be skipped if the practisioner already has the samples of graphs in a networkx format [@hagberg2020networkx]. 2) Select a graph kernel. 3) Select an estimator of the MMD or try multiple estimators to obtain a p-value.
 
-# Brief Introduction to the problem of Graph Two-Sample Testing
+# Brief Introduction to the Problem of Graph Two-Sample Testing
 
 Let $G(V,S)$ denote a graph with vertex set $V$ and edge set $S$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, \mathcal{F}, P)$  and $(\Omega, \mathcal{F}, Q)$, and the goal is to infer whether $P=Q$. 
 
@@ -52,7 +52,7 @@ The test statistic used in this case is the largest distance between expectation
 
 $$\text{MMD}[\mathcal{H}_B,P, Q] := \sup_{f \in \mathcal{H}_B} \big( E_{G \sim P}[f(G)] - E_{G' \sim Q}[f(G')] \big).$$
 
-When the class of function, $\mathcal{H}_B$, is the unit ball in a RKHS, denoted as $\mathcal{H}_B$, then the squared population MMD becomes:
+When the class of function, $\mathcal{H}_B$, is the unit ball in a RKHS, denoted as $\mathcal{H}_B$, then the squared population MMD becomes kernalized:
 
 $$\text{MMD}^2[\mathcal{H}_1, {P}, {Q}] =E_{P, P}[k(G,G)] - 2E_{P, Q}[k(G,G')] + E_{Q, Q}[k(G',G')], $$
 
