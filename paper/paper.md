@@ -35,7 +35,7 @@ It is worth pausing for a moment to inspect the probability spaces more closely.
 
 
 
-  ![The Graph two sample testing scenario. Here we have observed 4 graphs from $\mathbb{P}$ and 3 graphs from $\\mathbbm{Q}$. The sample space of $\mathbbm{P}$ and $\mathbbm{Q}$ is the same $\big(5 \choose 2$ possible edges $\big)$. \label{fig:two_sample_testing}](two_sample_testing.PNG)
+  ![The Graph two sample testing scenario. Here we have observed 4 graphs from $P$ and 3 graphs from $Q$. The sample space of $P$ and $Q$ is the same $\big(5 \choose 2$ possible edges $\big)$. \label{fig:two_sample_testing}](two_sample_testing.PNG)
 
 
 Now, returning to the concept of two sample testing for graph valued data. The goal is to infer whether the two samples of graphs are generated according to the same distribution. This involves developing a statistical test $T(\{ G\}_{i = 1}^n,\{ G'\}_{i = 1}^{n'})$ to determine from the population samples whether there is sufficient evidence to reject a null that both population distributions generating the two samples of graphs are equivalent, where $T(\{ G\}_{i = 1}^n, \{ G'\}_{i = 1}^{n'}): \mathcal \{ G\}_{i = 1}^n \times \{ G'\}_{i = 1}^{n'} \mapsto \{0,1\}$ is a function that distinguishes between the null hypothesis and the alternative hypothesis:
