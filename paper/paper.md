@@ -29,7 +29,40 @@ The workflow is following: 1) Use two data arrays to estimate two sequences/samp
 
 # Brief Introduction to the problem of Graph Two-Sample Testing
 
-Let $G(V,E)$ denote a graph with vertex set $V$ and edge set $E$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, f, p)$  and $(\Omega, \mathcal{F}, Q)$, and the goal is to infer whether $ p = q$. 
+Let $G(V,S)$ denote a graph with vertex set $V$ and edge set $S$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, \mathcal{F}, P)$  and $(\Omega, \mathcal{F}, Q)$, and the goal is to infer whether $ P=Q$. 
+
+It is worth pausing for a moment to inspect the probability spaces more closely. In the simplest case, the sample space $\Omega$ contains all possible edges that can occur in a graph $G$, that is $\Omega = \{ (v_1, v_2), \dots, (v_1, v_{|V|}), (v_2, v_1), \dots, (v_{|V|}, v_{|V|-1}) \} $ \footnote{We are assuming that a node can not be connected to itself}. As the sample space is discrete we can define the $\sigma$-algebra as the power set of $\Omega$, namely, $\mathcal{F} = \mathcal{P}(\Omega)$. The probability function $P: \mathcal{F} \mapsto [0,1]$ then defines the probability of obtaining a certain graph in the sample set of graph-valued data. As an example we can define for instance a population distribution to be uniform  $P(G(V,S)) = \frac{1}{{M \choose |S|}}$ where $M = {|V| \choose 2}$ is the total number of possible edges and $G(V,S)$ is a graph with $|V|$ vertices and $|S|$ number of edges.  This setting is illustrated in figure \autoref{fig:two_sample_testing}
+
+
+
+  ![The Graph two sample testing scenario. Here we have observed 4 graphs from $\mathbb{P}$ and 3 graphs from $\\mathbbm{Q}$. The sample space of $\mathbbm{P}$ and $\mathbbm{Q}$ is the same $\big(5 \choose 2$ possible edges $\big)$. \label{fig:two_sample_testing}](two_sample_testing.PNG)
+
+
+Now, returning to the concept of two sample testing for graph valued data. The goal is to infer whether the two samples of graphs are generated according to the same distribution. This involves developing a statistical test $T(\{ G\}_{i = 1}^n,\{ G'\}_{i = 1}^{n'})$ to determine from the population samples whether there is sufficient evidence to reject a null that both population distributions generating the two samples of graphs are equivalent, where $T(\{ G\}_{i = 1}^n, \{ G'\}_{i = 1}^{n'}): \mathcal \{ G\}_{i = 1}^n \times \{ G'\}_{i = 1}^{n'} \mapsto \{0,1\}$ is a function that distinguishes between the null hypothesis and the alternative hypothesis:
+
+$$
+\begin{split}
+    H_0:\quad & P = Q \\
+    H_1:\quad & P \neq Q.
+\end{split}
+$$
+
+
+The test statistic used in this case is the largest distance between expectation of some function w.r.t. to the two probability distributions. Let $\mathcal{H}_B$ be a class of functions $f: \Omega \to R$. The maximum mean discrepancy (MMD) is defined as:
+
+$$
+\textrm{MMD}[\mathcal{H}_B,P, Q] := \sup_{f \in \mathcal{H}_B} \big( E_{G \sim P}[f(G)] - E_{G' \sim Q}[f(G')] \big).
+$$
+
+When the class of function, $\mathcal{H}_B$, is the unit ball in a RKHS, denoted as $\mathcal{H}_B$, then the squared population MMD becomes:
+
+$$
+\begin{split}
+   \textrm{MMD}^2[\mathcal{H}_1, {P}, {Q}] &=E_{P, P}[k(G,G)] - 2E_{P, Q}[k(G,G')] + E_{Q, Q}[k(G',G')],
+    \end{split}
+$$
+
+where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {P}, {Q}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012][@MONK].
 
 
 
