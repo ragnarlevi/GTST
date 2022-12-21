@@ -29,7 +29,6 @@ The workflow is following: 1) Use two data arrays to estimate two sequences/samp
 
 # Brief Introduction to the problem of Graph Two-Sample Testing
 
-Let $G(V,E)$ denote a graph with vertex set $V$ and edge set $E$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, \mathcal{F}, \mathbb{P})$  and $(\Omega, \mathcal{F}, \mathbb{Q})$, and the goal is to infer whether $ \mathbb{P} = \mathbb{Q}$. 
 
 
 
