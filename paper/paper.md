@@ -39,7 +39,7 @@ It is worth pausing for a moment to inspect the probability spaces more closely.
 
 
 Now, returning to the concept of two sample testing for graph valued data. The goal is to infer whether the two samples of graphs are generated according to the same distribution. This involves developing a statistical test $T(\{ G\}_{i = 1}^n,\{ G'\}_{i = 1}^{n'})$ to determine from the population samples whether there is sufficient evidence to reject a null that both population distributions generating the two samples of graphs are equivalent, where $T(\{ G\}_{i = 1}^n, \{ G'\}_{i = 1}^{n'}): \mathcal \{ G\}_{i = 1}^n \times \{ G'\}_{i = 1}^{n'} \mapsto \{0,1\}$ is a function that distinguishes between the null hypothesis and the alternative hypothesis:
-<!-- 
+
 $$
 \begin{split}
     H_0:\quad & P = Q \\
@@ -62,7 +62,7 @@ $$
     \end{split}
 $$
 
-where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {P}, {Q}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012][@MONK]. -->
+where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {P}, {Q}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012][@MONK].
 
 
 
