@@ -67,11 +67,10 @@ $$
     \end{split}
 $$
 
-where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {\mathbb{P}}, {\mathbb{Q}}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012,@MONK].
+where $k$ is some graph kernel. Finally unbised, biased, and robust estimators of $ \textrm{MMD}^2[\mathcal{H}_1, {\mathbb{P}}, {\mathbb{Q}}]$ along with a permutation sampling are used to estimate a p-value for the statistical test [@Gretton2012][@MONK].
 
 
 
- 
 
 # Statement of need
 
