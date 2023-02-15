@@ -174,8 +174,6 @@ MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = ['MMD_u'
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
 
-    c:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
      RW_ARKU_plus {'MMD_u': 0.0, 'MMD_b': 0.0, 'MMD_l': 0.0, 'MONK_EST': 0.0}
@@ -298,9 +296,6 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
 
     Using attr as node attributes
     
-
-    c:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
      RW_ARKU_plus {'MMD_u': 0.0}
@@ -335,9 +330,6 @@ print(f" Propagation {MMD_out.p_values}")
     Using attr as node attributes
     attr
     
-
-    c:\Users\User\Code\MMDGraph\.mmdvenv8\lib\site-packages\grakel\kernels\propagation.py:527: RuntimeWarning: invalid value encountered in true_divide
-      transition_matrix[n] = (T.T / np.sum(T, axis=1)).T
     
 
      Propagation {'MMD_u': 0.0}
@@ -457,8 +449,6 @@ X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A_s), size = 10000)
 ```
 
-    C:\Users\User\AppData\Local\Temp\ipykernel_27300\781483305.py:14: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      A = np.array(nx.adjacency_matrix(G).todense())
     
 
 Input the two samples X1 and X2 to the class method estimate_graphs. Which estimates graphs according to a window size. The best estimation is selected via the EBIC criterion.
@@ -479,9 +469,6 @@ print(MMD_out.p_values)
 
     Using weight as edge attributes
     
-
-    c:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
     {'MMD_u': 0.001}
@@ -558,9 +545,6 @@ np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
 X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 ```
-
-    C:\Users\User\AppData\Local\Temp\ipykernel_27300\3967309861.py:14: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      A = np.array(nx.adjacency_matrix(G).todense())
     
 
 
@@ -579,10 +563,6 @@ print(MMD_out.p_values)
 
     Using weight as edge attributes
     Using attr as node attributes
-    
-
-    c:\Users\User\Code\MMDGraph\MMDGraph\kernels\RandomWalk.py:560: FutureWarning: adjacency_matrix will return a scipy.sparse array instead of a matrix in Networkx 3.0.
-      return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
     
 
     {'MMD_u': 0.0}
