@@ -22,6 +22,7 @@ bibliography: paper.bib
 
 ---
 
+
 # Summary
 In many practical applications, one needs to draw inference from a sample of networks. Kernel methods have proven to be useful in pattern recognition tasks such as classification and can be further extended as an inference procedure to two-sample hypothesis testing on structured data. The method embeds the graphs into a reproducing kernel Hilbert space (RKHS) via a feature map which is then extended further to the embedding of a probability distribution. The two-sample null hypothesis is that the generating mechanism behind the two samples is the same and the test statistic, which is called the maximum mean discrepancy (MMD), is the largest distance between the means of the two sample embeddings. Graph kernels are already well established and widely-used for solving classification tasks on graphs and can further be used to compare samples of graphs and to perform graph screening. They provide a very flexible way of comparing graphs as they exist for a wide range of different graph structures, for example, weighted, directed, labeled and attributed graphs. Their performance depends on their expressiveness, that is, their ability to distinguish non isomorphic graphs. The difficulty of distinguishing two-samples of graphs varies strongly based on the type of graphs. The package provides functions to perform two-sample hypothesis testing using various estimators and various kernels. The package further allows the estimatation of graphs from a real valued data matrix using the graph lasso method.
 
