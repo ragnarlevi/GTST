@@ -1,4 +1,3 @@
-
 # MMDGraph
 
 ## What is this package for?
@@ -130,43 +129,8 @@ print(f" Deep DK {MMD_out.p_values}")
 ```
 
     Using label as node labels
+     Deep DK {'MMD_u': 0.0}
     
-
-
-    ---------------------------------------------------------------------------
-
-    KeyboardInterrupt                         Traceback (most recent call last)
-
-    c:\Users\User\Code\MMDGraph\README.ipynb Cell 17 in <cell line: 3>()
-          <a href='vscode-notebook-cell:/c%3A/Users/User/Code/MMDGraph/README.ipynb#X21sZmlsZQ%3D%3D?line=0'>1</a> # Deep kernel with deepness, user has to install gensim, this might take some time, can try to increase number of workers
-          <a href='vscode-notebook-cell:/c%3A/Users/User/Code/MMDGraph/README.ipynb#X21sZmlsZQ%3D%3D?line=1'>2</a> MMD_out = mg.MMD()
-    ----> <a href='vscode-notebook-cell:/c%3A/Users/User/Code/MMDGraph/README.ipynb#X21sZmlsZQ%3D%3D?line=2'>3</a> MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, opt_type = 'word2vec', node_label = 'label', workers = 10)
-          <a href='vscode-notebook-cell:/c%3A/Users/User/Code/MMDGraph/README.ipynb#X21sZmlsZQ%3D%3D?line=3'>4</a> print(f" Deep DK {MMD_out.p_values}")
-    
-
-    File c:\Users\User\Code\MMDGraph\MMDGraph\MMD.py:565, in MMD.fit(self, kernel, mmd_estimators, G1, G2, **kwargs)
-        561 elif kernel == 'DK':
-        562     dk_kernel = DeepKernel.DK(type = kwargs['type'], wl_it = kwargs.get('wl_it',2),opt_type= kwargs.get('opt_type',None),
-        563                               vector_size= kwargs.get('vector_size',2), window=kwargs.get('window',2), min_count=kwargs.get('min_count',0), 
-        564                               normalize = kwargs.get('normalize',False), nodel_label=self.node_label)
-    --> 565     self.K = dk_kernel.fit_transform(self.G1+self.G2)
-        566     del dk_kernel
-        567 elif type(kernel) == list:
-    
-
-    File c:\Users\User\Code\MMDGraph\MMDGraph\kernels\DeepKernel.py:220, in DK.fit_transform(self, X)
-        218     for idx, i in enumerate(vocabulary):
-        219         for jdx, j in enumerate(vocabulary):
-    --> 220             M[idx, jdx] = np.dot(model.wv[i], model.wv[j])
-        221     K = (P.dot(M)).dot(P.T)
-        222 else:
-    
-
-    File <__array_function__ internals>:5, in dot(*args, **kwargs)
-    
-
-    KeyboardInterrupt: 
-
 
 
 ```python
@@ -176,6 +140,11 @@ MMD_out = mg.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
 print(f" WL {MMD_out.p_values}")
 ```
+
+    Using label as node labels
+    label
+     WL {'MMD_u': 0.0}
+    
 
 
 ```python
