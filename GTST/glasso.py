@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import rankdata
 from scipy.stats import norm, multivariate_normal
 from sklearn.covariance import GraphicalLasso
-import nx
+import networkx as nx
 
 
 
@@ -66,7 +66,7 @@ class glasso_wrapper():
 
         n = X.shape[0]
 
-
+        prec[np.abs(prec)<1e-3] = 0
         G = nx.from_numpy_matrix(prec)
         n_edges = G.number_of_edges()
 

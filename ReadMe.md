@@ -7,7 +7,7 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 
 ## How to install
 
-<code> pip install MMDGraph </code>
+<code> pip install GTST </code>
 
 ## Usage
 
@@ -17,9 +17,8 @@ We will go thorugh multiple scenariros: The case when the user has it own networ
 ```python
 import numpy as np
 import networkx as nx
-import seaborn as sns
 import matplotlib.pyplot as plt
-import MMDGraph as mg
+import GTST
 ```
 
 ### Fit when H1 true, different edge probability
@@ -49,7 +48,7 @@ Perform MMD test using various kernels. Note that the unbiases MMD estimator is 
 
 ```python
 # Random Walk, r is number of eigen-pairs, c is the discount constant
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 6, c = 0.001)  
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
@@ -60,7 +59,7 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
 
 ```python
 # RW kernel with labels, Note that we input the label list (all node labels encountered in both graph samples)
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKL', mmd_estimators = 'MMD_u', r = 4, c = 1e-3,node_label = 'label',
                                     unique_node_labels= set(np.concatenate([list(nx.get_node_attributes(g, 'label').values())for g in g1+g2])))
 print(f" RW_ARKL {MMD_out.p_values}")
@@ -78,15 +77,17 @@ print(f" RW_ARKL {MMD_out.p_values}")
 # num_mlp_layers is number of multi-layer perceptron layeres
 # jk indicate whether to add jumping knowledge
 # scale how to aggregate neighbours uniform or degree.
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_layers = 2, num_mlp_lauers = 2, jk = True, scale = 'uniform')
 print(f" GNTK {MMD_out.p_values}")
 ```
 
-    100%|██████████| 5050/5050.0 [00:11<00:00, 439.45it/s]
-    
+    100%|██████████| 5050/5050.0 [00:11<00:00, 438.12it/s]
 
      GNTK {'MMD_u': 0.0}
+    
+
+    
     
 
 
@@ -95,7 +96,7 @@ print(f" GNTK {MMD_out.p_values}")
 # discount is discount
 # h is number of WL iterations
 # node_label is name of node labels
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'WWL', mmd_estimators = 'MMD_u', discount = 0.1, h = 2, node_label = 'label')
 print(f" WWL {MMD_out.p_values}")
 ```
@@ -110,7 +111,7 @@ print(f" WWL {MMD_out.p_values}")
 # type is wl= wl closeness or sp: shortest path closeness
 # wl_it is number of wl iterations, only applicable for wl.
 # no deepness in this case only a frequency similarity
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, node_label = 'label')
 print(f" ML DK {MMD_out.p_values}")
 ```
@@ -123,7 +124,7 @@ print(f" ML DK {MMD_out.p_values}")
 ```python
 
 # Deep kernel with deepness, user has to install gensim, this might take some time, can try to increase number of workers
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, opt_type = 'word2vec', node_label = 'label', workers = 10)
 print(f" Deep DK {MMD_out.p_values}")
 ```
@@ -136,7 +137,7 @@ print(f" Deep DK {MMD_out.p_values}")
 ```python
 # It is also possible to use the Grakel library
 kernel = [{"name": "weisfeiler_lehman", "n_iter": 1}, {"name": "vertex_histogram"}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
 print(f" WL {MMD_out.p_values}")
 ```
@@ -150,7 +151,7 @@ print(f" WL {MMD_out.p_values}")
 ```python
 # Grakel propagation
 kernel = [ {"name":"propagation", 't_max':5, 'w':0.1, 'M':"TV"}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
 print(f" propagation {MMD_out.p_values}")
 
@@ -169,12 +170,11 @@ It is also pssobile to use other MMD estimators such as the biases, linear and r
 ```python
 # Q is the number of partitions in the MONK estimator
 
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'RW_ARKU_plus', mmd_estimators = ['MMD_u', 'MMD_b', 'MMD_l', 'MONK_EST'], r = 2, c = 0.001, Q = 5)
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
-
-    
+   
 
      RW_ARKU_plus {'MMD_u': 0.0, 'MMD_b': 0.0, 'MMD_l': 0.0, 'MONK_EST': 0.0}
     
@@ -217,7 +217,7 @@ for G in g2_weights:
 
 ```python
 # Random Walk
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_weights, G2 = g2_weights, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001, edge_attr = 'weight')
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
@@ -231,7 +231,7 @@ Note that if we use a graph kernel that does not take edge weights into account,
 
 ```python
 # Random Walk weights ignored, should not reject
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_weights, G2 = g2_weights, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 2, c = 0.001)
 print(f" RW_ARKU_plus no labels {MMD_out.p_values}")
 ```
@@ -243,7 +243,7 @@ print(f" RW_ARKU_plus no labels {MMD_out.p_values}")
 ```python
 # Grakel pyramid match kernel
 kernel = [{"name": "pyramid_match", "L": 6, "d":6, 'with_labels':False}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_weights, G2 = g2_weights, kernel = kernel, mmd_estimators = 'MMD_u', edge_attr = 'weight')
 print(f" pyramid_match {MMD_out.p_values}")
 ```
@@ -257,7 +257,7 @@ print(f" pyramid_match {MMD_out.p_values}")
 ```python
 # propagation, needs node attribute or label 
 kernel = [ {"name":"propagation", 't_max':5, 'w':0.05, 'M':"TV"}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_weights, G2 = g2_weights, kernel = kernel, mmd_estimators = 'MMD_u', edge_attr = 'weight', node_label = 'label')
 print(f" propagation {MMD_out.p_values}")
 ```
@@ -289,14 +289,13 @@ for j in range(len(g2_attr)):
 
 ```python
 # Random Walk with weights and node attributes
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 4, c = 0.01, node_attr = 'attr')
 print(f" RW_ARKU_plus {MMD_out.p_values}")
 ```
 
     Using attr as node attributes
-    
-    
+       
 
      RW_ARKU_plus {'MMD_u': 0.0}
     
@@ -304,7 +303,7 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
 
 ```python
 # GNTK with node attributes
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = 'GNTK', mmd_estimators = 'MMD_u', num_layers = 2, num_mlp_lauers = 2, jk = True, scale = 'uniform', node_attr = 'attr')
 print(f" GNTK {MMD_out.p_values}")
 ```
@@ -322,15 +321,14 @@ print(f" GNTK {MMD_out.p_values}")
 ```python
 # Grakel propagation
 kernel = [ {"name":"propagation", 't_max':5, 'w':0.1, 'M':"L1",'with_attributes':True}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_attr, G2 = g2_attr, kernel = kernel, mmd_estimators = 'MMD_u', discount = 0.1, h = 2, node_attr = 'attr')
 print(f" Propagation {MMD_out.p_values}")
 ```
 
     Using attr as node attributes
     attr
-    
-    
+       
 
      Propagation {'MMD_u': 0.0}
     
@@ -357,7 +355,7 @@ for j in range(len(g2_edge)):
 
 
 ```python
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_edge, G2 = g2_edge, kernel = 'RW_ARKU_edge', mmd_estimators = 'MMD_u', r = 6, c = 0.0001,edge_label = 'edge_label',unique_edge_labels= ['a', 'b'])
 print(f" RW_ARKU_edge {MMD_out.p_values}")
 
@@ -405,7 +403,7 @@ for j in range(len(g2_di)):
 
 
 ```python
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1_di, G2 = g2_di, kernel = 'RW_ARKU', mmd_estimators = 'MMD_u', r = 4, c = 1e-3)
 print(f" RW_ARKU_edge {MMD_out.p_values}")
 
@@ -448,7 +446,6 @@ A_s[2,5] = 0
 X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A_s), size = 10000)
 ```
-
     
 
 Input the two samples X1 and X2 to the class method estimate_graphs. Which estimates graphs according to a window size. The best estimation is selected via the EBIC criterion.
@@ -459,7 +456,7 @@ Input the two samples X1 and X2 to the class method estimate_graphs. Which estim
 # Nonparanormal, should the nonparanormal transformation be performed on the data matrices.
 # Scale should the data be scaled.
 # Random Walk
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.estimate_graphs(X1,X2,window_size=200, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False)
 MMD_out.fit( kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight')
 print(MMD_out.p_values)
@@ -468,8 +465,7 @@ print(MMD_out.p_values)
 ```
 
     Using weight as edge attributes
-    
-    
+       
 
     {'MMD_u': 0.001}
     
@@ -477,7 +473,7 @@ print(MMD_out.p_values)
 
 ```python
 # We can set node labels as degree (or define our own labelling, see below)
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 kernel = [{"name": "weisfeiler_lehman", "n_iter": 4}, {"name": "vertex_histogram"}]
 MMD_out.estimate_graphs(X1,X2,window_size=200, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels="degree")
 MMD_out.fit( kernel = kernel, mmd_estimators = 'MMD_u',  edge_attr = 'weight')
@@ -545,6 +541,7 @@ np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
 X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 10000)
 X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 ```
+
     
 
 
@@ -555,7 +552,7 @@ X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 def attr_function(X):
     return np.expand_dims(np.mean(X,axis = 0),axis=1)
 
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_attributes = attr_function)
 MMD_out.fit( kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight', node_attr = 'attr')
 print(MMD_out.p_values)
@@ -563,7 +560,7 @@ print(MMD_out.p_values)
 
     Using weight as edge attributes
     Using attr as node attributes
-    
+        
 
     {'MMD_u': 0.0}
     
@@ -571,7 +568,7 @@ print(MMD_out.p_values)
 
 ```python
 # If we do not give attributes, the test should not be rejected reject as underlying the precision matrices are the same
-MMD_out_no_attr = mg.MMD()
+MMD_out_no_attr = GTST.MMD()
 MMD_out_no_attr.fit(G1= MMD_out.G1, G2 = MMD_out.G2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight')
 print(MMD_out_no_attr.p_values)
 ```
@@ -589,7 +586,7 @@ def label_function(X):
     return {i:str(np.round(m[i],1)) for i in range(len(m))}
 
 kernel = [{"name": "weisfeiler_lehman", "n_iter": 2}, {"name": "vertex_histogram"}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels= label_function)
 MMD_out.fit(kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
 print(MMD_out.p_values)
@@ -609,7 +606,7 @@ print(MMD_out.p_values)
 label_dict = {'1':{j:i for j,i in enumerate(['a']*6 + ['b']*5)}, 
               '2':{j:i for j,i in enumerate(['a']*4 + ['b']*7)}}
 kernel = [{"name": "weisfeiler_lehman", "n_iter": 2}, {"name": "vertex_histogram"}]
-MMD_out = mg.MMD()
+MMD_out = GTST.MMD()
 MMD_out.estimate_graphs(X1,X2,window_size=400, alpha = np.exp(np.linspace(-5,-2,100)),beta = 0.5, nonparanormal=False,scale = False, set_labels= label_dict)
 MMD_out.fit(kernel = kernel, mmd_estimators = 'MMD_u', node_label = 'label')
 print(MMD_out.p_values)

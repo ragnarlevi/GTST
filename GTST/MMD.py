@@ -5,11 +5,11 @@
 import numpy as np
 import warnings
 import networkx as nx
-from MMDGraph.MONK import MMD_MONK
+from GTST.MONK import MMD_MONK
 import tqdm
 
-from MMDGraph.kernels import RandomWalk, WWL, GNTK, DeepKernel
-import MMDGraph.glasso as glasso
+from GTST.kernels import RandomWalk, WWL, GNTK, DeepKernel
+import GTST.glasso as glasso
 
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n1: int, n2: int):
