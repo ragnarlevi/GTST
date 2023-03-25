@@ -293,6 +293,13 @@ class MMD():
 
 
     def get_mmd_func_pair(self, estimator, Q = None):
+        """
+        estimator: str,
+            which estimator to use
+        Q: int,
+            Number of partitions for MONK
+        
+        """
 
         if estimator == 'MMD_u':
             ret = (MMD_u, {'MMD_u':dict(n1=self.n1, n2=self.n2)})

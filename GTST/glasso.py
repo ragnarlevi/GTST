@@ -38,6 +38,9 @@ class glasso_wrapper():
         self.is_fitted = False
 
     def nonparanormal_transform(self):
+        """
+        Perform nonparanormal transform
+        """
 
         if self.emp_mean is None:
             raise ValueError("empirical mean not calculated")
@@ -53,6 +56,14 @@ class glasso_wrapper():
 
 
     def log_lik(self,mean,cov, X = None):
+        """
+        mean: numpy 1d array
+            mean vector
+        cov: numpy 2d array
+            Covariance matrix
+        X: numpy 2d array
+            Data matrix, where each row is an observation
+        """
 
         if X is None:
             X = self.X
@@ -60,6 +71,16 @@ class glasso_wrapper():
         return np.sum(multivariate_normal.logpdf(X, mean=mean, cov=cov, allow_singular=True))
 
     def ebic(self,mean,cov,prec, X = None):
+        """
+        mean: numpy 1d array
+            mean vector
+        cov: numpy 2d array
+            Covariance matrix
+        prec: numpy 2d array
+            Precision matrix
+        X: numpy 2d array
+            Data matrix, where each row is an observation
+        """
         
         if X is None:
             X = self.X
