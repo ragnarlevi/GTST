@@ -14,6 +14,8 @@ Note that if one wants to use the WWL kernel then the pot package has to be inst
 
 ## Function Inputs
 
+<code> GTST.MMD </code> is the main function used. It is initialized with the following parameters:
+
 ## Usage
 
 We will go thorugh multiple scenariros: The case when the user has it own networkx graphs, when they are estimated from data matricies, using different kernels and using different MMD estimators.
