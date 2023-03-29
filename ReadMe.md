@@ -14,7 +14,68 @@ Note that if one wants to use the WWL kernel then the pot package has to be inst
 
 ## Function Inputs
 
-<code> GTST.MMD </code> is the main function used. It is initialized with the following parameters:
+<code> GTST.MMD </code> is the main function used. If the user already has samples of graph where each sample is a list of networkx graph objects then the user can use <code>fit</code> to perform the hypothesis test
+
+* **kernel**: list, str, np.array. If str then one of kernels provided by the MMDGraph: RW_ARKU_plus, RW_ARKU, RW_ARKU_edge, RW_ARKL, GNTK, WWL, DK. If list then a GraKel kernel is used meaning the list should be formatted as one would do for the GraKel package. If np.array then a pre-calculated kernel is used.
+* **mmd_estimators**:str or list of strings, example MMD_u, MMD_b, MONK, MMD_l.
+
+The fit method additionally takes in additional parameters that are used by the kernel functions or the bootstrap function, such as:
+
+* **edge_attr**: Edge attribute name, if any.
+* **node_attr**: Node attribute name, if any.
+* **node_label**: Node label name, if any.
+* **edge_label**: Edge label  name, if any.
+* **Q**: int, number of partitions for the MONK estimator.
+* **B**: int, number of bootstraps for p-value estimation.
+* **B**: int, number of bootstraps for p-value estimation.
+
+The RW kernels take:
+* **r**: int, number of eigenvalues.
+* **c**: float, discount constant.
+* **normalize**:bool, normalize kernel matrix?
+
+The GNTK kernel takes:
+* **num_layers**: int, number of layers in the neural networks (including the input layer)
+* **num_mlp_layers:int, number of MLP layers
+* **jk: a bool variable indicating whether to add jumping knowledge
+* **scale**:str, the scale used aggregate neighbors [uniform, degree]
+* **normalize**:bool, normalize kernel matrix?
+
+The WWL kernel uses:
+* **discount**: float, discount
+* **h**: int, number of WL iterations:
+* **sinkhorn**:bool, should the Wasserstein calculation be sped up and approxiamted?
+* **sinkhorn_lambda**: float, regularization term >0.
+
+The DK kernel uses:
+* **type**: str, 'wl', 'sp'. 
+* **wl_it**: int, number of WL iterations (only used if type = wl)
+* **opt_type**: str, if opt_type = 'word2vec' then a similarity matrix is estimated using gensim which needs to be installed, If None similarithy matrix is just the frequency.
+* **vector_size**: int,  dimensionality of the word vectors. Only used if opt\_type = 'word2vec'.
+* **window**: int, maximum distance between the current and predicted word within a sentence.  Only used if opt\_type = 'word2vec'.
+* **min_count**: int, Ignores all words with total frequency lower than this. Might have to be set to zero for the estimation to work.  Only used if opt\_type = 'word2vec'.
+* **node_label**: str, name of node lables.
+* **workers**: int, Use these many worker threads to train the model (=faster training with multicore machines).  Only used if opt\_type = 'word2vec'.
+* **normalize**: bool, normalize kernel?
+
+
+
+
+
+If the user has data matrices that the used can use the <code>estimate_graphs</code> method to estimate graph samples using sklearn graphical lassom the inpur are:
+
+* **X1,X2**: two numpy arrays.
+* **window\_size**: integer that controls how many samples are used to estimate each graph. That is window_size = 50, means that the first 50 samples are used to estimate the first graph, the next 50 graphs are used to estimate the second and so on. If the window size is not divisible by the total length of the data arrays then the remainder will be skipped.
+* **alpha**: float, Regularization parameters in a list or a single float. If list then EBIC will be used to select best graph.
+* **beta**: float. EBIC hyperparameter.
+* **nonparanormal**: bool, should data be nonparanormally transformed?
+* **scale** bool , should data be scaled?
+* **set_attributes**: function or None, set attribute of nodes. The function should take numpy array  (which will be a submatrix of X1,X2) as input and output attributes for each node/parameter, used as an attribute for a graph kernel. See an example in usage below.
+* **set_labels**: function, str or None. If a function should take networkx graph as input and output labels for each node/parameter.  Should return a dict {node_i:label,..}. If string = 'degree' then nodes will be labelled with degree. If None no labelling.
+
+After the estimate_graphs procedure has been run then the user should run <code>fit</code> to perform the hypothesis test, but be sure to leave G1 = None and G2= None.
+
+
 
 ## Usage
 

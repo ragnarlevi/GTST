@@ -330,11 +330,11 @@ class MMD():
             Should data be nonparanormally transformed
         scale:bool,
             Should data be scaled
-        get_attribute: function or None,
+        set_attributes: function or None,
             Set attribute of nodes. If a function should take numpy array  (which will be a submatrix of X1,X2) as input and output attributes for each node/parameter, used as an attribute for a graph kernel.
         set_labels: function, str or None:
             Set labels of nods: If a function should take networkx graph as input and output labels for each node/parameter.  Should return a dict {node_i:label,..}
-            If string should be degree and the labels will be labeled as degree
+            If string = 'degree' then nodes will be labelled with degree
             If None no labelling
 
         """
