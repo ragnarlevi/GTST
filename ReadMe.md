@@ -36,8 +36,8 @@ The RW kernels take:
 
 The GNTK kernel takes:
 * **num_layers**: int, number of layers in the neural networks (including the input layer)
-* **num_mlp_layers:int, number of MLP layers
-* **jk: a bool variable indicating whether to add jumping knowledge
+* **num_mlp_layers**:int, number of MLP layers
+* **jk**: a bool variable indicating whether to add jumping knowledge
 * **scale**:str, the scale used aggregate neighbors [uniform, degree]
 * **normalize**:bool, normalize kernel matrix?
 
