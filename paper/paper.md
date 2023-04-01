@@ -5,6 +5,7 @@ tags:
   - kernel
   - two sample testing
   - graph
+  - graph kernel
 authors:
   - name: Ragnar Leví Guðmundarson
     equal-contrib: true
@@ -17,7 +18,7 @@ affiliations:
    index: 1
  - name: 	Department of Statistics & Applied Probability, University of California, Santa Barbara
    index: 2
-date: 16 November 2022
+date: 1 April 2023
 bibliography: paper.bib
 
 ---
@@ -92,22 +93,22 @@ The code was originally used in a paper [@LeviGudmundarson2023] to compare pairw
 
 
 There exists a python package called GraKel [@JMLR:v21:18-370] which is dedicated to calculating various graph kernels. The package is very user-friendly so the MMDGraph user can use all graph kernels available in the Grakel package. The GTST package extends the choice of graph kernels available for use in graph two sample testing, by also developing a collection of kernels not available in GraKel, to therefore add in addition to those included in GraKel the selection follows:
-\begin{enumerate}
-    \item Fast random walk kernels based on ideas from [@Kang2012] along with an additional fast random walk kernel for edge-labeled graphs; 
-    \item The Wasserstein Weisfeiler-Lehman Graph kernel [@Togninalli2019] whose original code was adjusted for the package needs; 
-    \item The Deep Graph kernel [@DK]; and 
-    \item The Graph neural tangent kernel [@Du2019] whose original code was adjusted for the package needs. 
+
+1. Fast random walk kernels based on ideas from [@Kang2012] along with an additional fast random walk kernel for edge-labeled graphs; 
+2. The Wasserstein Weisfeiler-Lehman Graph kernel [@Togninalli2019] whose original code was adjusted for the package needs; 
+3. The Deep Graph kernel [@DK]; and 
+4. The Graph neural tangent kernel [@Du2019] whose original code was adjusted for the package needs. 
 \end{enumerate}
 The package assumes that the graphs passed are a networkx object [@hagberg2020networkx]. One can additionally use its own pre-computed kernel to perform tests.
 
 
 The MMDGraph package allows the user to use 4 different estimates of the MMD, namely:
-\begin{enumerate}
-    \item the unbiased version $\text{MMD}_u$, 
-    \item the biased version $\text{MMD}_b$, 
-    \item the unbised computationally cheaper estimate $\text{MMD}_l$, and 
-    \item a robust estimate $\text{MONK}$. 
-\end{enumerate}
+
+1. The unbiased version $\text{MMD}_u$, 
+2. The biased version $\text{MMD}_b$, 
+3. The unbised computationally cheaper estimate $\text{MMD}_l$, and 
+4. A robust estimate $\text{MONK}$. 
+
 The details of these estimators and their mathematical expression and properties, see [@LeviGudmundarson2023]
 The MONK estimator was developed by $\text{MONK}$ and they do provide the code online and in a package environment. However, we have adjusted the code slightly to allows for robust comparing of samples of different sizes. The MMDGraph then estimates the $p$-value of test by using a bootstrap or a Permutation sampling scheme. 
 
