@@ -1,5 +1,6 @@
 
 """
+# Most of the original code:
 Author: Pinar Yanardag (ypinar@purdue.edu)
 Please refer to: http://web.ics.purdue.edu/~ypinar/kdd for more details.
 """

@@ -7,14 +7,15 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 
 ## How to install
 
-<code> pip install GTST </code>
+<code>pip install GTST</code>
 
-Note that if one wants to use the WWL kernel then the pot package has to be installed via  <code> pip install pot </code>.
+Note that if one wants to use Grakel kernels then the Grakel package has to be installed via  <code>pip install grakel</code>.
+If one wants to use the WWL kernel then the pot package has to be installed via  <code>pip install pot</code>.
 
 
 ## Function Inputs
 
-<code> GTST.MMD </code> is the main function used. If the user already has samples of graph where each sample is a list of networkx graph objects then the user can use <code>fit</code> to perform the hypothesis test
+<code>GTST.MMD</code> is the main function used. If the user already has samples of graphs where each sample is a list of networkx graph objects then the user can use the <code>fit</code> method to perform the hypothesis test.
 
 * **kernel**: list, str, np.array. If str then one of kernels provided by the MMDGraph: RW_ARKU_plus, RW_ARKU, RW_ARKU_edge, RW_ARKL, GNTK, WWL, DK. If list then a GraKel kernel is used meaning the list should be formatted as one would do for the GraKel package. If np.array then a pre-calculated kernel is used.
 * **mmd_estimators**:str or list of strings, example MMD_u, MMD_b, MONK, MMD_l.
@@ -38,31 +39,30 @@ The GNTK kernel takes:
 * **num_layers**: int, number of layers in the neural networks (including the input layer)
 * **num_mlp_layers**:int, number of MLP layers
 * **jk**: a bool variable indicating whether to add jumping knowledge
-* **scale**:str, the scale used aggregate neighbors [uniform, degree]
+* **scale**:str, the scale used aggregate neighbours [uniform, degree]
 * **normalize**:bool, normalize kernel matrix?
 
 The WWL kernel uses:
 * **discount**: float, discount
 * **h**: int, number of WL iterations:
-* **sinkhorn**:bool, should the Wasserstein calculation be sped up and approxiamted?
+* **sinkhorn**:bool, should the Wasserstein calculation be sped up and approximated?
 * **sinkhorn_lambda**: float, regularization term >0.
+* **normalize**: bool, normalize kernel?
 
 The DK kernel uses:
 * **type**: str, 'wl', 'sp'. 
 * **wl_it**: int, number of WL iterations (only used if type = wl)
-* **opt_type**: str, if opt_type = 'word2vec' then a similarity matrix is estimated using gensim which needs to be installed, If None similarithy matrix is just the frequency.
-* **vector_size**: int,  dimensionality of the word vectors. Only used if opt\_type = 'word2vec'.
-* **window**: int, maximum distance between the current and predicted word within a sentence.  Only used if opt\_type = 'word2vec'.
+* **opt_type**: str, if opt_type = 'word2vec' then a similarity matrix is estimated using gensim which needs to be installed, If None the similiarity matrix is just the frequency.
+* **vector_size**: int, the dimensionality of the word vectors. Only used if opt\_type = 'word2vec'.
+* **window**: int, the maximum distance between the current and predicted word within a sentence.  Only used if opt\_type = 'word2vec'.
 * **min_count**: int, Ignores all words with total frequency lower than this. Might have to be set to zero for the estimation to work.  Only used if opt\_type = 'word2vec'.
-* **node_label**: str, name of node lables.
+* **node_label**: str, name of node labels.
 * **workers**: int, Use these many worker threads to train the model (=faster training with multicore machines).  Only used if opt\_type = 'word2vec'.
 * **normalize**: bool, normalize kernel?
 
 
 
-
-
-If the user has data matrices that the used can use the <code>estimate_graphs</code> method to estimate graph samples using sklearn graphical lassom the inpur are:
+If the user has data matrices then the method <code>estimate_graphs</code> can be used beforehand to estimate graph samples using sklearn graphical lasso the inputs are:
 
 * **X1,X2**: two numpy arrays.
 * **window\_size**: integer that controls how many samples are used to estimate each graph. That is window_size = 50, means that the first 50 samples are used to estimate the first graph, the next 50 graphs are used to estimate the second and so on. If the window size is not divisible by the total length of the data arrays then the remainder will be skipped.
@@ -71,7 +71,9 @@ If the user has data matrices that the used can use the <code>estimate_graphs</c
 * **nonparanormal**: bool, should data be nonparanormally transformed?
 * **scale** bool , should data be scaled?
 * **set_attributes**: function or None, set attribute of nodes. The function should take numpy array  (which will be a submatrix of X1,X2) as input and output attributes for each node/parameter, used as an attribute for a graph kernel. See an example in usage below.
-* **set_labels**: function, str or None. If a function should take networkx graph as input and output labels for each node/parameter.  Should return a dict {node_i:label,..}. If string = 'degree' then nodes will be labelled with degree. If None no labelling.
+* **set_labels**: function, str, dict or None. If a function should take networkx graph as input and output labels for each node/parameter.  Should return a dict {node_i:label,..}. 
+If dict, then should be: dict['1'] = dictionary with label for each node in sample 1 ({node:label}),dict['2'] = dictionary with label for each node in sample 2 ({node:label})
+If string = 'degree' then nodes will be labelled with degree. If None no labelling.
 
 After the estimate_graphs procedure has been run then the user should run <code>fit</code> to perform the hypothesis test, but be sure to leave G1 = None and G2= None.
 
@@ -79,7 +81,7 @@ After the estimate_graphs procedure has been run then the user should run <code>
 
 ## Usage
 
-We will go thorugh multiple scenariros: The case when the user has it own networkx graphs, when they are estimated from data matricies, using different kernels and using different MMD estimators.
+We will go through multiple scenarios: The case when the user has it own networkx graphs, when they are estimated from data matrices, using different kernels and using different MMD estimators.
 
 
 ```python
@@ -91,9 +93,9 @@ import GTST
 
 ### Fit when H1 true, different edge probability
 
-In this example, we simulate binomial graphs assuming that samples two have different edge probabilties. There will be 50 graphs in each sample and the number of nodes is 30 for all graphs. Sample 1 has edge probabilty 0.3 and sample 2 has edge probability 0.4. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
+In this example, we simulate binomial graphs assuming that the two samples have different edge probabilities. There will be 50 graphs in each sample and the number of nodes is 30 for all graphs. Sample 1 has an edge probabilty of 0.3 and sample 2 has an edge probability of 0.4. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
 
-Start by creating sample graphs
+Start by creating two samples of graphs
 
 
 ```python
@@ -111,7 +113,7 @@ for j in range(len(g2)):
 
 ```
 
-Perform MMD test using various kernels. Note that the unbiases MMD estimator is used
+Perform the MMD test using various kernels. Note that the unbiases MMD estimator is used
 
 
 ```python
@@ -141,8 +143,8 @@ print(f" RW_ARKL {MMD_out.p_values}")
 
 ```python
 # GNTK kernel,
-# num_layers is number of layers in neural network,
-# num_mlp_layers is number of multi-layer perceptron layeres
+# num_layers is the number of layers in the neural network,
+# num_mlp_layers is the number of multi-layer perceptron layers
 # jk indicate whether to add jumping knowledge
 # scale how to aggregate neighbours uniform or degree.
 MMD_out = GTST.MMD()
@@ -162,8 +164,8 @@ print(f" GNTK {MMD_out.p_values}")
 ```python
 # WWL kernel
 # discount is discount
-# h is number of WL iterations
-# node_label is name of node labels
+# h is the number of WL iterations
+# node_label is the name of node labels
 MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'WWL', mmd_estimators = 'MMD_u', discount = 0.1, h = 2, node_label = 'label')
 print(f" WWL {MMD_out.p_values}")
@@ -177,7 +179,7 @@ print(f" WWL {MMD_out.p_values}")
 ```python
 # Deep Kernel without the deepness
 # type is wl= wl closeness or sp: shortest path closeness
-# wl_it is number of wl iterations, only applicable for wl.
+# wl_it is the number of wl iterations, only applicable for wl.
 # no deepness in this case only a frequency similarity
 MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, node_label = 'label')
@@ -191,7 +193,7 @@ print(f" ML DK {MMD_out.p_values}")
 
 ```python
 
-# Deep kernel with deepness, user has to install gensim, this might take some time, can try to increase number of workers
+# Deep kernel with deepness, the user has to install gensim, this might take some time, can try to increase the number of workers
 MMD_out = GTST.MMD()
 MMD_out.fit(G1 = g1, G2 = g2, kernel = 'DK', mmd_estimators = 'MMD_u', type = 'wl', wl_it = 4, opt_type = 'word2vec', node_label = 'label', workers = 10)
 print(f" Deep DK {MMD_out.p_values}")
@@ -232,7 +234,7 @@ print(f" propagation {MMD_out.p_values}")
 
 ### Using different MMD estimators
 
-It is also pssobile to use other MMD estimators such as the biases, linear and robust.
+It is also possible  to use other MMD estimators such as the biases, linear and robust.
 
 
 ```python
@@ -249,7 +251,7 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
 
 ### H1 true, Graphs with different weights
 
-It is possible to test graphs which are topologically the same but have different edge weights. Here there are 50 graphs in each sample and the number of nodes is 30 for all graphs. The edge probabilty is 0.3. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
+It is possible to test graphs which are topologically the same but have different edge weights. Here there are 50 graphs in each sample and the number of nodes is 30 for all graphs. The edge probability is 0.3. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
 
 
 ```python
@@ -264,7 +266,7 @@ for j in range(len(g2_weights)):
     nx.set_node_attributes(g2_weights[j], {key: str(value) for key, value in dict(g2_weights[j].degree).items()}, 'label')
 
 
-# For loops for the two samples and functions to generate random weights with uniform distribution
+# For loops to label each node according to its degree for the two samples.
 def edge_dist(loc, scale ):
     from scipy.stats import uniform
     return np.random.normal(loc = loc, scale = scale)# uniform.rvs(size=1,  loc = loc , scale = scale)[0]
@@ -294,7 +296,7 @@ print(f" RW_ARKU_plus {MMD_out.p_values}")
      RW_ARKU_plus {'MMD_u': 0.0}
     
 
-Note that if we use a graph kernel that does not take edge weights into account, the test will not be rejected
+Note that if we use a graph kernel that does not take edge weights into account, the test will not be rejected.
 
 
 ```python
@@ -338,7 +340,7 @@ print(f" propagation {MMD_out.p_values}")
 
  ### H1 true different attributes
 
-Some kernels can be used to compare graph with node attributes
+Some kernels can be used to compare graphs with node attributes.
 
 
 ```python
@@ -403,7 +405,7 @@ print(f" Propagation {MMD_out.p_values}")
 
 ### Different edge labels
 
-The RW kernel can take different edge labels
+The RW kernel can take different edge labels.
 
 
 ```python
@@ -436,8 +438,6 @@ print(f" RW_ARKU_edge {MMD_out.p_values}")
 # Directed Graphs
 
 The RW kernel can take directed graphs
-
-
 
 
 ```python
@@ -480,8 +480,8 @@ print(f" RW_ARKU_edge {MMD_out.p_values}")
      RW_ARKU_edge {'MMD_u': 0.0}
     
 
-### Two data matrices different structure
-It is possible to estimate graphs from data matrices
+### Two data matrices with different structure
+It is possible to estimate graphs from data matrices.
 
 
 ```python
@@ -497,11 +497,11 @@ for e in G.edges():
         w = np.random.uniform(low = 0.1, high = 0.3)
         G.edges[e[0], e[1]]['weight'] = w
 
-# Extract adjacency matrix and fill the diagonal so that the resulting matrix will be positive definite.
+# Extract the adjacency matrix and fill the diagonal so that the resulting matrix will be positive definite.
 A = np.array(nx.adjacency_matrix(G).todense())
 np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
 
-# Copy the adjacency matrix, and remove some edges for that graph,  note the seed is assume to be 45 when G was constructed
+# Copy the adjacency matrix, and remove some edges for that graph, note that the seed is assumed to be 42 when G was constructed
 A_s = A.copy()
 A_s[7,4] = 0
 A_s[4,7] = 0
@@ -520,8 +520,8 @@ Input the two samples X1 and X2 to the class method estimate_graphs. Which estim
 
 
 ```python
-# window size = 200 so 10000/200 = 50 graphs in each sample. (200 observations used to estimate each graph.)
-# Nonparanormal, should the nonparanormal transformation be performed on the data matrices.
+# window size = 200 so 10000/200 = 50 graphs in each sample. (200 observations were used to estimate each graph.)
+# Nonparanormal, should the nonparanormal transformation be performed on the data matrices?
 # Scale should the data be scaled.
 # Random Walk
 MMD_out = GTST.MMD()
@@ -554,7 +554,7 @@ print(MMD_out.p_values)
     {'MMD_u': 0.002}
     
 
-Plot estimated estimated graphs and compare to the true.
+Plot some estimated graphs and compare to the true graphs.
 
 
 ```python
@@ -584,12 +584,12 @@ ax[1,1].set_title("One estimated precision structure from sample 2")
     
 
 
-### Two data matrices same structure different attributes
+### Two data matrices same structure with different attributes
 It is possible to estimate the graphs beforehand and apply a function to get node attributes
 
 
 ```python
-# Generate random samples that have the same underlying precision matrix/graph, but the node have different mean.
+# Generate random samples that have the same underlying precision matrix/graph, but the node has different mean.
 
 G = nx.fast_gnp_random_graph(11, 0.25, seed = 42)
 assert nx.is_connected(G)
@@ -614,7 +614,7 @@ X2 = np.random.multivariate_normal(np.ones(11),np.linalg.inv(A), size = 10000)
 
 
 ```python
-# Random Walk, with attributes, should reject. , the class will use the node label name 'attr'
+# Random Walk, with attributes, should reject. The class will use the node label name 'attr'
 # Define attribute function that sets the mean as the node attribute. 
 # Note the window size is 400 so there will be 400 observations that are used to estimate each graph/node attribute.
 def attr_function(X):
@@ -635,7 +635,7 @@ print(MMD_out.p_values)
 
 
 ```python
-# If we do not give attributes, the test should not be rejected reject as underlying the precision matrices are the same
+# If we do not give attributes, the test should not be rejected as the underlying the precision matrices are the same
 MMD_out_no_attr = GTST.MMD()
 MMD_out_no_attr.fit(G1= MMD_out.G1, G2 = MMD_out.G2, kernel = 'RW_ARKU_plus', mmd_estimators = 'MMD_u', r = 5, c = 0.1, edge_attr = 'weight')
 print(MMD_out_no_attr.p_values)
@@ -647,7 +647,7 @@ print(MMD_out_no_attr.p_values)
 
 
 ```python
-# We can also try to make a label function, has to be a dictionary, the class will use the node label name 'label'
+# We can also try to make a label function, which has to be a dictionary, the class will use the node label name 'label'
 # Note we label the nodes with the rounded mean
 def label_function(X):
     m = np.mean(X,axis = 0)

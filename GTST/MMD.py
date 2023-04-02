@@ -318,8 +318,11 @@ class MMD():
         
     def estimate_graphs(self,X1, X2, window_size:int,alpha:float, beta:float, nonparanormal:bool = False, scale:bool = False, set_attributes = None, set_labels = None ):
         """
-        X1,X2: araray like,
-            real data for sample 1 and 2
+        Estimate two graph samples from two data matrices.
+
+
+        X1,X2: array like,
+            real data for samples 1 and 2
         window_size: int,
             number of data points to estimate each graph
         alpha: list, float,
@@ -332,9 +335,10 @@ class MMD():
             Should data be scaled
         set_attributes: function or None,
             Set attribute of nodes. If a function should take numpy array  (which will be a submatrix of X1,X2) as input and output attributes for each node/parameter, used as an attribute for a graph kernel.
-        set_labels: function, str or None:
+        set_labels: function, str, dict or None:
             Set labels of nods: If a function should take networkx graph as input and output labels for each node/parameter.  Should return a dict {node_i:label,..}
             If string = 'degree' then nodes will be labelled with degree
+            If dict, then should be: dict['1'] = dictionary with label for each node in sample 1 ({node:label}),dict['2'] = dictionary with label for each node in sample 2 ({node:label})
             If None no labelling
 
         """
@@ -344,7 +348,7 @@ class MMD():
         self.nonparanormal = nonparanormal
         self.scale = scale
         
-        # store if attributes, labels are being set
+        # If attributes or labels are being set the we give them this name
         if set_attributes is not None:
             self.node_attr = 'attr'
         
@@ -366,7 +370,7 @@ class MMD():
         self.G1 = []
         self.G2 = []
 
-         # Estimate precision 1
+        # Estimate precision 1
         for i in range(window_size,X1.shape[0]+1,window_size):
             # Extract data points used to estimate a precision matrix
             tmp_X1= X1[(i-window_size):(i)].copy()

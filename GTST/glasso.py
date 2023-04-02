@@ -88,7 +88,7 @@ class glasso_wrapper():
         n = X.shape[0]
 
         prec[np.abs(prec)<1e-3] = 0
-        G = nx.from_numpy_matrix(prec)
+        G = nx.from_numpy_array(prec)
         n_edges = G.number_of_edges()
 
         log_lik_val = self.log_lik(mean,cov, X = self.X)

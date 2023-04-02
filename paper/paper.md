@@ -1,5 +1,5 @@
 ---
-title: 'MMDGraph: A Python package for graph two-sample testing'
+title: '  '
 tags:
   - Python
   - kernel
@@ -40,7 +40,7 @@ The workflow is as follows: 1) Use two data arrays to estimate two sequences/sam
 
 # Brief Introduction to the Problem of Graph Two-Sample Testing
 
-Let $G(V,S)$ denote a graph with vertex set $V$ and edge set $S$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, \mathcal{F}, P)$  and $(\Omega, \mathcal{F}, Q)$, and the goal is to infer whether $P=Q$. \textcolor{red}{We note that in this general testing framework the vertex sets and edge-sets do not have to be equal, but they can be common if it is desirable for the application. This is therefore a very general testing framework.}
+Let $G(V,S)$ denote a graph with vertex set $V$ and edge set $S$. In the two-sample testing of graph-valued, we assume we are given two sets of samples/observations that comprise collections of graph-valued data $\{G_1,...,G_{n}\}$ and $\{G'_1,...,G'_{n'}\}$ where $G_i, G'_j \in \Omega, \quad \forall i,j$. The graphs in the two samples are all generated independently from two probability spaces $(\Omega, \mathcal{F}, P)$  and $(\Omega, \mathcal{F}, Q)$, and the goal is to infer whether $P=Q$. We note that in this general testing framework the vertex sets and edge-sets do not have to be equal, but they can be common if it is desirable for the application. This is therefore a very general testing framework.
 
 It is worth pausing for a moment to inspect the probability spaces more closely. In the simplest case, where we assume both sets of sample graphs come from a common set of vertices, then the sample space $\Omega$ contains all possible edges that can occur in a graph $G$, that is $\Omega = \{ (v_1, v_2), \dots, (v_1, v_{|V|}), (v_2, v_1), \dots, (v_{|V|}, v_{|V|-1}) \}$ \footnote{We are assuming that a node can not be connected to itself}. As the sample space is discrete we can define the $\sigma$-algebra as the power set of $\Omega$, namely, $\mathcal{F} = \mathcal{P}(\Omega)$. The probability function $P: \mathcal{F} \mapsto [0,1]$ then defines the probability of obtaining a certain graph in the sample set of graph-valued data. As an example we can define for instance a population distribution to be uniform  $P(G(V,S)) = \frac{1}{{M \choose |S|}}$ where $M = {|V| \choose 2}$ is the total number of possible edges and $G(V,S)$ is a graph with $|V|$ vertices and $|S|$ number of edges.  This setting is illustrated in figure \ref{fig:two_sample_testing}
 
@@ -91,14 +91,13 @@ The code was originally used in a paper [@LeviGudmundarson2023] to compare pairw
 
 # The MMDGraph package
 
-
 There exists a python package called GraKel [@JMLR:v21:18-370] which is dedicated to calculating various graph kernels. The package is very user-friendly so the MMDGraph user can use all graph kernels available in the Grakel package. The GTST package extends the choice of graph kernels available for use in graph two sample testing, by also developing a collection of kernels not available in GraKel, to therefore add in addition to those included in GraKel the selection follows:
 
 1. Fast random walk kernels based on ideas from [@Kang2012] along with an additional fast random walk kernel for edge-labeled graphs; 
 2. The Wasserstein Weisfeiler-Lehman Graph kernel [@Togninalli2019] whose original code was adjusted for the package needs; 
 3. The Deep Graph kernel [@DK]; and 
 4. The Graph neural tangent kernel [@Du2019] whose original code was adjusted for the package needs. 
-\end{enumerate}
+
 The package assumes that the graphs passed are a networkx object [@hagberg2020networkx]. One can additionally use its own pre-computed kernel to perform tests.
 
 
