@@ -2,7 +2,7 @@
 
 ## What is this package for?
 
-This package contains code to perform kernel two-sample hypothesis testing on samples of graphs. The code additionally allows for estimation of graphs from a real data matrix.
+This package contains code to perform kernel two-sample hypothesis testing on samples of graphs. The code additionally allows for the estimation of graphs from a real data matrix. Below one can find a description of the various function inputs available and examples of different use cases this package offers.
 
 
 ## How to install
