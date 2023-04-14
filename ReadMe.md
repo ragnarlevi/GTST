@@ -1,4 +1,5 @@
-# MMDGraph
+# GTST
+
 
 ## What is this package for?
 
