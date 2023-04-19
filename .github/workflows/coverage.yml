@@ -14,25 +14,12 @@ jobs:
       with:
         node-version: 16.x
 
-    - name: npm install, make test-coverage
+    - name: coveralls coverage
       run: |
-        npm install
-        make test-coverage
-    - name: Report Coveralls (Linux)
-      if: startsWith(runner.os, 'Linux')
-      run: curl -sL https://coveralls.io/coveralls-linux.tar.gz | tar -xz && ./coveralls
+        pip install pytest
+        pip install pytest-cov
+        pip install coveralls
+        coverage run -m pytest tests/
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Report Coveralls (Windows)
-      if: startsWith(runner.os, 'Windows')
-      run: curl -sL https://github.com/coverallsapp/coverage-reporter/releases/latest/download/coveralls-windows.zip | zcat > ./coveralls.exe && ./coveralls.exe
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Report Coveralls (macOS)
-      if: startsWith(runner.os, 'macOS')
-      run: |
-        brew tap coverallsapp/coveralls --quiet
-        brew install coveralls --quiet
-        coveralls
+        

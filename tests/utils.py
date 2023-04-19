@@ -15,7 +15,7 @@ def generate_H0_false() -> tuple:
     """
 
 
-    n1 = n2 = 70  # sample sizes
+    n1 = n2 = 100  # sample sizes
     # generate two samples
     g1 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n1)]
     g2 = [nx.fast_gnp_random_graph(30,0.5) for _ in range(n2)]
@@ -47,7 +47,7 @@ def generate_H0_false_but_same_topology() -> tuple:
     """
 
 
-    n1 = n2 = 70  # sample sizes
+    n1 = n2 = 100  # sample sizes
     # generate two samples
     g1 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n1)]
     g2 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n2)]
@@ -92,7 +92,7 @@ def generate_H0_false_but_same_topology() -> tuple:
 
 def generate_H0_false_directed():
 
-    n1 = n2 = 70
+    n1 = n2 = 100
     g1_di = [nx.fast_gnp_random_graph(30,0.2) for _ in range(n1)]  # sample 1
     g2_di = [nx.fast_gnp_random_graph(30,0.2) for _ in range(n2)]  # sample 2
 
