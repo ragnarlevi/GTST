@@ -168,12 +168,14 @@ def generate_Xs_H0_false():
     A_s[6,8] = 0
     A_s[8,5] = 0
     A_s[5,8] = 0
+    A_s[2,8] = 0
+    A_s[8,2] = 0
 
 
     # Simulate random variables one has A as its precision and one has A_s (the sparse copy of A) as its precision matrix.
     # Note the precision matrix is the inverse covariance.
-    X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 20000)
-    X2 = np.random.multivariate_normal(np.ones(11)*0.5,np.linalg.inv(A_s), size = 20000)
+    X1 = np.random.multivariate_normal(np.zeros(11),np.linalg.inv(A), size = 40000)
+    X2 = np.random.multivariate_normal(np.ones(11)*0.5,np.linalg.inv(A_s), size = 40000)
 
     return X1,X2
 
