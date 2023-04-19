@@ -15,7 +15,7 @@ def generate_H0_false() -> tuple:
     """
 
 
-    n1 = n2 = 50  # sample sizes
+    n1 = n2 = 100  # sample sizes
     # generate two samples
     g1 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n1)]
     g2 = [nx.fast_gnp_random_graph(30,0.5) for _ in range(n2)]
@@ -34,9 +34,9 @@ def generate_H0_false() -> tuple:
 
 
     for j in range(len(g1)):
-        nx.set_node_attributes(g1[j], dict( ( (i, np.random.normal(loc = 0, scale = 0.1, size = (1,))) for i in range(len(g1[j])) ) ), 'attr')
+        nx.set_node_attributes(g1[j], dict( ( (i, np.random.normal(loc = 0, scale = 0.01, size = (1,))) for i in range(len(g1[j])) ) ), 'attr')
     for j in range(len(g2)):
-        nx.set_node_attributes(g2[j], dict( ( (i, np.random.normal(loc = 1, scale = 0.1, size = (1,))) for i in range(len(g2[j])) ) ), 'attr')
+        nx.set_node_attributes(g2[j], dict( ( (i, np.random.normal(loc = 0.1, scale = 0.01, size = (1,))) for i in range(len(g2[j])) ) ), 'attr')
 
     return g1, g2
 
@@ -47,7 +47,7 @@ def generate_H0_false_but_same_topology() -> tuple:
     """
 
 
-    n1 = n2 = 50  # sample sizes
+    n1 = n2 = 100  # sample sizes
     # generate two samples
     g1 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n1)]
     g2 = [nx.fast_gnp_random_graph(30,0.3) for _ in range(n2)]
@@ -73,8 +73,7 @@ def generate_H0_false_but_same_topology() -> tuple:
 
 
     def edge_dist(loc, scale ):
-        from scipy.stats import uniform
-        return np.random.normal(loc = loc, scale = scale)# uniform.rvs(size=1,  loc = loc , scale = scale)[0]
+        return np.random.normal(loc = loc, scale = scale)
     def add_weight(G, loc, scale ):
         edge_w = dict()
         for e in G.edges():
@@ -83,7 +82,7 @@ def generate_H0_false_but_same_topology() -> tuple:
 
 
     for G in g1:
-        nx.set_edge_attributes(G, add_weight(G, loc = 0.5, scale = 0.5), "weight")
+        nx.set_edge_attributes(G, add_weight(G, loc = 0.5, scale = 0.05), "weight")
     for G in g2:
         nx.set_edge_attributes(G, add_weight(G, loc = 0.5, scale = 3), "weight")
 
@@ -93,7 +92,7 @@ def generate_H0_false_but_same_topology() -> tuple:
 
 def generate_H0_false_directed():
 
-    n1 = n2 = 50
+    n1 = n2 = 100
     g1_di = [nx.fast_gnp_random_graph(30,0.2) for _ in range(n1)]  # sample 1
     g2_di = [nx.fast_gnp_random_graph(30,0.2) for _ in range(n2)]  # sample 2
 
