@@ -393,85 +393,6 @@ class RandomWalk():
 
         return (i,j,value)
 
-    def fit_ARKL(self, r, label_list, normalize_adj = False, row_normalize_adj = False, edge_attr =None, verbose = True, label_name = 'label'):
-        """
-        Fit approximate label node random walk kernel.
-
-        Parameters
-        ----------------------------
-        r - int, number of eigenvalues
-        label_list - array with labels
-        normalize_adj - bool, Should the adj matrix normalized? D^{-1/2}AD^{-1/2} where A is adj matrix and D is degree matrix.
-        row_normalize_adj - bool, Should the adj matrix be row normalized? AD^{-1/2} where A is adj matrix and D is degree matrix.
-        verbose - bool, print progress bar?
-        label_name - str, what is the name of labels
-
-        Returns 
-        ------------------
-        K - np.array, N x N, kernel matrix, N number of graphs
-        
-        """
-
-        if normalize_adj and row_normalize_adj:
-            raise ValueError("Can not have both row normalized and normalized adj") 
-
-        
-        all_A = [None] * self.N
-        U_list = [None] * self.N  # left SVD matrix of each adj matrix
-        Lamda_list = [None] * self.N  # eigenvalues of each adj matrix
-        Vt_list = [None] * self.N  # Right transposed SVD matrix of each adj matrix
-        K = np.zeros((self.N, self.N))
-
-        if verbose:
-            pbar = tqdm.tqdm(disable=(verbose is False), total=self.N*(self.N+1)/2)
-
-        # get label matrix/vector of all graphs
-        Ls = [None] * self.N
-        for i in range(self.N):
-            Ls[i] = self._get_node_label_vectors(self.X[i], label_list, label_name)
-
-        for i in range(self.N):
-            for j in range(i,self.N):
-
-
-                if row_normalize_adj:
-                    if all_A[i] is None:
-                        all_A[i] = self._row_normalized_adj(self.X[i], edge_attr = edge_attr)
-                        U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
-                    if all_A[j] is None:
-                        all_A[j] = self._row_normalized_adj(self.X[j], edge_attr = edge_attr)
-                        U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
-                else:
-                    if all_A[i] is None:
-                        all_A[i] = self._get_adj_matrix(self.X[i], edge_attr = edge_attr)
-                        U_list[i], Lamda_list[i], Vt_list[i] = randomized_svd(all_A[i].T, n_components= r)
-                    if all_A[j] is None:
-                        all_A[j] = self._get_adj_matrix(self.X[j], edge_attr = edge_attr)
-                        U_list[j], Lamda_list[j], Vt_list[j] = randomized_svd(all_A[j].T, n_components= r)
-                
-
-
-                p1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                p2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-                q1 = np.ones((self.X[i].number_of_nodes())) / float(self.X[i].number_of_nodes())
-                q2 = np.ones((self.X[j].number_of_nodes())) / float(self.X[j].number_of_nodes())
-    
-
-                K[i,j] = self.ARKL(U_list[i], Lamda_list[i], Vt_list[i], U_list[j], Lamda_list[j], Vt_list[j], r, Ls[i], Ls[j], p1, p2, q1, q2)
-
-                if verbose:
-                    pbar.update()
-
-        if verbose:
-            pbar.close()
-            
-        K = np.triu(K) + np.triu(K, 1).T
-
-        if self.normalize:
-            K = self.normalize_gram_matrix(K)
-
-        return K
-
 
     def ARKU_plus(self, u1, w1, u2, w2, r, p1, p2, q1, q2):
         """
@@ -537,7 +458,7 @@ class RandomWalk():
         """
 
         # A = nx.linalg.adjacency_matrix(G, dtype = float)
-        A = nx.to_scipy_sparse_array(G ,weight=self.edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+        A = nx.adjacency_matrix(G ,weight=self.edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
         if type(self.X[0]) == nx.classes.digraph.DiGraph:
             D_inv = scipy.sparse.dia_matrix(([zero_div(1.0, d[1]) for d in G.out_degree()], 0), shape = (A.shape[0], A.shape[0]))
         else:
@@ -557,7 +478,7 @@ class RandomWalk():
         G - networkx graph
 
         """
-        return scipy.sparse.csr_matrix(nx.to_scipy_sparse_array(G ,weight=edge_attr), dtype=np.float64)
+        return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
 
     def _get_node_label_vectors(self, G, label_list, label_name = 'label'):
         """
@@ -621,7 +542,7 @@ class RandomWalk():
                 if v == label:
                     G_tmp.remove_edge(k[0], k[1])
 
-            A[idx] = scipy.sparse.csr_matrix(nx.to_scipy_sparse_array(G_tmp, weight=edge_attr), dtype=np.float64)
+            A[idx] = scipy.sparse.csr_matrix(nx.adjacency_matrix(G_tmp, weight=edge_attr), dtype=np.float64)
         
         return A
 

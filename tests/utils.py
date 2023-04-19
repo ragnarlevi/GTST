@@ -122,18 +122,18 @@ def assert_positive_eig(K):
     min_eig = np.real(np.min(np.linalg.eig(K)[0]))
     assert_array_less(default_eigvalue_precision, min_eig)
 
-def assert_low_p_val(p_values, info = ""):
-    assert np.all(np.fromiter(p_values.values(), dtype=float) < 0.01), f"Some p value too high {p_values} for {info}"
+def assert_low_p_val(p_values, who = ""):
+    assert np.all(np.fromiter(p_values.values(), dtype=float) < 0.01), f"Some p value too high {p_values} for {who}"
 
 
 
-def assert_low_p_val_from_K(K,g1,g2):
+def assert_low_p_val_from_K(K,g1,g2, who = ''):
     # Test MMD, should give very low p-val
     pval = BoostrapMethods(list_of_functions=[MMD_u, MMD_b, MMD_l], function_arguments={'MMD_u':{'n1':len(g1), 'n2':len(g2)}, 
                                                                                         'MMD_b':{'n1':len(g1), 'n2':len(g2)}, 
                                                                                         'MMD_l':{'n1':len(g1), 'n2':len(g2)}})
     pval.Bootstrap(K, 1000)
-    assert np.all(np.fromiter(pval.p_values.values(), dtype=float) < 0.01), f"Some p value too high {pval.p_values}"
+    assert np.all(np.fromiter(pval.p_values.values(), dtype=float) < 0.01), f"Some p value too high {pval.p_values} for {who}"
 
 
 def generate_Xs_H0_false():

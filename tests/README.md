@@ -10,7 +10,7 @@ Once the required packages have been installed, the tests can be performed by ru
 pytest
 ```
 
-in the root folder. This will generate a coverage report which can be found in the `htmlcov` directory. To view it run
+in the root folder. Will take around 15 minutes. This will generate a coverage report which can be found in the `htmlcov` directory. To view it run
 
 ```
 cd htmlcov && python -m http.server
