@@ -1,5 +1,5 @@
 ![Tests](https://github.com/ragnarlevi/GTST/actions/workflows/tests.yml/badge.svg)
-
+[![Coverage Status](https://coveralls.io/repos/github/ragnarlevi/GTST/badge.svg?branch=test)](https://coveralls.io/github/ragnarlevi/GTST?branch=test)
 
 # GTST
 

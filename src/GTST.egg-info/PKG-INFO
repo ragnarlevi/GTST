@@ -13,19 +13,18 @@ Platform: cygwin
 Platform: win32
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3 :: Only
-Classifier: Programming Language :: Python :: 3.7
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.7
+Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Provides-Extra: testing
 License-File: LICENSE
 
 ![Tests](https://github.com/ragnarlevi/GTST/actions/workflows/tests.yml/badge.svg)
-
+[![Coverage Status](https://coveralls.io/repos/github/ragnarlevi/GTST/badge.svg?branch=test)](https://coveralls.io/github/ragnarlevi/GTST?branch=test)
 
 # GTST
 
