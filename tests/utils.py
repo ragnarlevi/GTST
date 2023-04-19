@@ -152,7 +152,7 @@ def generate_Xs_H0_false():
             G.edges[e[0], e[1]]['weight'] = w
 
     # Extract adjacency matrix and fill the diagonal so that the resulting matrix will be positive definite.
-    A = np.array(nx.to_scipy_sparse_array(G).todense())
+    A = np.array(nx.adjacency_matrix(G).todense())
     np.fill_diagonal(A, np.sum(np.abs(A), axis = 1)+0.1)
 
     # Copy the adjacency matrix, and remove some edges for that graph,  note the seed is assume to be 45 when G was constructed
