@@ -195,6 +195,7 @@ class WWL():
         if self.param.get('normalize', False):
             K = self.normalize_gram_matrix(K)
 
+        self.K = K
         return  K
 
     @staticmethod

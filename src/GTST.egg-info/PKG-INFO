@@ -1,3 +1,29 @@
+Metadata-Version: 2.1
+Name: GTST
+Version: 0.0.5
+Summary: A package for comparing two-sample of graphs
+Home-page: https://github.com/ragnarlevi/GTST
+Author: ragnarlevi
+License: MIT
+Project-URL: Bug Tracker, https://github.com/ragnarlevi/GTST/issues
+Platform: unix
+Platform: linux
+Platform: osx
+Platform: cygwin
+Platform: win32
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Provides-Extra: testing
+License-File: LICENSE
+
 ![Tests](https://github.com/ragnarlevi/GTST/actions/workflows/tests.yml/badge.svg)
 
 

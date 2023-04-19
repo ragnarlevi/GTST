@@ -1,15 +1,10 @@
-
-
-
-
 import numpy as np
 import warnings
 import networkx as nx
 from GTST.MONK import MMD_MONK
 import tqdm
 
-from GTST.kernels import RandomWalk, WWL, GNTK, DeepKernel
-import GTST.glasso as glasso
+import GTST
 
 # Biased empirical maximum mean discrepancy
 def MMD_b(K: np.array, n1: int, n2: int):
@@ -147,7 +142,7 @@ class BoostrapMethods():
     Class for permutation testing
     """
 
-    def __init__(self, list_of_functions:list,function_arguments:dict,) -> None:
+    def __init__(self, list_of_functions:list,function_arguments:dict) -> None:
         """
 
         Parameters
@@ -241,7 +236,7 @@ class BoostrapMethods():
         for boot in range(B):
             K_i = evaluation_method(K)
             if check_symmetry:
-                if self.issymmetric(K_i):
+                if not self.issymmetric(K_i):
                     warnings.warn("Not a Symmetric matrix", Warning)
 
             # apply each test defined in list_if_functions, and keep the bootstraped/permutated value
@@ -378,7 +373,7 @@ class MMD():
             if tmp_X1.shape[0] != window_size:
                 break
         
-            info_G1 = glasso.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X1)
+            info_G1 = GTST.glasso.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X1)
             precision1 = info_G1.precision_.copy()
             np.fill_diagonal(precision1,0)
             G1i = nx.from_numpy_array(precision1)
@@ -406,7 +401,7 @@ class MMD():
             if tmp_X2.shape[0] != window_size:
                 break
              # Estimate precision2
-            info_G2 = glasso.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X2)
+            info_G2 = GTST.glasso_wrapper(alpha =self.alpha, beta = self.beta, nonparanormal=self.nonparanormal, scale = self.scale ).fit(tmp_X2)
             precision2 = info_G2.precision_.copy()
             np.fill_diagonal(precision2,0)
             G2i = nx.from_numpy_array(precision2)
@@ -511,7 +506,7 @@ class MMD():
 
         # Caluclate kernel
         if kernel == "RW_ARKU_plus":
-            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+            rw_kernel = GTST.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
                                                 edge_attr=getattr(self, 'edge_attr', None), 
                                                 normalize=kwargs.get('normalize',False), 
                                                 node_attr= getattr(self, 'node_attr', None))
@@ -522,7 +517,7 @@ class MMD():
             self.K = rw_kernel.K
             del rw_kernel
         elif kernel == "RW_ARKU":
-            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+            rw_kernel = GTST.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
                                                 edge_attr=getattr(self, 'edge_attr', None), 
                                                 normalize=kwargs.get('normalize',False), 
                                                 node_attr= getattr(self, 'node_attr', None))
@@ -533,7 +528,7 @@ class MMD():
             self.K = rw_kernel.K
             del rw_kernel
         elif kernel == "RW_ARKU_edge":
-            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+            rw_kernel = GTST.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
                                     edge_attr=getattr(self, 'edge_attr', None), 
                                     normalize=kwargs.get('normalize',False), 
                                     edge_label = kwargs['edge_label'],
@@ -545,7 +540,7 @@ class MMD():
             self.K = rw_kernel.K
             del rw_kernel
         elif kernel == "RW_ARKL":
-            rw_kernel = RandomWalk.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
+            rw_kernel = GTST.RandomWalk(self.G1+self.G2, r = kwargs['r'],c = kwargs['c'], 
                                     edge_attr=getattr(self, 'edge_attr', None), 
                                     normalize=kwargs.get('normalize',False), 
                                     node_label = kwargs['node_label'],
@@ -557,20 +552,20 @@ class MMD():
             self.K = rw_kernel.K
             del rw_kernel
         elif kernel == "GNTK":
-            gntk_kernel = GNTK.GNTK(num_layers= kwargs['num_layers'], num_mlp_layers = kwargs['num_layers'], 
+            gntk_kernel = GTST.GNTK(num_layers= kwargs['num_layers'], num_mlp_layers = kwargs['num_layers'], 
                                         jk = kwargs['jk'], scale = kwargs['scale'], normalize=kwargs.get('normalize',False))
             
-            gntk_kernel.fit_all(self.G1+self.G2,degree_as_tag=kwargs.get('degree_as_tag',True),features= getattr(self, 'node_attr', None))
+            gntk_kernel.fit_all(self.G1+self.G2,degree_as_tag=kwargs.get('degree_as_tag',True),features= getattr(self, 'node_attr', None), verbose = kwargs.get('verbose',False))
             self.K = gntk_kernel.K
             del gntk_kernel
         elif kernel == "WWL":
-            wwl_kernel = WWL.WWL( param =dict(discount=kwargs['discount'], h=kwargs['h'], sinkhorn=kwargs.get('sinkhorn', False), 
+            wwl_kernel = GTST.WWL( param =dict(discount=kwargs['discount'], h=kwargs['h'], sinkhorn=kwargs.get('sinkhorn', False), 
                                     sinkhorn_lambda = kwargs.get('sinkhorn_lambda', 1), normalize = kwargs.get('normalize',False)),
                                     label_name=self.node_label)
             self.K = wwl_kernel.fit_transform(self.G1+self.G2)
             del wwl_kernel
         elif kernel == 'DK':
-            dk_kernel = DeepKernel.DK(type = kwargs['type'], wl_it = kwargs.get('wl_it',2),opt_type= kwargs.get('opt_type',None),
+            dk_kernel = GTST.DK(type = kwargs['type'], wl_it = kwargs.get('wl_it',2),opt_type= kwargs.get('opt_type',None),
                                       vector_size= kwargs.get('vector_size',2), window=kwargs.get('window',2), min_count=kwargs.get('min_count',0), 
                                       normalize = kwargs.get('normalize',False), nodel_label=self.node_label)
             self.K = dk_kernel.fit_transform(self.G1+self.G2)
@@ -600,8 +595,7 @@ class MMD():
             raise ValueError(f'{kernel} not defined ')
 
 
-
-        pval.Bootstrap(self.K, kwargs.get('B',1000))
+        pval.Bootstrap(self.K, kwargs.get('B',1000), method = kwargs.get('bootstrap_method', 'PermutationScheme'), check_symmetry=kwargs.get('check_symmetry', False))
         self.p_values = pval.p_values
         self.sample_mmd = pval.sample_test_statistic
 

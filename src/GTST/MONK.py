@@ -63,7 +63,7 @@ class MMD_MONK():
 
         # Even so that the median can be calculated by picking the middle point
         if Q % 2 == 0:
-            raise ValueError('Q should be even')
+            raise ValueError('Q should be odd')
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         values.pop("self")
         for arg, val in values.items():

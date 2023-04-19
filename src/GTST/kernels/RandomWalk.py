@@ -109,7 +109,7 @@ class RandomWalk():
             self.Ls = [None] * self.N
             for i in range(self.N):
                 self.Ls[i] = self._get_node_label_vectors(self.X[i], self.unique_node_labels, self.node_label)
-        
+                
         # Calculate kernel
         for i in range(self.N):
             for j in range(i,self.N):
@@ -537,7 +537,7 @@ class RandomWalk():
         """
 
         # A = nx.linalg.adjacency_matrix(G, dtype = float)
-        A = nx.adjacency_matrix(G ,weight=self.edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+        A = nx.to_scipy_sparse_array(G ,weight=self.edge_attr)# scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
         if type(self.X[0]) == nx.classes.digraph.DiGraph:
             D_inv = scipy.sparse.dia_matrix(([zero_div(1.0, d[1]) for d in G.out_degree()], 0), shape = (A.shape[0], A.shape[0]))
         else:
@@ -557,7 +557,7 @@ class RandomWalk():
         G - networkx graph
 
         """
-        return scipy.sparse.csr_matrix(nx.adjacency_matrix(G ,weight=edge_attr), dtype=np.float64)
+        return scipy.sparse.csr_matrix(nx.to_scipy_sparse_array(G ,weight=edge_attr), dtype=np.float64)
 
     def _get_node_label_vectors(self, G, label_list, label_name = 'label'):
         """
@@ -621,7 +621,7 @@ class RandomWalk():
                 if v == label:
                     G_tmp.remove_edge(k[0], k[1])
 
-            A[idx] = scipy.sparse.csr_matrix(nx.adjacency_matrix(G_tmp, weight=edge_attr), dtype=np.float64)
+            A[idx] = scipy.sparse.csr_matrix(nx.to_scipy_sparse_array(G_tmp, weight=edge_attr), dtype=np.float64)
         
         return A
 

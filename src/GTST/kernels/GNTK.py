@@ -1,3 +1,9 @@
+### Most of the code is from Simon S. Du, Kangcheng Hou, Barnabás Póczos, Ruslan Salakhutdinov, Ruosong Wang, Keyulu Xu. Graph Neural Tangent Kernel: Fusing Graph Neural Networks with Graph Kernels. NeurIPS 2019
+## Adjusted so the class can work on networkx graphs
+
+
+
+
 import math
 import numpy as np
 import scipy as sp
