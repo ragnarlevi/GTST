@@ -2,7 +2,7 @@ import numpy as np
 import networkx as nx
 
 import sys, os
-sys.path.append('../src')
+sys.path.append('src')
 from GTST import MMD 
 from tests.utils import generate_H0_false, assert_low_p_val,  generate_H0_false_but_same_topology, generate_H0_false_directed, generate_Xs_H0_false
 

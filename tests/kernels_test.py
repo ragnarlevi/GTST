@@ -1,5 +1,5 @@
 import sys, os
-sys.path.append('../src')
+sys.path.append('src')
 import numpy as np
 import networkx as nx
 from GTST import RandomWalk, GNTK, DK, WWL, BoostrapMethods, MMD_b, MMD_l, MMD_u, MONK_EST  
