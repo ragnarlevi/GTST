@@ -1,9 +1,0 @@
-scipy>=1.6.1
-tqdm>=4.59.0
-numpy>=1.20.1
-networkx>=2.5
-
-[testing]
-pytest>=7.3.0
-pytest-cov>=2.0
-tox>=3.24

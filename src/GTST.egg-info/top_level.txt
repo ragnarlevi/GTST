@@ -1,2 +1,0 @@
-GTST
-GTST/kernels
