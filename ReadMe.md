@@ -14,14 +14,13 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 <code>pip install GTST</code>
 
 Note that if one wants to use Grakel kernels then the Grakel package has to be installed via  <code>pip install grakel</code>.
-If one wants to use the WWL kernel then the pot package has to be installed via  <code>pip install pot</code>.
 
 
 ## Function Inputs
 
 <code>GTST.MMD</code> is the main function used. If the user already has samples of graphs where each sample is a list of networkx graph objects then the user can use the <code>fit</code> method to perform the hypothesis test.
 
-* **kernel**: list, str, np.array. If str then one of kernels provided by the MMDGraph: RW_ARKU_plus, RW_ARKU, RW_ARKU_edge, RW_ARKL, GNTK, WWL, DK. If list then a GraKel kernel is used meaning the list should be formatted as one would do for the GraKel package. If np.array then a pre-calculated kernel is used.
+* **kernel**: list, str, np.array. If str then one of the kernels provided by the MMDGraph: RW_ARKU_plus, RW_ARKU, RW_ARKU_edge, RW_ARKL, GNTK, WWL, DK. If list then a GraKel kernel is used meaning the list should be formatted as one would do for the GraKel package. If np.array then a pre-calculated kernel is used.
 * **mmd_estimators**:str or list of strings, example MMD_u, MMD_b, MONK, MMD_l.
 
 The fit method additionally takes in additional parameters that are used by the kernel functions or the bootstrap function, such as:
@@ -29,7 +28,7 @@ The fit method additionally takes in additional parameters that are used by the 
 * **edge_attr**: Edge attribute name, if any.
 * **node_attr**: Node attribute name, if any.
 * **node_label**: Node label name, if any.
-* **edge_label**: Edge label  name, if any.
+* **edge_label**: Edge label name, if any.
 * **Q**: int, number of partitions for the MONK estimator.
 * **B**: int, number of bootstraps for p-value estimation.
 * **B**: int, number of bootstraps for p-value estimation.
@@ -56,7 +55,7 @@ The WWL kernel uses:
 The DK kernel uses:
 * **type**: str, 'wl', 'sp'. 
 * **wl_it**: int, number of WL iterations (only used if type = wl)
-* **opt_type**: str, if opt_type = 'word2vec' then a similarity matrix is estimated using gensim which needs to be installed, If None the similiarity matrix is just the frequency.
+* **opt_type**: str, if opt_type = 'word2vec' then a similarity matrix is estimated using gensim which needs to be installed, If None the similarity matrix is just the frequency.
 * **vector_size**: int, the dimensionality of the word vectors. Only used if opt\_type = 'word2vec'.
 * **window**: int, the maximum distance between the current and predicted word within a sentence.  Only used if opt\_type = 'word2vec'.
 * **min_count**: int, Ignores all words with total frequency lower than this. Might have to be set to zero for the estimation to work.  Only used if opt\_type = 'word2vec'.
@@ -65,12 +64,11 @@ The DK kernel uses:
 * **normalize**: bool, normalize kernel?
 
 
-
 If the user has data matrices then the method <code>estimate_graphs</code> can be used beforehand to estimate graph samples using sklearn graphical lasso the inputs are:
 
 * **X1,X2**: two numpy arrays.
-* **window\_size**: integer that controls how many samples are used to estimate each graph. That is window_size = 50, means that the first 50 samples are used to estimate the first graph, the next 50 graphs are used to estimate the second and so on. If the window size is not divisible by the total length of the data arrays then the remainder will be skipped.
-* **alpha**: float, Regularization parameters in a list or a single float. If list then EBIC will be used to select best graph.
+* **window\_size**: an integer that controls how many samples are used to estimate each graph. That is window_size = 50, which means that the first 50 samples are used to estimate the first graph, the next 50 graphs are used to estimate the second and so on. If the window size is not divisible by the total length of the data arrays then the remainder will be skipped.
+* **alpha**: float, Regularization parameters in a list or a single float. If a list then EBIC will be used to select the best graph.
 * **beta**: float. EBIC hyperparameter.
 * **nonparanormal**: bool, should data be nonparanormally transformed?
 * **scale** bool , should data be scaled?
@@ -83,9 +81,10 @@ After the estimate_graphs procedure has been run then the user should run <code>
 
 
 
+
 ## Usage
 
-We will go through multiple scenarios: The case when the user has it own networkx graphs, when they are estimated from data matrices, using different kernels and using different MMD estimators.
+We will go through multiple scenarios: The case when the user has its own networkx graphs, when they are estimated from data matrices, using different kernels and using different MMD estimators.
 
 
 ```python
@@ -97,9 +96,9 @@ import GTST
 
 ### Fit when H1 true, different edge probability
 
-In this example, we simulate binomial graphs assuming that the two samples have different edge probabilities. There will be 50 graphs in each sample and the number of nodes is 30 for all graphs. Sample 1 has an edge probabilty of 0.3 and sample 2 has an edge probability of 0.4. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
+In this example, we simulate binomial graphs assuming that the two samples have different edge probabilities. There will be 50 graphs in each sample and the number of nodes is 30 for all graphs. Sample 1 has an edge probability of 0.3 and sample 2 has an edge probability of 0.4. We will label each node with its corresponding degree so that graph kernels that assume labels can be used.
 
-Start by creating two samples of graphs
+Start by creating two samples of graphs:
 
 
 ```python

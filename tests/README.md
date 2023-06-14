@@ -1,6 +1,6 @@
 # Instructions for running tests for GTST
 
-The requirements for running test for GTST is listed in the `requirements_dev.txt`. The test involve testing if kenrels as positive semi definite and weather the kernels, test statistic, and permutation method for the p-value are able to reject the null when the null is "extremely" false.
+The requirements for running test for GTST is listed in the `requirements_dev.txt`. The test involve testing if kernels as positive semi definite and weather the kernels, test statistic, and permutation method for the p-value are able to reject the null when the null is "extremely" false.
 
 ## Testing with PyTest
 
