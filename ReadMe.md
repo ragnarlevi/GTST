@@ -1,7 +1,9 @@
+# GTST: A package for graph two sample testing
+
+[![DOI](https://zenodo.org/badge/349102514.svg)](https://zenodo.org/badge/latestdoi/349102514)
+[![PyPI version](https://badge.fury.io/py/GTST.svg)](https://badge.fury.io/py/GTST)
 ![Tests](https://github.com/ragnarlevi/GTST/actions/workflows/tests.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/ragnarlevi/GTST/badge.svg?branch=test)](https://coveralls.io/github/ragnarlevi/GTST?branch=test)
-
-# GTST
 
 
 ## What is this package for?
@@ -15,6 +17,37 @@ This package contains code to perform kernel two-sample hypothesis testing on sa
 
 Note that if one wants to use Grakel kernels then the Grakel package has to be installed via  <code>pip install grakel</code>.
 
+
+
+## Instructions for running tests for GTST
+
+The requirements for running test for GTST is listed in the `requirements_dev.txt`. The test involve testing if kernels as positive semi definite and weather the kernels, test statistic, and permutation method for the p-value are able to reject the null when the null is "extremely" false.
+
+### Testing with PyTest
+
+Once the required packages have been installed, the tests can be performed by running the command 
+
+```
+pytest
+```
+
+in the root folder. Will take around 15 minutes. This will generate a coverage report which can be found in the `htmlcov` directory. To view it run
+
+```
+cd htmlcov && python -m http.server
+``` 
+
+and open the localhost link (something like http://localhost:8000/) in a browser.
+
+### Testing with Tox
+
+To test GTST in a clean environment for all python versions from 3.7-3.10, we use Tox. This can be achieved by running 
+
+```
+tox
+```
+
+in the root directory. Note that this takes significantly longer to run, so is best performed as a final check. 
 
 ## Function Inputs
 
