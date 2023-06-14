@@ -14,7 +14,7 @@ in the root folder. Will take around 15 minutes. This will generate a coverage r
 
 ```
 cd htmlcov && python -m http.server
-```
+``` 
 
 and open the localhost link (something like http://localhost:8000/) in a browser.
 
