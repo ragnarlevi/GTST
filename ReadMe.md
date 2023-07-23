@@ -4,6 +4,7 @@
 [![PyPI version](https://badge.fury.io/py/GTST.svg)](https://badge.fury.io/py/GTST)
 ![Tests](https://github.com/ragnarlevi/GTST/actions/workflows/tests.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/ragnarlevi/GTST/badge.svg?branch=test)](https://coveralls.io/github/ragnarlevi/GTST?branch=test)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/gtst)
 
 
 ## What is this package for?
